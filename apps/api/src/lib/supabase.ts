@@ -41,6 +41,7 @@ interface Database {
           conversation_id: string;
           role: string;
           content: string | null;
+          content_blocks: any;
           tool_calls: any;
           ui_components: any;
           created_at: string;
@@ -49,10 +50,11 @@ interface Database {
           conversation_id: string;
           role: string;
           content?: string | null;
+          content_blocks?: any;
           tool_calls?: any;
           ui_components?: any;
         };
-        Update: Partial<{ content: string }>;
+        Update: Partial<{ content: string; content_blocks: any }>;
         Relationships: [];
       };
       pending_actions: {

@@ -4,10 +4,11 @@ import { handleToolCall } from '../tools/handlers.js';
 import { ALL_TOOLS, TOOL_PROGRESS } from '../tools/definitions.js';
 import { sanitizeChatInput } from '../lib/validation.js';
 import { logger } from '../logger.js';
+import { CLAUDE_MODEL } from '../lib/config.js';
 import type { UserProfile, AgentResponse, UIComponent } from '@agentic-bank/shared';
 
 const anthropic = new Anthropic();
-const MAX_CONVERSATION_MESSAGES = 20;
+const MAX_CONVERSATION_MESSAGES = 50;
 const MAX_TOOL_ITERATIONS = 5;
 
 const SYSTEM_PROMPT = `You are a banking assistant for Agentic Bank, a modern digital bank. You help customers manage their money through natural conversation.
@@ -36,11 +37,6 @@ UI component guidelines:
 - Use loan_offer_card when presenting loan terms
 - Use loan_status_card when showing active loan details
 - Use error_card when there's an error the user should see`;
-
-interface ConversationMessage {
-  role: 'user' | 'assistant';
-  content: string | Anthropic.Messages.ContentBlock[];
-}
 
 export async function processChat(
   userMessage: string,
@@ -91,19 +87,20 @@ export async function processChat(
 
   // Build Claude messages
   const messages: Anthropic.Messages.MessageParam[] = [
-    ...history.map(m => ({
-      role: m.role as 'user' | 'assistant',
-      content: m.content,
-    })),
+    ...history,
     { role: 'user', content: cleanMessage },
   ];
 
   try {
     // Run agent loop (Claude may call multiple tools before responding)
-    const response = await runAgentLoop(messages, user);
+    const response = await runAgentLoop(messages, user, convId);
 
-    // Save assistant response
-    await saveMessage(convId, 'assistant', response.message, undefined, response.ui_components);
+    // Save assistant response with structured content if available
+    if (response.contentBlocks) {
+      await saveStructuredMessage(convId, 'assistant', response.contentBlocks, response.message, response.ui_components);
+    } else {
+      await saveMessage(convId, 'assistant', response.message, undefined, response.ui_components);
+    }
 
     return { ...response, conversation_id: convId };
   } catch (err: any) {
@@ -121,13 +118,14 @@ export async function processChat(
 
 async function runAgentLoop(
   messages: Anthropic.Messages.MessageParam[],
-  user: UserProfile
-): Promise<{ message: string; ui_components?: UIComponent[] }> {
+  user: UserProfile,
+  conversationId: string
+): Promise<{ message: string; ui_components?: UIComponent[]; contentBlocks?: Anthropic.Messages.ContentBlock[] }> {
   let currentMessages = [...messages];
 
   for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration++) {
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: CLAUDE_MODEL,
       max_tokens: 4096,
       system: SYSTEM_PROMPT,
       tools: ALL_TOOLS,
@@ -145,7 +143,10 @@ async function runAgentLoop(
       const textBlocks = response.content.filter(
         (b): b is Anthropic.Messages.TextBlock => b.type === 'text'
       );
-      return { message: textBlocks.map(b => b.text).join('\n') };
+      return {
+        message: textBlocks.map(b => b.text).join('\n'),
+        contentBlocks: response.content,
+      };
     }
 
     // Process tool calls
@@ -164,6 +165,7 @@ async function runAgentLoop(
         return {
           message: input.message,
           ui_components: input.ui_components,
+          contentBlocks: response.content,
         };
       }
 
@@ -186,6 +188,10 @@ async function runAgentLoop(
         });
       }
 
+      // Persist intermediate messages for multi-turn context
+      await saveStructuredMessage(conversationId, 'assistant', response.content);
+      await saveStructuredMessage(conversationId, 'user', toolResults);
+
       // Add assistant response + tool results to continue conversation
       currentMessages = [
         ...currentMessages,
@@ -201,16 +207,61 @@ async function runAgentLoop(
   };
 }
 
-async function getConversationHistory(conversationId: string): Promise<Array<{ role: string; content: string }>> {
+export function extractTextSummary(
+  contentBlocks: Anthropic.Messages.ContentBlockParam[] | Anthropic.Messages.ContentBlock[]
+): string {
+  if (!Array.isArray(contentBlocks)) return '';
+
+  const parts: string[] = [];
+  for (const block of contentBlocks) {
+    if (block.type === 'text' && 'text' in block) {
+      parts.push(block.text);
+    } else if (block.type === 'tool_use' && 'name' in block) {
+      parts.push(`[Called ${block.name}]`);
+    } else if (block.type === 'tool_result') {
+      parts.push('[Tool result]');
+    }
+  }
+  return parts.join(' ') || '';
+}
+
+async function saveStructuredMessage(
+  conversationId: string,
+  role: 'user' | 'assistant',
+  contentBlocks: Anthropic.Messages.ContentBlockParam[] | Anthropic.Messages.ContentBlock[],
+  textSummary?: string,
+  uiComponents?: UIComponent[]
+): Promise<void> {
+  const content = textSummary || extractTextSummary(contentBlocks);
+  await getSupabase().from('messages').insert({
+    conversation_id: conversationId,
+    role,
+    content,
+    content_blocks: contentBlocks,
+    ui_components: uiComponents || null,
+  });
+}
+
+export async function getConversationHistory(
+  conversationId: string
+): Promise<Anthropic.Messages.MessageParam[]> {
   const { data: messages } = await getSupabase()
     .from('messages')
-    .select('role, content')
+    .select('role, content, content_blocks')
     .eq('conversation_id', conversationId)
     .order('created_at', { ascending: true });
 
   return (messages || [])
     .filter(m => m.role === 'user' || m.role === 'assistant')
-    .map(m => ({ role: m.role, content: m.content || '' }));
+    .map(m => {
+      const role = m.role as 'user' | 'assistant';
+      // If structured content_blocks exist, use them
+      if (Array.isArray(m.content_blocks) && m.content_blocks.length > 0) {
+        return { role, content: m.content_blocks };
+      }
+      // Fall back to plain text for legacy messages
+      return { role, content: m.content || '' };
+    });
 }
 
 async function saveMessage(
