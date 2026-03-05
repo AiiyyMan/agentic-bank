@@ -10,6 +10,7 @@ export const checkBalance: ToolDef = {
     type: 'object' as const,
     properties: {},
     required: [],
+    additionalProperties: false,
   },
 };
 
@@ -25,6 +26,7 @@ export const getTransactions: ToolDef = {
       },
     },
     required: [],
+    additionalProperties: false,
   },
 };
 
@@ -35,6 +37,7 @@ export const getAccounts: ToolDef = {
     type: 'object' as const,
     properties: {},
     required: [],
+    additionalProperties: false,
   },
 };
 
@@ -45,6 +48,7 @@ export const getBeneficiaries: ToolDef = {
     type: 'object' as const,
     properties: {},
     required: [],
+    additionalProperties: false,
   },
 };
 
@@ -55,6 +59,7 @@ export const getLoanStatus: ToolDef = {
     type: 'object' as const,
     properties: {},
     required: [],
+    additionalProperties: false,
   },
 };
 
@@ -79,6 +84,7 @@ export const sendPayment: ToolDef = {
       },
     },
     required: ['beneficiary_name', 'amount'],
+    additionalProperties: false,
   },
 };
 
@@ -102,6 +108,7 @@ export const addBeneficiary: ToolDef = {
       },
     },
     required: ['name', 'account_number', 'sort_code'],
+    additionalProperties: false,
   },
 };
 
@@ -125,6 +132,7 @@ export const applyForLoan: ToolDef = {
       },
     },
     required: ['amount', 'term_months', 'purpose'],
+    additionalProperties: false,
   },
 };
 
@@ -144,6 +152,7 @@ export const makeLoanPayment: ToolDef = {
       },
     },
     required: ['loan_id', 'amount'],
+    additionalProperties: false,
   },
 };
 
@@ -179,6 +188,7 @@ export const respondToUser: ToolDef = {
       },
     },
     required: ['message'],
+    additionalProperties: false,
   },
 };
 

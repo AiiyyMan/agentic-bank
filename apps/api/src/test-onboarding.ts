@@ -12,7 +12,7 @@ if (!GRIFFIN_API_KEY || !GRIFFIN_ORG_ID || !RELIANCE_WORKFLOW_URL || !PRIMARY_AC
 }
 
 async function testOnboarding() {
-  const griffin = new GriffinClient(GRIFFIN_API_KEY, GRIFFIN_ORG_ID);
+  const griffin = new GriffinClient(GRIFFIN_API_KEY!, GRIFFIN_ORG_ID!);
   const testName = `Test-${Date.now()}`;
 
   console.log('=== Testing Griffin Onboarding Flow ===\n');
@@ -25,7 +25,7 @@ async function testOnboarding() {
   // Step 2: Create onboarding application
   console.log('2. Creating onboarding application...');
   const app = await griffin.createOnboardingApplication({
-    'workflow-url': RELIANCE_WORKFLOW_URL,
+    'workflow-url': RELIANCE_WORKFLOW_URL!,
     'subject-profile': {
       'subject-profile-type': 'individual',
       'display-name': testName,
@@ -72,7 +72,7 @@ async function testOnboarding() {
 
   // Step 6: Normalize balance
   console.log('6. Normalizing balance to £1,000...');
-  await griffin.normalizeBalance(openAccount['account-url'], 1000, PRIMARY_ACCOUNT_URL);
+  await griffin.normalizeBalance(openAccount['account-url'], 1000, PRIMARY_ACCOUNT_URL!);
 
   // Verify (wait a moment for payment to settle)
   await new Promise(r => setTimeout(r, 2000));

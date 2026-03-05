@@ -23,6 +23,15 @@ interface OnboardingBody {
   countryCode: string;
 }
 
+function parseAddress(address: string): { 'building-number': string; 'street-name': string } {
+  const match = address.match(/^(\d+[A-Za-z]?)\s+(.+)/);
+  if (match) {
+    return { 'building-number': match[1], 'street-name': match[2] };
+  }
+  // Fallback: use entire address as street name
+  return { 'building-number': '', 'street-name': address };
+}
+
 export const authRoutes: FastifyPluginAsync = async (app) => {
   // Onboard user: create Griffin legal person + bank account in one flow
   app.post<{ Body: OnboardingBody }>('/auth/onboard', {
@@ -60,8 +69,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
             },
             {
               'claim-type': 'individual-residence',
-              'building-number': body.addressLine1.split(' ')[0] || '1',
-              'street-name': body.addressLine1.split(' ').slice(1).join(' ') || body.addressLine1,
+              ...parseAddress(body.addressLine1),
               'city': body.city,
               'postal-code': body.postalCode,
               'country-code': body.countryCode || 'GB',
@@ -125,20 +133,54 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
         PRIMARY_ACCOUNT_URL
       );
 
-      // Step 6: Update user profile in Supabase
-      const { error: updateError } = await getSupabase()
-        .from('profiles')
-        .update({
-          griffin_legal_person_url: legalPersonUrl,
-          griffin_account_url: openAccount['account-url'],
-          griffin_onboarding_application_url: onboardingApp['onboarding-application-url'],
-          display_name: displayName,
-        })
-        .eq('id', userId);
+      // Steps 5-6 are Supabase updates. Griffin entities already exist at this point.
+      // If these fail, we log the Griffin URLs for manual reconciliation since
+      // Griffin sandbox doesn't support deletion.
+      const griffinUrls = {
+        legalPersonUrl,
+        accountUrl: openAccount['account-url'],
+        onboardingApplicationUrl: onboardingApp['onboarding-application-url'],
+      };
 
-      if (updateError) {
-        logger.error({ updateError }, 'Failed to update profile');
-        throw new Error('Failed to save profile');
+      try {
+        // Step 6: Update user profile in Supabase
+        const { error: updateError } = await getSupabase()
+          .from('profiles')
+          .update({
+            griffin_legal_person_url: legalPersonUrl,
+            griffin_account_url: openAccount['account-url'],
+            griffin_onboarding_application_url: onboardingApp['onboarding-application-url'],
+            display_name: displayName,
+          })
+          .eq('id', userId);
+
+        if (updateError) {
+          // Retry once
+          logger.warn({ updateError, userId }, 'Supabase update failed, retrying...');
+          const { error: retryError } = await getSupabase()
+            .from('profiles')
+            .update({
+              griffin_legal_person_url: legalPersonUrl,
+              griffin_account_url: openAccount['account-url'],
+              griffin_onboarding_application_url: onboardingApp['onboarding-application-url'],
+              display_name: displayName,
+            })
+            .eq('id', userId);
+
+          if (retryError) {
+            logger.error({ retryError, griffinUrls, userId }, 'Supabase update failed after retry — Griffin entities orphaned');
+            return reply.status(500).send({
+              error: 'Onboarding partially completed — bank account created but profile update failed',
+              griffin_urls: griffinUrls,
+            });
+          }
+        }
+      } catch (supabaseErr: any) {
+        logger.error({ err: supabaseErr.message, griffinUrls, userId }, 'Supabase update threw — Griffin entities orphaned');
+        return reply.status(500).send({
+          error: 'Onboarding partially completed — bank account created but profile update failed',
+          griffin_urls: griffinUrls,
+        });
       }
 
       // Return updated profile

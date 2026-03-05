@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import type { HealthCheck } from '@agentic-bank/shared';
 import { GriffinClient } from '../lib/griffin.js';
 import { createClient } from '@supabase/supabase-js';
+import { CLAUDE_MODEL_FAST } from '../lib/config.js';
 
 export const healthRoute: FastifyPluginAsync = async (app) => {
   app.get('/health', async (request, reply) => {
@@ -52,7 +53,7 @@ export const healthRoute: FastifyPluginAsync = async (app) => {
             'content-type': 'application/json',
           },
           body: JSON.stringify({
-            model: 'claude-haiku-4-5-20251001',
+            model: CLAUDE_MODEL_FAST,
             max_tokens: 1,
             messages: [{ role: 'user', content: 'ping' }],
           }),

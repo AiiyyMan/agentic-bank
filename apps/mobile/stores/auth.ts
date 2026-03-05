@@ -5,16 +5,18 @@ import type { Session } from '@supabase/supabase-js';
 interface AuthState {
   session: Session | null;
   loading: boolean;
+  needsEmailConfirmation: boolean;
   setSession: (session: Session | null) => void;
   signUp: (email: string, password: string, displayName: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
-  initialize: () => Promise<void>;
+  initialize: () => Promise<() => void>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
   session: null,
   loading: true,
+  needsEmailConfirmation: false,
 
   setSession: (session) => set({ session }),
 
@@ -26,7 +28,10 @@ export const useAuthStore = create<AuthState>((set) => ({
     });
     if (error) throw error;
     if (data.session) {
-      set({ session: data.session });
+      set({ session: data.session, needsEmailConfirmation: false });
+    } else {
+      // Session is null when email confirmation is required
+      set({ needsEmailConfirmation: true });
     }
   },
 
@@ -36,7 +41,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       password,
     });
     if (error) throw error;
-    set({ session: data.session });
+    set({ session: data.session, needsEmailConfirmation: false });
   },
 
   signOut: async () => {
@@ -48,9 +53,11 @@ export const useAuthStore = create<AuthState>((set) => ({
     const { data: { session } } = await supabase.auth.getSession();
     set({ session, loading: false });
 
-    // Listen for auth changes
-    supabase.auth.onAuthStateChange((_event, session) => {
+    // Listen for auth changes — capture subscription for cleanup
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       set({ session });
     });
+
+    return () => subscription.unsubscribe();
   },
 }));

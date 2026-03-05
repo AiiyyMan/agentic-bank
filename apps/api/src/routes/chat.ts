@@ -31,14 +31,19 @@ export const chatRoutes: FastifyPluginAsync = async (app) => {
       messageLength: message.length,
     }, 'Chat request received');
 
-    const response = await processChat(message, conversation_id, req.userProfile);
+    try {
+      const response = await processChat(message, conversation_id, req.userProfile);
 
-    logger.info({
-      userId: req.userId,
-      conversationId: response.conversation_id,
-      hasUiComponents: !!response.ui_components?.length,
-    }, 'Chat response sent');
+      logger.info({
+        userId: req.userId,
+        conversationId: response.conversation_id,
+        hasUiComponents: !!response.ui_components?.length,
+      }, 'Chat response sent');
 
-    return reply.send(response);
+      return reply.send(response);
+    } catch (err: any) {
+      logger.error({ err: err.message, userId: req.userId }, 'Chat processing failed');
+      return reply.status(500).send({ error: 'Chat processing failed' });
+    }
   });
 };

@@ -17,7 +17,8 @@ export function LoanStatusCard({
   nextDate,
   status,
 }: LoanStatusCardProps) {
-  const progress = 1 - parseFloat(remaining) / parseFloat(principal);
+  const principalNum = parseFloat(principal);
+  const progress = principalNum > 0 ? 1 - parseFloat(remaining) / principalNum : 0;
 
   return (
     <View style={styles.card}>

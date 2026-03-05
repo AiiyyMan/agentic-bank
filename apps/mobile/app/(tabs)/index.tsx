@@ -4,7 +4,7 @@ import {
   RefreshControl, ActivityIndicator,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
-import { sendChatMessage, getLoans } from '../../lib/api';
+import { getBalance as fetchBalance, getTransactions as fetchTransactions, getLoans } from '../../lib/api';
 import { DashboardSkeleton } from '../../components/Skeleton';
 
 interface BalanceData {
@@ -42,31 +42,21 @@ export default function DashboardScreen() {
     try {
       setError('');
 
-      // Fetch balance via agent (check_balance tool)
-      const [balanceRes, loansRes] = await Promise.allSettled([
-        sendChatMessage({ message: 'What is my balance?' }),
+      // Fetch balance, transactions, and loans directly (no agent loop)
+      const [balanceRes, txRes, loansRes] = await Promise.allSettled([
+        fetchBalance(),
+        fetchTransactions(5),
         getLoans(),
       ]);
 
-      // Parse balance from agent response UI components
-      if (balanceRes.status === 'fulfilled' && balanceRes.value.ui_components) {
-        const balanceCard = balanceRes.value.ui_components.find(
-          (c: any) => c.type === 'balance_card'
-        );
-        if (balanceCard) {
-          setBalance(balanceCard.data as BalanceData);
-        }
-
-        // Also extract transactions if available
-        const txCard = balanceRes.value.ui_components.find(
-          (c: any) => c.type === 'transaction_list'
-        );
-        if (txCard && (txCard.data as any).transactions) {
-          setTransactions((txCard.data as any).transactions.slice(0, 5));
-        }
+      if (balanceRes.status === 'fulfilled') {
+        setBalance(balanceRes.value as BalanceData);
       }
 
-      // Parse loans
+      if (txRes.status === 'fulfilled' && txRes.value.transactions) {
+        setTransactions(txRes.value.transactions.slice(0, 5));
+      }
+
       if (loansRes.status === 'fulfilled' && loansRes.value.loans) {
         setLoans(loansRes.value.loans);
       }

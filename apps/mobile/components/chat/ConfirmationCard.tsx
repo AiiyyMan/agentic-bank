@@ -106,8 +106,17 @@ export function ConfirmationCard({
       )}
 
       {status === 'error' && (
-        <View style={styles.statusRow}>
+        <View style={styles.errorContainer}>
           <Text style={styles.errorText}>{errorMessage || 'Something went wrong'}</Text>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => {
+              setStatus('pending');
+              setErrorMessage('');
+            }}
+          >
+            <Text style={styles.retryText}>Retry</Text>
+          </TouchableOpacity>
         </View>
       )}
     </View>
@@ -182,4 +191,17 @@ const styles = StyleSheet.create({
   successText: { color: '#2ecc71', fontSize: 14, fontWeight: '600' },
   rejectedText: { color: '#8b8ba7', fontSize: 14, fontWeight: '600' },
   errorText: { color: '#e74c3c', fontSize: 14 },
+  errorContainer: {
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 8,
+  },
+  retryButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#6c5ce7',
+  },
+  retryText: { color: '#6c5ce7', fontWeight: '600', fontSize: 14 },
 });

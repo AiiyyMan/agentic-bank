@@ -4,7 +4,7 @@ import {
   RefreshControl, ActivityIndicator, Modal,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
-import { sendChatMessage } from '../../lib/api';
+import { getTransactions as loadTransactions } from '../../lib/api';
 
 interface Transaction {
   amount: string;
@@ -26,30 +26,26 @@ export default function TransactionsScreen() {
   const [loading, setLoading] = useState(true);
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
 
-  const fetchTransactions = useCallback(async () => {
+  const loadTransactions = useCallback(async () => {
     try {
-      const response = await sendChatMessage({ message: 'Show my last 50 transactions' });
+      const response = await loadTransactions(50);
 
-      // Extract transactions from agent response
-      if (response.ui_components) {
-        const txCard = response.ui_components.find((c: any) => c.type === 'transaction_list');
-        if (txCard && (txCard.data as any).transactions) {
-          const txs: Transaction[] = (txCard.data as any).transactions;
+      if (response.transactions) {
+        const txs: Transaction[] = response.transactions;
 
-          // Group by date
-          const grouped = new Map<string, Transaction[]>();
-          for (const tx of txs) {
-            const dateKey = new Date(tx.date).toLocaleDateString('en-GB', {
-              weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-            });
-            if (!grouped.has(dateKey)) grouped.set(dateKey, []);
-            grouped.get(dateKey)!.push(tx);
-          }
-
-          setSections(
-            Array.from(grouped.entries()).map(([title, data]) => ({ title, data }))
-          );
+        // Group by date
+        const grouped = new Map<string, Transaction[]>();
+        for (const tx of txs) {
+          const dateKey = new Date(tx.date).toLocaleDateString('en-GB', {
+            weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+          });
+          if (!grouped.has(dateKey)) grouped.set(dateKey, []);
+          grouped.get(dateKey)!.push(tx);
         }
+
+        setSections(
+          Array.from(grouped.entries()).map(([title, data]) => ({ title, data }))
+        );
       }
     } catch {
       // Silently fail — user can pull to refresh
@@ -62,13 +58,13 @@ export default function TransactionsScreen() {
   useFocusEffect(
     useCallback(() => {
       setLoading(true);
-      fetchTransactions();
-    }, [fetchTransactions])
+      loadTransactions();
+    }, [loadTransactions])
   );
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchTransactions();
+    loadTransactions();
   };
 
   if (loading) {

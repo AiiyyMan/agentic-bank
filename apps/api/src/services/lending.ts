@@ -56,14 +56,16 @@ export async function mockLoanDecision(
   const monthlyPayment = calculateEMI(amount, rate, termMonths);
 
   // Affordability check using Griffin balance as income proxy
-  let griffinBalance = 1000; // Default fallback
+  let griffinBalance: number;
   if (user.griffin_account_url) {
     try {
       const account = await griffin.getAccount(user.griffin_account_url);
       griffinBalance = parseFloat(account['available-balance'].value);
     } catch {
-      // Use default if Griffin unavailable
+      return { approved: false, reason: 'Unable to verify account balance. Please try again later.' };
     }
+  } else {
+    return { approved: false, reason: 'No bank account found. Please complete onboarding first.' };
   }
 
   const estimatedMonthlyIncome = griffinBalance * 0.3;

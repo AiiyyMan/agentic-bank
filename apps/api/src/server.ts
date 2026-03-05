@@ -7,6 +7,7 @@ import { authRoutes } from './routes/auth.js';
 import { chatRoutes } from './routes/chat.js';
 import { confirmRoutes } from './routes/confirm.js';
 import { loanRoutes } from './routes/loans.js';
+import { bankingRoutes } from './routes/banking.js';
 import { logger } from './logger.js';
 
 export { logger };
@@ -39,6 +40,7 @@ export async function buildServer() {
   await app.register(chatRoutes, { prefix: '/api' });
   await app.register(confirmRoutes, { prefix: '/api' });
   await app.register(loanRoutes, { prefix: '/api' });
+  await app.register(bankingRoutes, { prefix: '/api' });
 
   app.get('/', async () => ({ name: 'Agentic Bank API', version: '0.1.0' }));
 
@@ -60,4 +62,8 @@ async function start() {
   }
 }
 
-start();
+// Only auto-start when run directly (not when imported by tests)
+const isDirectRun = process.env.NODE_ENV !== 'test' && !process.env.VITEST;
+if (isDirectRun) {
+  start();
+}

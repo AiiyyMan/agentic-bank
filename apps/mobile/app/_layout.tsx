@@ -1,9 +1,22 @@
+import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useAuthStore } from '../stores/auth';
+import { NetworkGuard } from '../components/NetworkGuard';
 
 export default function RootLayout() {
+  const initialize = useAuthStore((s) => s.initialize);
+
+  useEffect(() => {
+    const unsub = initialize();
+    return () => {
+      // Cleanup auth listener on unmount
+      unsub.then((unsubscribe) => unsubscribe?.());
+    };
+  }, [initialize]);
+
   return (
-    <>
+    <NetworkGuard>
       <StatusBar style="light" />
       <Stack
         screenOptions={{
@@ -16,6 +29,6 @@ export default function RootLayout() {
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       </Stack>
-    </>
+    </NetworkGuard>
   );
 }
