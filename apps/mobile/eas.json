@@ -11,9 +11,7 @@
         "simulator": true
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "http://localhost:3000",
-        "EXPO_PUBLIC_SUPABASE_URL": "REPLACE_WITH_YOUR_SUPABASE_URL",
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "REPLACE_WITH_YOUR_SUPABASE_ANON_KEY"
+        "EXPO_PUBLIC_API_URL": "http://localhost:3000"
       }
     },
     "preview": {
@@ -21,20 +19,10 @@
       "android": {
         "buildType": "apk",
         "credentialsSource": "local"
-      },
-      "env": {
-        "EXPO_PUBLIC_API_URL": "REPLACE_WITH_YOUR_API_URL",
-        "EXPO_PUBLIC_SUPABASE_URL": "REPLACE_WITH_YOUR_SUPABASE_URL",
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "REPLACE_WITH_YOUR_SUPABASE_ANON_KEY"
       }
     },
     "production": {
-      "autoIncrement": true,
-      "env": {
-        "EXPO_PUBLIC_API_URL": "REPLACE_WITH_YOUR_API_URL",
-        "EXPO_PUBLIC_SUPABASE_URL": "REPLACE_WITH_YOUR_SUPABASE_URL",
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "REPLACE_WITH_YOUR_SUPABASE_ANON_KEY"
-      }
+      "autoIncrement": true
     }
   },
   "submit": {
