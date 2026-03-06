@@ -4,7 +4,7 @@ import {
   RefreshControl, ActivityIndicator, Modal,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
-import { getTransactions as loadTransactions } from '../../lib/api';
+import { getTransactions as fetchTransactions } from '../../lib/api';
 
 interface Transaction {
   amount: string;
@@ -28,7 +28,7 @@ export default function TransactionsScreen() {
 
   const loadTransactions = useCallback(async () => {
     try {
-      const response = await loadTransactions(50);
+      const response = await fetchTransactions(50);
 
       if (response.transactions) {
         const txs: Transaction[] = response.transactions;

@@ -19,6 +19,9 @@ credentials.json
 *.p12
 *.keystore
 
+# Supabase CLI
+supabase/.temp/
+
 # OS
 .DS_Store
 Thumbs.db
