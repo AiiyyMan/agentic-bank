@@ -69,6 +69,80 @@ There is an existing codebase at `/home/claude/agentic-bank/` with:
 
 Agents are **open to restructure/rebuild** based on research findings. The existing code is a reference point and proof that the stack works, not a constraint. Preserve what works, replace what doesn't.
 
+## Design System & Theming
+
+### Architecture: Single Config → Entire App Reskin
+
+The app uses a **three-tier design token architecture** that allows changing one config file to reskin the entire app for different clients:
+
+| Tier | Example | Who changes it |
+|------|---------|---------------|
+| **Primitive** | `color.blue.500 = #3B82F6` | Design system (rarely) |
+| **Semantic** | `color.primary = {color.blue.500}` | Brand config (per client) |
+| **Component** | `button.primary.bg = {color.primary}` | Component spec (rarely) |
+
+To reskin for a new client: change the semantic tier only. Everything else propagates automatically.
+
+**Stack:** NativeWind v4 + Gluestack UI v3 + Tailwind CSS. Tokens are defined as CSS custom properties via NativeWind's `vars()` function, mapped through `tailwind.config.js`, and consumed by components via semantic Tailwind classes (`bg-primary`, `text-foreground`). A `<BrandProvider>` wrapper enables runtime theme switching — no rebuild needed.
+
+**Banking-specific semantic tokens:** `money.positive` / `money.negative` / `money.pending`, `ai.bubble.assistant` / `ai.bubble.user`, `card.confirmation.border` (amber) / `card.success.border` (green), `score.poor` / `score.fair` / `score.good` / `score.excellent`.
+
+### Coding Principle
+
+**Never hardcode colors or spacing.** All components use semantic Tailwind classes. For JavaScript-only contexts (charts, navigation headers, ActivityIndicator), use `useUnstableNativeVariable('--color-primary')`. This rule is enforced in CLAUDE.md and applies to all squads.
+
+### Design Reference: SwiftBank UI Kit
+
+The design reference is the [SwiftBank AI Digital Banking & Payments App UI Kit](https://ui8.net/finterface-1ade8a/products/swiftbank-ai-digital-banking--payments-app-ui-kit) by finterface:
+- **300+ app UI screens** covering accounts, payments, savings pots, BNPL/credit, spending insights, AI chat assistant
+- **300+ components & variants** with Figma Variables and Auto-layout
+- **Light & dark mode**
+- **1,000 finance icons** (Phosphor set) + Inter Sans font
+- Available on [Figma Community](https://www.figma.com/community/file/1433372637060119685/swiftbank-ai-digital-banking-payments-app-ui-kit)
+
+During Foundation (F1b), design tokens are extracted from the SwiftBank Figma file using the Figma Console MCP (see below) and transformed into the app's token system. During implementation (Phase 7), squads reference SwiftBank screens when building UI components.
+
+### Figma Console MCP (Token Extraction & Design Reference)
+
+The [Southleft Figma Console MCP](https://github.com/southleft/figma-console-mcp) is available as a tool for Claude agents. It provides 56+ tools for reading Figma files, extracting design tokens, and inspecting component specs.
+
+**Primary use cases:**
+1. **One-time token extraction** — `figma_get_design_system_kit` pulls all colors, typography, spacing, radii as structured JSON from the SwiftBank file. Claude transforms this into `tokens.ts` + `tailwind.config.js` entries.
+2. **Component reference** — during implementation, Claude agents can inspect specific SwiftBank frames to understand layout, spacing, and component structure.
+3. **Token export** — export as CSS custom properties, Tailwind config, or Sass variables directly.
+
+**Not used for:** ongoing design sync pipelines, CI/CD token transforms, or bidirectional code-to-Figma workflows. The code is the source of truth for the POC.
+
+**Setup:** Requires a Figma Personal Access Token (`figd_` prefix) in the MCP server config. See Prerequisites below.
+
+### Storybook (Component Catalogue)
+
+Storybook 9 with Expo support provides a component catalogue for verifying card components render correctly with different brand themes. Setup:
+- `/storybook` route in Expo Router (dev-only, hidden in production)
+- Global decorator wraps stories in `<BrandProvider>` + `<GluestackUIProvider>`
+- Stories render with different brands — toggle in Storybook toolbar
+- Components documented with usage examples, props, and variant previews
+- Priority: **P1** (set up in Foundation F1b, populated during Phase 7)
+
+## Ownership Model: Tools, Cards, and Journeys
+
+To prevent duplication across squads, ownership is split by layer:
+
+| Layer | Owner | What they build |
+|-------|-------|-----------------|
+| **Tool handlers** (business logic, validation, DB writes) | Owning squad (Core Banking, Lending) | `flex_purchase`, `send_payment`, `check_credit_score`, etc. |
+| **Tool definitions** (JSON schemas for Claude) | Owning squad | Input/output contracts registered in tool registry |
+| **Card components** (React Native chat UI) | Experience squad | All `*Card` components rendered in chat |
+| **Chat orchestration** (system prompt, card selection, conversation state) | Experience squad | How AI formats tool results into cards |
+| **Drill-down screens** (full-screen native UI) | Owning squad | Account Detail, Amortisation Schedule, Standing Orders, etc. |
+
+**Key rule:** `ai-chat.md` is the **canonical Card Component Catalogue** — the single source of truth for every chat card's visual spec, fields, and interaction behaviour. Other journey maps define the business logic, tools, and conversation flows, but reference `ai-chat.md` for how cards render. If a card spec in `ai-chat.md` conflicts with another journey map, `ai-chat.md` wins.
+
+This means:
+- The Lending squad builds the `flex_purchase` tool handler. The Experience squad builds the `FlexOptionsCard` React Native component.
+- Journey maps (accounts.md, payments.md, etc.) own their tool specs, conversation flows, and full-screen drill-down UIs. They do NOT duplicate chat card specs.
+- During build, squads implement their tool handlers and drill-down screens. The Experience squad implements all card components based on the catalogue in `ai-chat.md`.
+
 ## Output Structure
 
 All artifacts are written to disk under `docs/neobank-v2/`:
@@ -87,8 +161,13 @@ docs/neobank-v2/
 │   │   ├── payments.md
 │   │   ├── lending.md
 │   │   ├── onboarding.md
-│   │   └── ai-chat.md                   # Includes spending insights
-│   └── feature-matrix.md               # Features x priority x journey
+│   │   └── ai-chat.md                   # Includes spending insights + CANONICAL Card Component Catalogue
+│   ├── feature-matrix.md               # Features x priority x journey
+│   └── design-assessment/
+│       ├── token-map.md                  # Phase 1e: extracted tokens → semantic mapping
+│       ├── screen-mapping.md             # Phase 1e: SwiftBank screens → journey map flows
+│       ├── agent-design-instructions.md  # Phase 1e: design reference for implementation agents
+│       └── plan-assessment.md            # Phase 1e: holistic plan review + gap analysis
 ├── 03-architecture/
 │   ├── system-architecture.md           # Phase 2 output
 │   ├── tech-decisions.md                # ADRs with evaluated alternatives
@@ -137,7 +216,8 @@ Each phase reads the previous phase's outputs and writes its own. Phases are run
 | 1b | UX Research Analyst | Master prompt | UX benchmarks report | `01b-research-ux.md` | 1a+1b+1c run in parallel |
 | 1c | Technical Analyst | Master prompt | API landscape report | `01c-research-api.md` | 1a+1b+1c run in parallel |
 | 1d | Product Design Director | 3 research reports | Research summary + product brief + journey maps + feature matrix | `01d-product-brief.md` | Sequential (after 1a-c) |
-| 2 | Solutions Architect | Phase 1 outputs | System architecture + tech decisions + API design + data model | `02-architecture-prompt.md` | Sequential |
+| 1e | Design Systems Lead | Journey maps + feature matrix + SwiftBank Figma file | Design token map + screen-to-journey mapping + agent design instructions + holistic plan assessment | `01e-design-assessment.md` | Sequential (after 1d review gate) |
+| 2 | Solutions Architect | Phase 1 outputs + design assessment | System architecture + tech decisions + API design + data model | `02-architecture-prompt.md` | Sequential |
 | 3 | CPTO | All previous phases | Reviewed plan, squad assignments, roadmap | `03-cpto-review-prompt.md` | Sequential |
 | 4 | Squad agents (x3) | Phase 3 assignments | PRDs, designs, impl plans, test plans, summaries | `04-squad-planning-prompt.md` | 3 squads in parallel |
 | 5 | CPTO | Squad summaries | Validated delivery plan + merge strategy | `05-final-plan-prompt.md` | Sequential |
@@ -151,21 +231,23 @@ Each phase reads the previous phase's outputs and writes its own. Phases are run
 
 1. **Phase 1a-c (Research):** 3 conversations **in parallel**. Each reads only the master prompt. Market research, UX benchmarks, API landscape.
 2. **Phase 1d (Product Brief):** Single conversation. Reads all 3 research reports → writes summary + product brief + journey maps + feature matrix. **REVIEW GATE — review journey maps and feature matrix. This is where scope locks in.**
-3. **Phase 2 (Architecture):** Single conversation. System architecture + API design + data model.
-4. **Phase 3 (CPTO Review):** Single conversation. **REVIEW GATE — read the output carefully. Verify squad assignments and risk register before proceeding.**
-5. **Phase 4 (Squad Planning):** 3 conversations **in parallel**. Start each by telling Claude which squad to run. **REVIEW GATE — skim the 3 squad summaries (150 lines total). Catch cross-squad conflicts before the final plan.**
-6. **Phase 5 (Final Plan):** Single conversation. Lightweight validation + release plan. **REVIEW GATE — last checkpoint before code. Verify merge strategy.**
-7. **Phase F1a (Foundation — Data):** Single conversation. CLAUDE.md, migrations, seed data, test constants. **REVIEW GATE — verify CLAUDE.md accuracy, spot-check seed data. A bug here cascades to ALL squads.**
-8. **Phase F1b (Foundation — Code):** Single conversation. Shared types, API scaffolding, tool routing, CI/CD.
-9. **Phase F2 (Foundation — Testing):** Single conversation. MockBankingAdapter, test fixtures, agent harness, mobile scaffolding. Writes Foundation retrospective.
-10. **Phase 7 (Implementation):** 3 conversations **in parallel** via worktrees. Run per squad, per phase from the release plan. Writes Phase 1 merge retrospective after first merge.
-11. **Phase 8 (Regression):** 4 conversations — 3 squad QA **in parallel** + 1 cross-squad. Writes QA retrospective.
+3. **Phase 1e (Design Assessment):** Single conversation. Uses Figma Console MCP to inspect SwiftBank UI kit. Maps SwiftBank screens to journey flows, extracts design tokens, identifies component coverage gaps, prepares design reference instructions for implementation agents, and performs a holistic assessment of the entire plan before architecture begins. **REVIEW GATE — verify token extraction, confirm screen-to-journey mapping, approve design direction.**
+4. **Phase 2 (Architecture):** Single conversation. Reads Phase 1 outputs + design assessment. System architecture + API design + data model.
+5. **Phase 3 (CPTO Review):** Single conversation. **REVIEW GATE — read the output carefully. Verify squad assignments and risk register before proceeding.**
+6. **Phase 4 (Squad Planning):** 3 conversations **in parallel**. Start each by telling Claude which squad to run. **REVIEW GATE — skim the 3 squad summaries (150 lines total). Catch cross-squad conflicts before the final plan.**
+7. **Phase 5 (Final Plan):** Single conversation. Lightweight validation + release plan. **REVIEW GATE — last checkpoint before code. Verify merge strategy.**
+8. **Phase F1a (Foundation — Data):** Single conversation. CLAUDE.md, migrations, seed data, test constants. **REVIEW GATE — verify CLAUDE.md accuracy, spot-check seed data. A bug here cascades to ALL squads.**
+9. **Phase F1b (Foundation — Code):** Single conversation. Shared types, API scaffolding, tool routing, CI/CD.
+10. **Phase F2 (Foundation — Testing):** Single conversation. MockBankingAdapter, test fixtures, agent harness, mobile scaffolding. Writes Foundation retrospective.
+11. **Phase 7 (Implementation):** 3 conversations **in parallel** via worktrees. Run per squad, per phase from the release plan. Writes Phase 1 merge retrospective after first merge.
+12. **Phase 8 (Regression):** 4 conversations — 3 squad QA **in parallel** + 1 cross-squad. Writes QA retrospective.
 
 ## Review Gates Summary
 
 | Gate | What to Review | Time | Why |
 |------|---------------|------|-----|
 | After Phase 1d | Journey maps, feature matrix, priority calls | 15 min | Scope locks in here. Changing after architecture is 10x more expensive. |
+| After Phase 1e | Token map, screen-to-journey mapping, design direction, holistic plan assessment | 10 min | Design tokens feed into Foundation. Wrong tokens = wrong UI everywhere. Plan gaps are 100x cheaper to fix now than in code. |
 | After Phase 3 | Squad assignments, dependency map, risk register | 20 min | Last chance to reshape plan before 3 squads plan independently. |
 | After Phase 4 | 3 squad summaries (150 lines total) | 15 min | Catch cross-squad assumption conflicts cheaply. |
 | After Phase 5 | Merge strategy, release phases | 10 min | Last checkpoint before code. |
@@ -233,6 +315,7 @@ The following are already set up in `apps/api/.env`:
 - **Anthropic** — API key for AI chat
 - **Griffin** — sandbox API key and org URLs
 - **Supabase CLI** — installed (`npx supabase`, v2.76+)
+- **Figma Console MCP** — configured for design token extraction and component reference (see Design System section above)
 
 If `USE_MOCK_BANKING` is not yet set, Foundation Phase F1a should add `USE_MOCK_BANKING=true` to `.env` (recommended for development/demo — avoids Griffin dependency).
 
