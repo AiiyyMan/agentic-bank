@@ -180,33 +180,69 @@ contentStyle: { backgroundColor: '#0f0f23' },
 
 ## 4. Cross-Squad Risks
 
-### 4.1 Experience Squad Overload
+### 4.1 Experience Squad Overload — RESOLVED (2026-03-07)
 
-The Experience squad owns 78 of 143 features (54%), including:
-- 43 P0 features (73% of all P0)
-- The entire chat infrastructure (agent loop, tool registry, card renderer, conversation state)
-- All 28+ card components (the canonical catalogue)
-- The proactive insight engine
-- The onboarding flow
-- The design system and theming
+**Original problem:** The Experience squad owned 43 of 59 P0 features (73%), including chat infrastructure, all card components, the insight engine, onboarding, and the design system. This was the single biggest risk to the project.
 
-This is the single biggest risk to the project. If the Experience squad falls behind, everything stalls -- Core Banking and Lending cannot demo without cards to render their data.
+**Resolution: Approach 4 (Hybrid) — Redistribute + Parallel Agent Streams**
 
-**Mitigation options:**
+Three changes reduce and rebalance the load:
 
-1. **Card component ownership split.** The Experience squad defines the component API (props, layout, tokens). Core Banking and Lending squads implement their own drill-down screens. But card components stay with Experience for visual consistency. This is already the plan; enforce it.
+1. **Design system marked DONE.** Features #126-132 and #135 (8 features) were completed in Phases 1e-1f. Token architecture, NativeWind config, dark mode, banking tokens, and the `useTokens()` hook are all shipped and committed.
 
-2. **Stagger squad starts.** Core Banking starts first (tool handlers, Griffin adapter, mock adapter). Experience starts simultaneously on infrastructure (chat interface, card renderer, confirmation flow). Lending starts 1-2 days later, after tool registry patterns are established.
+2. **Transaction categorisation (#22) moved to Core Banking.** Rule-based categorisation operates on CB's transaction data and merchant mappings. CB owns the data, CB owns the logic.
 
-3. **Identify the 8 critical-path cards.** Not all 28 cards are equal. These 8 must be built first because they unblock other squads and the core demo:
-   - BalanceCard (P0, exists in codebase -- needs redesign to use tokens)
-   - ConfirmationCard (P0, exists -- needs redesign)
-   - SuccessCard (P0)
-   - ErrorCard (P0, exists -- needs redesign)
-   - InsightCard (P0)
-   - TransactionListCard (P0, exists -- needs redesign)
-   - QuickReplies (P0)
-   - WelcomeCard (P0, onboarding)
+3. **Remaining 34 EX P0 features split into 4 parallel agent streams.** Each stream runs in an isolated git worktree with shared CLAUDE.md conventions, following Anthropic's recommended [Agent Teams](https://code.claude.com/docs/en/agent-teams) and [worktree patterns](https://code.claude.com/docs/en/common-workflows#run-parallel-claude-code-sessions-with-git-worktrees).
+
+**Revised squad distribution:**
+
+| Squad | P0 Remaining | Notes |
+|-------|-------------|-------|
+| Core Banking (CB) | 17 | +1 (#22 categorisation) |
+| Lending (LE) | 0 | All P1 |
+| Experience (EX) | 34 | -8 DONE, -1 moved to CB. Split into 4 parallel streams. |
+
+**Parallel stream breakdown:**
+
+| Stream | Scope | Features | Size |
+|--------|-------|----------|------|
+| **EX-Infra** | Chat interface, card renderer, confirmation flow, tool registry, streaming, conversation state, system prompt | #89-100 | 12 |
+| **EX-Cards** | 8 critical-path cards + remaining chat cards, typing indicator, quick replies, error cards | #5, #12, #19, #25, #26, #91, #93, #97, #99, #67, #68 | 11 |
+| **EX-Onboarding** | Welcome → data collection → KYC → provisioning → checklist + auth integration | #69-77, #80, #81, #119 | 10 |
+| **EX-Insights** | Spending queries, spike detection, weekly summary, proactive engine, morning greeting, beneficiary AI | #31, #32, #101-107 | 10 |
+
+**Sequencing:**
+
+```
+Days 1-5:   EX-Infra ─────────────────────► (foundation, no deps)
+Days 4-10:  EX-Cards ──────────────────────► (starts when card renderer lands)
+Days 4-10:  EX-Onboarding ────────────────► (starts when chat interface lands)
+Days 5-12:  EX-Insights ──────────────────► (starts when tool registry lands)
+```
+
+**Why this works with agentic development:**
+
+- Each stream touches **different files**: cards in `components/cards/`, onboarding in `app/(auth)/`, insights in `api/src/tools/experience.ts` and `api/src/services/insights/`, infra in `api/src/routes/chat.ts` and `components/chat/`. Minimal merge conflicts.
+- Anthropic's [C compiler case study](https://www.anthropic.com/engineering/building-c-compiler) demonstrated 16 parallel agents producing 100,000 lines — the key insight is parallelism works when agents touch different files.
+- Shared CLAUDE.md ensures all streams follow the same token conventions, NativeWind patterns, and component guidelines.
+- Git worktrees give each stream full filesystem isolation with shared history.
+
+**What still needs human oversight:**
+
+- Review the **card renderer API** (props contract) before EX-Cards starts
+- Review the **tool registry interface** before EX-Insights starts
+- The **confirmation flow** (#92) is the most cross-cutting P0 feature — it must be reviewed before any write-operation card ships
+- Monitor agent output quality and enforce the PR checklist from FRONTEND-GUIDE.md
+
+**8 critical-path cards** (must be built first in EX-Cards, as they unblock CB and LE demos):
+- BalanceCard (P0, exists -- needs redesign to use tokens)
+- ConfirmationCard (P0, exists -- needs redesign)
+- SuccessCard (P0)
+- ErrorCard (P0, exists -- needs redesign)
+- InsightCard (P0)
+- TransactionListCard (P0, exists -- needs redesign)
+- QuickReplies (P0)
+- WelcomeCard (P0, onboarding)
 
 ### 4.2 Tool Registry as Bottleneck
 
@@ -387,7 +423,7 @@ At 50 messages, Alex runs out of context after 8-10 interactions. For the demo, 
 
 | # | Risk | Likelihood | Impact | Mitigation |
 |---|------|-----------|--------|------------|
-| R1 | **Experience squad bottleneck.** 43 P0 features, all card components, chat infrastructure, insight engine, onboarding, AND design system in one squad. | HIGH | CRITICAL | Stagger squad starts. Identify 8 critical-path cards. Consider pulling onboarding card development (Welcome, Input, KYC) into a dedicated sub-stream. |
+| R1 | ~~**Experience squad bottleneck.**~~ **MITIGATED (2026-03-07).** Reduced from 43→34 P0 features (8 DONE, 1 moved to CB). Remaining 34 split into 4 parallel agent streams (EX-Infra, EX-Cards, EX-Onboarding, EX-Insights). | LOW | MEDIUM | Parallel worktree streams. Shared CLAUDE.md for consistency. Human review gates on card renderer API, tool registry interface, and confirmation flow before dependent streams start. |
 | R2 | ~~NativeWind v5 preview instability.~~ **RESOLVED.** Downgraded to NativeWind v4.2.2 (stable). Pinned in `package.json`. | LOW | LOW | No action needed. |
 | R3 | **Proactive insight engine misses the <1s target.** Six sequential database queries on Supabase free tier under cold-start conditions exceed the budget. | MEDIUM | HIGH | Pre-compute daily aggregates. Use `Promise.all` for parallel queries. Cache user insights. If still slow, degrade gracefully: show greeting with balance only, load insights asynchronously. |
 | R4 | **Two-phase confirmation flow takes longer than estimated.** It touches pending_actions table, timeout logic, re-rendering on app reopen, and is a dependency for EVERY write operation across ALL squads. | MEDIUM | HIGH | Build this first in the Experience squad's sprint. No write tool can be demo'd without it. Allocate 3-4 days, not the 1-2 that "L complexity" suggests. |
@@ -403,7 +439,7 @@ The remaining issues to resolve before architecture:
 
 1. ~~**Documentation-to-code alignment:** Stack decision made, downgraded to NativeWind v4.2 (stable).~~ **DONE (2026-03-07).**
 2. ~~**Design system blockers:** CSS var nesting, dark mode selector, missing deps, shadows, hardcoded colours.~~ **DONE (2026-03-07).** All blockers resolved: flattened CSS vars, `@media (prefers-color-scheme)` dark mode, Inter fonts, Phosphor icons, react-native-svg, runtime tokens, splash screen gate.
-3. **Experience squad load:** 73% of P0 features in one squad. Mitigate with staggered starts and critical-path card prioritisation.
+3. ~~**Experience squad load:** 73% of P0 features in one squad.~~ **RESOLVED (2026-03-07).** Approach 4 (Hybrid): 8 design system features marked DONE, categorisation moved to CB, remaining 34 EX P0 features split into 4 parallel agent streams (EX-Infra → EX-Cards / EX-Onboarding / EX-Insights). See §4.1.
 4. **Technical validation:** SSE streaming on React Native and the 50-message cap must be addressed in foundation, not discovered mid-sprint.
 
-Items 3 and 4 remain. The project is ready for architecture.
+Item 4 remains. The project is ready for architecture.

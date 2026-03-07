@@ -54,7 +54,7 @@
 | 19 | Transaction list card (chat component) | EX | P0 | Yes (renders) | M | Transaction data from CB | Shared component |
 | 20 | Date-grouped transaction sections | CB | P0 | Drill-down | S | Transaction list | UI formatting |
 | 21 | Transaction search (by merchant/amount) | CB | P1 | Yes (read) | M | Transaction API + search index | Mock (Supabase query) |
-| 22 | Transaction categorisation | EX | P0 | Yes (rule-based) | M | Transaction data | Rule-based (merchant→category map). AI-powered categorisation is P2 |
+| 22 | Transaction categorisation | CB | P0 | Yes (rule-based) | M | Transaction data | Rule-based (merchant→category map). AI-powered categorisation is P2. Moved from EX→CB: operates on CB's transaction data. |
 | 23 | Transaction detail (tap to expand) | CB | P1 | Drill-down | S | Transaction API | Real or mock |
 | | | | | | | | |
 | | **DOMESTIC PAYMENTS** | | | | | | |
@@ -196,33 +196,52 @@
 | 143 | AI chat rate limiting (cost control) | EX | P2 | No (system) | S | Rate limiter middleware | Server-side per-user limit |
 | | | | | | | | |
 | | **DESIGN SYSTEM & THEMING** | | | | | | |
-| 126 | Design token architecture (3-tier: primitive → semantic → component) | EX | P0 | No (system) | M | NativeWind v4.2 + Tailwind CSS v3.4 | global.css vars + tailwind.config.js |
-| 127 | BrandProvider (runtime theme switching) | EX | P0 | No (system) | M | NativeWind vars() | React context + CSS variables |
-| 128 | Agentic Bank brand tokens (extracted from SwiftBank) | EX | P0 | No (system) | M | SwiftBank kit | One-time extraction (DONE in Phase 1e) |
-| 129 | NativeWind v4.2 + Tailwind CSS v3.4 config | EX | P0 | No (system) | M | Expo, Metro, Babel config | Foundation setup (already configured) |
-| 130 | tailwind.config.js (maps CSS vars → utility classes) | EX | P0 | No (system) | S | Token architecture | Config file (already exists) |
-| 131 | Light + dark mode support | EX | P0 | No (system) | M | NativeWind dark: variant + .dark:root in global.css | Two token sets |
-| 132 | Banking semantic tokens (money.positive, ai.bubble, card.border) | EX | P0 | No (system) | S | Token architecture | global.css + tailwind.config.js |
+| 126 | ~~Design token architecture (3-tier: primitive → semantic → component)~~ | EX | ~~P0~~ | No (system) | M | NativeWind v4.2 + Tailwind CSS v3.4 | **DONE (Phase 1e-1f).** global.css vars + tailwind.config.js |
+| 127 | ~~BrandProvider (runtime theme switching)~~ | EX | ~~P0~~ | No (system) | M | NativeWind vars() | **DONE (Phase 1f).** useTokens() hook in theme/tokens.ts |
+| 128 | ~~Agentic Bank brand tokens (extracted from SwiftBank)~~ | EX | ~~P0~~ | No (system) | M | SwiftBank kit | **DONE (Phase 1e).** One-time extraction complete |
+| 129 | ~~NativeWind v4.2 + Tailwind CSS v3.4 config~~ | EX | ~~P0~~ | No (system) | M | Expo, Metro, Babel config | **DONE (Phase 1f).** babel.config.js, tailwind.config.js, metro.config.js |
+| 130 | ~~tailwind.config.js (maps CSS vars → utility classes)~~ | EX | ~~P0~~ | No (system) | S | Token architecture | **DONE (Phase 1f).** Config file exists and verified |
+| 131 | ~~Light + dark mode support~~ | EX | ~~P0~~ | No (system) | M | NativeWind dark: variant + @media prefers-color-scheme | **DONE (Phase 1f).** Two token sets in global.css + theme/tokens.ts |
+| 132 | ~~Banking semantic tokens (money.positive, ai.bubble, card.border)~~ | EX | ~~P0~~ | No (system) | S | Token architecture | **DONE (Phase 1f).** All banking tokens in global.css + tailwind.config.js |
 | 133 | Storybook 9 setup (Expo + /storybook route) | EX | P1 | No (system) | M | Storybook 9, Expo Router | Dev-only route |
 | 134 | Dev-mode BrandSwitcher (demo theme toggle) | EX | P1 | No (UI) | S | BrandProvider | Floating button, dev-only |
-| 135 | useThemeColor hook (JS contexts: charts, headers, etc.) | EX | P0 | No (system) | S | NativeWind v4 useUnstableNativeVariable | Utility hook |
+| 135 | ~~useThemeColor hook (JS contexts: charts, headers, etc.)~~ | EX | ~~P0~~ | No (system) | S | NativeWind v4 | **DONE (Phase 1f).** useTokens() in theme/tokens.ts |
 
 ---
 
 ## Summary Statistics
 
-| Priority | Count | Notes |
-|----------|-------|-------|
-| **P0** | 59 | Core experience: chat, balance, pots, payments, onboarding (incl. welcome card, funding, checklist), insights, infrastructure, design system, context reset |
-| **P1** | 66 | Depth: international, lending, Flex Purchase, credit score, payment history, request money, recurring detection, auto-save rules, onboarding recovery, notifications, card mgmt, Storybook |
-| **P2** | 18 | Polish: charts, NL search, direct debits, deep linking, offline, rate limiting, card limits |
-| **Total** | 143 | |
+| Priority | Count | Remaining | Notes |
+|----------|-------|-----------|-------|
+| **P0** | 59 | **51** | 8 DONE (design system #126-132, useTokens #135). Remaining: chat, balance, pots, payments, onboarding, insights, infrastructure |
+| **P1** | 66 | 66 | Depth: international, lending, Flex Purchase, credit score, payment history, request money, recurring detection, auto-save rules, onboarding recovery, notifications, card mgmt, Storybook |
+| **P2** | 18 | 18 | Polish: charts, NL search, direct debits, deep linking, offline, rate limiting, card limits |
+| **Total** | 143 | **135** | |
 
-| Squad | P0 | P1 | P2 | Total |
-|-------|----|----|-----|-------|
-| **Core Banking (CB)** | 16 | 22 | 6 | 44 |
-| **Lending (LE)** | 0 | 21 | 0 | 21 |
-| **Experience (EX)** | 43 | 23 | 12 | 78 |
+| Squad | P0 (original) | P0 (remaining) | P1 | P2 | Total |
+|-------|--------------|----------------|-----|-----|-------|
+| **Core Banking (CB)** | 16 | **17** (+1: #22 categorisation) | 22 | 6 | 45 |
+| **Lending (LE)** | 0 | 0 | 21 | 0 | 21 |
+| **Experience (EX)** | 43 | **34** (-8 DONE, -1 moved to CB) | 23 | 12 | 69 |
+
+### Experience Squad Parallel Streams (Approach 4)
+
+> **Decision (2026-03-07):** To address the EX overload risk, the 34 remaining EX P0 features are split into 4 parallel agent streams. Each stream runs in an isolated git worktree with shared CLAUDE.md conventions. See plan-assessment.md §4.1 for details.
+
+| Stream | Scope | Features | Est. Size | Dependencies |
+|--------|-------|----------|-----------|--------------|
+| **EX-Infra** | Chat interface, card renderer, confirmation flow, tool registry, streaming, conversation state | #89-100 | 12 features | None — builds foundation first |
+| **EX-Cards** | 8 critical-path cards: Balance, Confirmation, Success, Error, Insight, TransactionList, QuickReplies, Welcome + remaining chat cards | #5, #12, #19, #25, #26, #91, #93, #97, #99, #67, #68 | 11 features | Card renderer from EX-Infra |
+| **EX-Onboarding** | Full onboarding flow: welcome → data collection → KYC → provisioning → checklist | #69-77, #80, #81, #119 | 10 features | Chat interface from EX-Infra |
+| **EX-Insights** | Spending queries, spike detection, weekly summary, proactive engine, morning greeting, beneficiary AI | #31, #32, #101-107 | 10 features | Tool registry from EX-Infra |
+
+**Sequencing:**
+```
+Days 1-5:   EX-Infra ─────────────────────►
+Days 4-10:  EX-Cards ──────► (parallel, starts when card renderer lands)
+Days 4-10:  EX-Onboarding ──► (parallel, starts when chat interface lands)
+Days 5-12:  EX-Insights ────► (parallel, starts when tool registry lands)
+```
 
 | AI Capability | Count |
 |--------------|-------|
