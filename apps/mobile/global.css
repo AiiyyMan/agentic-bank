@@ -1,319 +1,306 @@
-@import "tailwindcss/theme.css" layer(theme);
-@import "tailwindcss/preflight.css" layer(base);
-@import "tailwindcss/utilities.css";
-@import "nativewind/theme";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-@theme {
-  /* === Colors: Primitive Palettes === */
-  --color-gray-0: #FFFFFF;
-  --color-gray-5: #F8FAFC;
-  --color-gray-10: #F1F5F9;
-  --color-gray-20: #E2E8F0;
-  --color-gray-30: #CBD5E1;
-  --color-gray-40: #94A3B8;
-  --color-gray-50: #64748B;
-  --color-gray-60: #4B5563;
-  --color-gray-70: #334155;
-  --color-gray-80: #1F2937;
-  --color-gray-90: #0F172A;
-  --color-gray-100: #000000;
-
-  --color-brand-5: #F0F9FF;
-  --color-brand-10: #E0F2FE;
-  --color-brand-20: #BAE6FD;
-  --color-brand-30: #7DD3FC;
-  --color-brand-40: #38BDF8;
-  --color-brand-50: #0EA5E9;
-  --color-brand-60: #0284C7;
-  --color-brand-70: #0369A1;
-  --color-brand-80: #075985;
-  --color-brand-90: #0C4A6E;
-
-  --color-destructive-5: #FFF1F2;
-  --color-destructive-10: #FFE4E6;
-  --color-destructive-20: #FECDD3;
-  --color-destructive-30: #FDA4AF;
-  --color-destructive-40: #FB7185;
-  --color-destructive-50: #F43F5E;
-  --color-destructive-60: #E11D48;
-  --color-destructive-70: #BE123C;
-  --color-destructive-80: #9F1239;
-  --color-destructive-90: #881337;
-
-  --color-warning-5: #FEFCE8;
-  --color-warning-10: #FEF9C3;
-  --color-warning-20: #FEF08A;
-  --color-warning-30: #FDE047;
-  --color-warning-40: #FACC15;
-  --color-warning-50: #EAB308;
-  --color-warning-60: #CA8A04;
-  --color-warning-70: #A16207;
-  --color-warning-80: #854D0E;
-  --color-warning-90: #713F12;
-
-  --color-success-5: #ECFDF5;
-  --color-success-10: #D1FAE5;
-  --color-success-20: #BBF7D0;
-  --color-success-30: #6EE7B7;
-  --color-success-40: #34D399;
-  --color-success-50: #10B981;
-  --color-success-60: #059669;
-  --color-success-70: #047857;
-  --color-success-80: #065F46;
-  --color-success-90: #064E3B;
-
-  --color-blue-5: #EFF6FF;
-  --color-blue-10: #DBEAFE;
-  --color-blue-20: #BFDBFE;
-  --color-blue-30: #93C5FD;
-  --color-blue-40: #60A5FA;
-  --color-blue-50: #3B82F6;
-  --color-blue-60: #2563EB;
-  --color-blue-70: #1D4ED8;
-  --color-blue-80: #1E40AF;
-  --color-blue-90: #1E3A8A;
-
-  --color-cyan-5: #ECFEFF;
-  --color-cyan-10: #CFFAFE;
-  --color-cyan-20: #A5F3FC;
-  --color-cyan-30: #67E8F9;
-  --color-cyan-40: #22D3EE;
-  --color-cyan-50: #06B6D4;
-  --color-cyan-60: #0891B2;
-  --color-cyan-70: #0E7490;
-  --color-cyan-80: #155E75;
-  --color-cyan-90: #164E63;
-
-  --color-teal-5: #F0FDFA;
-  --color-teal-10: #CCFBF1;
-  --color-teal-20: #99F6E4;
-  --color-teal-30: #5EEAD4;
-  --color-teal-40: #2DD4BF;
-  --color-teal-50: #14B8A6;
-  --color-teal-60: #0D9488;
-  --color-teal-70: #0F766E;
-  --color-teal-80: #115E59;
-  --color-teal-90: #134E4A;
-
-  --color-indigo-5: #EEF2FF;
-  --color-indigo-10: #E0E7FF;
-  --color-indigo-20: #C7D2FE;
-  --color-indigo-30: #A5B4FC;
-  --color-indigo-40: #818CF8;
-  --color-indigo-50: #818CF8;
-  --color-indigo-60: #4F46E5;
-  --color-indigo-70: #4338CA;
-  --color-indigo-80: #3730A3;
-  --color-indigo-90: #312E81;
-
-  --color-purple-5: #FAF5FF;
-  --color-purple-10: #F3E8FF;
-  --color-purple-20: #E9D5FF;
-  --color-purple-30: #D8B4FE;
-  --color-purple-40: #C084FC;
-  --color-purple-50: #A855F7;
-  --color-purple-60: #9333EA;
-  --color-purple-70: #7E22CE;
-  --color-purple-80: #6B21A8;
-  --color-purple-90: #581C87;
-
-  --color-pink-5: #FDF2F8;
-  --color-pink-10: #FDF2F8;
-  --color-pink-20: #FBCFE8;
-  --color-pink-30: #F9A8D4;
-  --color-pink-40: #F472B6;
-  --color-pink-50: #EC4899;
-  --color-pink-60: #DB2777;
-  --color-pink-70: #BE185D;
-  --color-pink-80: #9D174D;
-  --color-pink-90: #831843;
-
-  --color-orange-5: #FFF7ED;
-  --color-orange-10: #FFEDD5;
-  --color-orange-20: #FED7AA;
-  --color-orange-30: #FDBA74;
-  --color-orange-40: #FB923C;
-  --color-orange-50: #F97316;
-  --color-orange-60: #EA580C;
-  --color-orange-70: #C2410C;
-  --color-orange-80: #9A3412;
-  --color-orange-90: #7C2D12;
-
-  /* === Colors: Semantic (Light mode defaults) === */
-  --color-bg-primary: var(--color-gray-0);
-  --color-bg-secondary: var(--color-gray-5);
-  --color-bg-tertiary: var(--color-gray-10);
-  --color-bg-inverse: var(--color-gray-90);
-
-  --color-surface-default: var(--color-gray-0);
-  --color-surface-raised: var(--color-gray-0);
-  --color-surface-sunken: var(--color-gray-5);
-
-  --color-text-primary: var(--color-gray-90);
-  --color-text-secondary: var(--color-gray-70);
-  --color-text-tertiary: var(--color-gray-50);
-  --color-text-disabled: var(--color-gray-30);
-  --color-text-inverse: var(--color-gray-0);
-  --color-text-brand: var(--color-brand-60);
-  --color-text-success: var(--color-success-60);
-  --color-text-warning: var(--color-warning-70);
-  --color-text-error: var(--color-destructive-60);
-
-  --color-border-default: var(--color-gray-20);
-  --color-border-strong: var(--color-gray-30);
-  --color-border-focus: var(--color-brand-50);
-  --color-border-error: var(--color-destructive-50);
-
-  --color-brand-subtle: var(--color-brand-5);
-  --color-brand-muted: var(--color-brand-10);
-  --color-brand-default: var(--color-brand-50);
-  --color-brand-hover: var(--color-brand-60);
-  --color-brand-active: var(--color-brand-70);
-  --color-brand-text: var(--color-brand-70);
-
-  --color-status-success-subtle: var(--color-success-5);
-  --color-status-success-muted: var(--color-success-10);
-  --color-status-success-default: var(--color-success-50);
-  --color-status-success-text: var(--color-success-70);
-
-  --color-status-warning-subtle: var(--color-warning-5);
-  --color-status-warning-muted: var(--color-warning-10);
-  --color-status-warning-default: var(--color-warning-50);
-  --color-status-warning-text: var(--color-warning-80);
-
-  --color-status-error-subtle: var(--color-destructive-5);
-  --color-status-error-muted: var(--color-destructive-10);
-  --color-status-error-default: var(--color-destructive-50);
-  --color-status-error-text: var(--color-destructive-70);
-
-  --color-status-info-subtle: var(--color-blue-5);
-  --color-status-info-muted: var(--color-blue-10);
-  --color-status-info-default: var(--color-blue-50);
-  --color-status-info-text: var(--color-blue-70);
-
-  /* === Spacing === */
-  --spacing-4xs: 2px;
-  --spacing-3xs: 4px;
-  --spacing-2xs: 6px;
-  --spacing-xs: 8px;
-  --spacing-sm: 12px;
-  --spacing-md: 16px;
-  --spacing-lg: 20px;
-  --spacing-xl: 24px;
-  --spacing-2xl: 32px;
-  --spacing-3xl: 40px;
-  --spacing-4xl: 48px;
-  --spacing-5xl: 64px;
-  --spacing-6xl: 80px;
-
-  /* === Border Radius === */
-  --radius-none: 0px;
-  --radius-3xs: 1px;
-  --radius-2xs: 2px;
-  --radius-xs: 4px;
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 16px;
-  --radius-xl: 24px;
-  --radius-2xl: 32px;
-  --radius-3xl: 48px;
-  --radius-4xl: 64px;
-  --radius-full: 9999px;
-
-  /* === Component Sizes === */
-  --size-2xs: 16px;
-  --size-xs: 24px;
-  --size-sm: 32px;
-  --size-md: 40px;
-  --size-lg: 48px;
-  --size-xl: 64px;
-
-  /* === Icon Sizes === */
-  --size-icon-2xs: 12px;
-  --size-icon-xs: 16px;
-  --size-icon-sm: 20px;
-  --size-icon-md: 24px;
-  --size-icon-lg: 32px;
-
-  /* === Typography === */
-  --font-family-base: "Inter";
-  --font-size-2xs: 10px;
-  --font-size-xs: 12px;
-  --font-size-sm: 14px;
-  --font-size-md: 16px;
-  --font-size-lg: 18px;
-  --font-size-xl: 20px;
-  --font-size-2xl: 24px;
-  --font-size-3xl: 30px;
-  --font-size-4xl: 36px;
-  --font-size-5xl: 48px;
-  --font-size-6xl: 60px;
-  --font-size-7xl: 72px;
-  --font-size-8xl: 96px;
-  --font-size-9xl: 128px;
-  --font-size-10xl: 180px;
-
-  /* === Shadows === */
-  --shadow-xs: 0 1px 2px 0 rgba(28,25,23,0.05);
-  --shadow-sm: 0 1px 2px 0 rgba(28,25,23,0.06), 0 1px 3px 0 rgba(28,25,23,0.10);
-  --shadow-md: 0 4px 8px 0 rgba(28,25,23,0.03), 0 8px 16px 0 rgba(28,25,23,0.02);
-  --shadow-lg: 0 4px 6px -2px rgba(28,25,23,0.03), 0 12px 16px -4px rgba(28,25,23,0.08);
-  --shadow-xl: 0 8px 8px -4px rgba(28,25,23,0.03), 0 20px 24px -4px rgba(28,25,23,0.08);
-  --shadow-2xl: 0 24px 48px -12px rgba(28,25,23,0.18);
-}
-
-/* === Dark Mode Overrides === */
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --color-bg-primary: var(--color-gray-100);
-    --color-bg-secondary: var(--color-gray-90);
-    --color-bg-tertiary: var(--color-gray-80);
-    --color-bg-inverse: var(--color-gray-5);
+    /* ================================================================
+       PRIMITIVE PALETTES
+       All values are RGB triplets for NativeWind opacity modifier support.
+       Usage in tailwind.config.js: rgb(var(--color-gray-0) / <alpha-value>)
+       ================================================================ */
 
-    --color-surface-default: var(--color-gray-90);
-    --color-surface-raised: var(--color-gray-80);
-    --color-surface-sunken: var(--color-gray-100);
+    /* Gray (Neutral) */
+    --color-gray-0: 255 255 255;
+    --color-gray-5: 248 250 252;
+    --color-gray-10: 241 245 249;
+    --color-gray-20: 226 232 240;
+    --color-gray-30: 203 213 225;
+    --color-gray-40: 148 163 184;
+    --color-gray-50: 100 116 139;
+    --color-gray-60: 75 85 99;
+    --color-gray-70: 51 65 85;
+    --color-gray-80: 31 41 55;
+    --color-gray-90: 15 23 42;
+    --color-gray-100: 0 0 0;
 
-    --color-text-primary: var(--color-gray-5);
-    --color-text-secondary: var(--color-gray-20);
-    --color-text-tertiary: var(--color-gray-40);
-    --color-text-disabled: var(--color-gray-60);
-    --color-text-inverse: var(--color-gray-90);
-    --color-text-brand: var(--color-brand-40);
-    --color-text-success: var(--color-success-40);
-    --color-text-warning: var(--color-warning-40);
-    --color-text-error: var(--color-destructive-40);
+    /* Brand (Sky Blue) */
+    --color-brand-5: 240 249 255;
+    --color-brand-10: 224 242 254;
+    --color-brand-20: 186 230 253;
+    --color-brand-30: 125 211 252;
+    --color-brand-40: 56 189 248;
+    --color-brand-50: 14 165 233;
+    --color-brand-60: 2 132 199;
+    --color-brand-70: 3 105 161;
+    --color-brand-80: 7 89 133;
+    --color-brand-90: 12 74 110;
 
-    --color-border-default: var(--color-gray-70);
-    --color-border-strong: var(--color-gray-60);
-    --color-border-focus: var(--color-brand-40);
-    --color-border-error: var(--color-destructive-40);
+    /* Destructive (Rose) */
+    --color-destructive-5: 255 241 242;
+    --color-destructive-10: 255 228 230;
+    --color-destructive-20: 254 205 211;
+    --color-destructive-30: 253 164 175;
+    --color-destructive-40: 251 113 133;
+    --color-destructive-50: 244 63 94;
+    --color-destructive-60: 225 29 72;
+    --color-destructive-70: 190 18 60;
+    --color-destructive-80: 159 18 57;
+    --color-destructive-90: 136 19 55;
 
-    --color-brand-subtle: var(--color-brand-90);
-    --color-brand-muted: var(--color-brand-80);
-    --color-brand-default: var(--color-brand-40);
-    --color-brand-hover: var(--color-brand-30);
-    --color-brand-active: var(--color-brand-20);
-    --color-brand-text: var(--color-brand-30);
+    /* Warning (Yellow) */
+    --color-warning-5: 254 252 232;
+    --color-warning-10: 254 249 195;
+    --color-warning-20: 254 240 138;
+    --color-warning-30: 253 224 71;
+    --color-warning-40: 250 204 21;
+    --color-warning-50: 234 179 8;
+    --color-warning-60: 202 138 4;
+    --color-warning-70: 161 98 7;
+    --color-warning-80: 133 77 14;
+    --color-warning-90: 113 63 18;
 
-    --color-status-success-subtle: var(--color-success-90);
-    --color-status-success-muted: var(--color-success-80);
-    --color-status-success-default: var(--color-success-40);
-    --color-status-success-text: var(--color-success-30);
+    /* Success (Emerald) */
+    --color-success-5: 236 253 245;
+    --color-success-10: 209 250 229;
+    --color-success-20: 187 247 208;
+    --color-success-30: 110 231 183;
+    --color-success-40: 52 211 153;
+    --color-success-50: 16 185 129;
+    --color-success-60: 5 150 105;
+    --color-success-70: 4 120 87;
+    --color-success-80: 6 95 70;
+    --color-success-90: 6 78 59;
 
-    --color-status-warning-subtle: var(--color-warning-90);
-    --color-status-warning-muted: var(--color-warning-80);
-    --color-status-warning-default: var(--color-warning-40);
-    --color-status-warning-text: var(--color-warning-30);
+    /* Blue */
+    --color-blue-5: 239 246 255;
+    --color-blue-10: 219 234 254;
+    --color-blue-20: 191 219 254;
+    --color-blue-30: 147 197 253;
+    --color-blue-40: 96 165 250;
+    --color-blue-50: 59 130 246;
+    --color-blue-60: 37 99 235;
+    --color-blue-70: 29 78 216;
+    --color-blue-80: 30 64 175;
+    --color-blue-90: 30 58 138;
 
-    --color-status-error-subtle: var(--color-destructive-90);
-    --color-status-error-muted: var(--color-destructive-80);
-    --color-status-error-default: var(--color-destructive-40);
-    --color-status-error-text: var(--color-destructive-30);
+    /* Indigo */
+    --color-indigo-5: 238 242 255;
+    --color-indigo-10: 224 231 255;
+    --color-indigo-20: 199 210 254;
+    --color-indigo-30: 165 180 252;
+    --color-indigo-40: 129 140 248;
+    --color-indigo-50: 129 140 248;
+    --color-indigo-60: 79 70 229;
+    --color-indigo-70: 67 56 202;
+    --color-indigo-80: 55 48 163;
+    --color-indigo-90: 49 46 129;
 
-    --color-status-info-subtle: var(--color-blue-90);
-    --color-status-info-muted: var(--color-blue-80);
-    --color-status-info-default: var(--color-blue-40);
-    --color-status-info-text: var(--color-blue-30);
+    /* Purple */
+    --color-purple-5: 250 245 255;
+    --color-purple-10: 243 232 255;
+    --color-purple-20: 233 213 255;
+    --color-purple-30: 216 180 254;
+    --color-purple-40: 192 132 252;
+    --color-purple-50: 168 85 247;
+    --color-purple-60: 147 51 234;
+    --color-purple-70: 126 34 206;
+    --color-purple-80: 107 33 168;
+    --color-purple-90: 88 28 135;
+
+    /* Orange */
+    --color-orange-5: 255 247 237;
+    --color-orange-10: 255 237 213;
+    --color-orange-20: 254 215 170;
+    --color-orange-30: 253 186 116;
+    --color-orange-40: 251 146 60;
+    --color-orange-50: 249 115 22;
+    --color-orange-60: 234 88 12;
+    --color-orange-70: 194 65 12;
+    --color-orange-80: 154 52 18;
+    --color-orange-90: 124 45 18;
+
+    /* ================================================================
+       SEMANTIC TOKENS (Light Mode)
+       IMPORTANT: All values are flattened RGB triplets, NOT var() refs.
+       NativeWind does not resolve nested var() references.
+       ================================================================ */
+
+    /* Background */
+    --color-background-primary: 255 255 255;
+    --color-background-secondary: 248 250 252;
+    --color-background-tertiary: 241 245 249;
+    --color-background-inverse: 15 23 42;
+
+    /* Surface */
+    --color-surface-default: 255 255 255;
+    --color-surface-raised: 255 255 255;
+    --color-surface-sunken: 248 250 252;
+
+    /* Text */
+    --color-text-primary: 15 23 42;
+    --color-text-secondary: 51 65 85;
+    --color-text-tertiary: 100 116 139;
+    --color-text-disabled: 203 213 225;
+    --color-text-inverse: 255 255 255;
+    --color-text-brand: 2 132 199;
+    --color-text-success: 5 150 105;
+    --color-text-warning: 161 98 7;
+    --color-text-error: 225 29 72;
+
+    /* Border */
+    --color-border-default: 226 232 240;
+    --color-border-strong: 203 213 225;
+    --color-border-focus: 14 165 233;
+    --color-border-error: 244 63 94;
+
+    /* Brand (Semantic) */
+    --color-brand-subtle: 240 249 255;
+    --color-brand-muted: 224 242 254;
+    --color-brand-default: 14 165 233;
+    --color-brand-hover: 2 132 199;
+    --color-brand-active: 3 105 161;
+    --color-brand-text: 3 105 161;
+
+    /* Status: Success */
+    --color-status-success-subtle: 236 253 245;
+    --color-status-success-muted: 209 250 229;
+    --color-status-success-default: 16 185 129;
+    --color-status-success-text: 4 120 87;
+
+    /* Status: Warning */
+    --color-status-warning-subtle: 254 252 232;
+    --color-status-warning-muted: 254 249 195;
+    --color-status-warning-default: 234 179 8;
+    --color-status-warning-text: 133 77 14;
+
+    /* Status: Error */
+    --color-status-error-subtle: 255 241 242;
+    --color-status-error-muted: 255 228 230;
+    --color-status-error-default: 244 63 94;
+    --color-status-error-text: 190 18 60;
+
+    /* Status: Info */
+    --color-status-info-subtle: 239 246 255;
+    --color-status-info-muted: 219 234 254;
+    --color-status-info-default: 59 130 246;
+    --color-status-info-text: 29 78 216;
+
+    /* Banking: Money */
+    --color-money-positive: 5 150 105;
+    --color-money-negative: 15 23 42;
+    --color-money-pending: 202 138 4;
+
+    /* Banking: AI Chat */
+    --color-ai-bubble-assistant: 240 249 255;
+    --color-ai-bubble-user: 14 165 233;
+    --color-ai-avatar-bg: 224 231 255;
+    --color-ai-avatar-icon: 129 140 248;
+
+    /* Banking: Card Accents */
+    --color-card-confirmation-border: 14 165 233;
+    --color-card-success-border: 16 185 129;
+
+    /* Banking: Credit Score Bands */
+    --color-score-poor: 244 63 94;
+    --color-score-fair: 249 115 22;
+    --color-score-good: 234 179 8;
+    --color-score-excellent: 16 185 129;
+
+    /* Overlay (use with opacity: bg-overlay/50) */
+    --color-overlay: 0 0 0;
+  }
+
+  /* ================================================================
+     DARK MODE
+     Uses @media (prefers-color-scheme) for automatic system-based
+     switching. NativeWind's dark: variant maps to this automatically.
+     ================================================================ */
+  @media (prefers-color-scheme: dark) {
+    :root {
+      /* Background */
+      --color-background-primary: 0 0 0;
+      --color-background-secondary: 15 23 42;
+      --color-background-tertiary: 31 41 55;
+      --color-background-inverse: 248 250 252;
+
+      /* Surface */
+      --color-surface-default: 15 23 42;
+      --color-surface-raised: 31 41 55;
+      --color-surface-sunken: 0 0 0;
+
+      /* Text */
+      --color-text-primary: 248 250 252;
+      --color-text-secondary: 226 232 240;
+      --color-text-tertiary: 148 163 184;
+      --color-text-disabled: 75 85 99;
+      --color-text-inverse: 15 23 42;
+      --color-text-brand: 56 189 248;
+      --color-text-success: 52 211 153;
+      --color-text-warning: 250 204 21;
+      --color-text-error: 251 113 133;
+
+      /* Border */
+      --color-border-default: 51 65 85;
+      --color-border-strong: 75 85 99;
+      --color-border-focus: 56 189 248;
+      --color-border-error: 251 113 133;
+
+      /* Brand (Semantic) */
+      --color-brand-subtle: 12 74 110;
+      --color-brand-muted: 7 89 133;
+      --color-brand-default: 56 189 248;
+      --color-brand-hover: 125 211 252;
+      --color-brand-active: 186 230 253;
+      --color-brand-text: 125 211 252;
+
+      /* Status: Success */
+      --color-status-success-subtle: 6 78 59;
+      --color-status-success-muted: 6 95 70;
+      --color-status-success-default: 52 211 153;
+      --color-status-success-text: 110 231 183;
+
+      /* Status: Warning */
+      --color-status-warning-subtle: 113 63 18;
+      --color-status-warning-muted: 133 77 14;
+      --color-status-warning-default: 250 204 21;
+      --color-status-warning-text: 253 224 71;
+
+      /* Status: Error */
+      --color-status-error-subtle: 136 19 55;
+      --color-status-error-muted: 159 18 57;
+      --color-status-error-default: 251 113 133;
+      --color-status-error-text: 253 164 175;
+
+      /* Status: Info */
+      --color-status-info-subtle: 30 58 138;
+      --color-status-info-muted: 30 64 175;
+      --color-status-info-default: 96 165 250;
+      --color-status-info-text: 147 197 253;
+
+      /* Banking: Money */
+      --color-money-positive: 52 211 153;
+      --color-money-negative: 248 250 252;
+      --color-money-pending: 250 204 21;
+
+      /* Banking: AI Chat */
+      --color-ai-bubble-assistant: 12 74 110;
+      --color-ai-bubble-user: 56 189 248;
+      --color-ai-avatar-bg: 55 48 163;
+      --color-ai-avatar-icon: 165 180 252;
+
+      /* Banking: Card Accents */
+      --color-card-confirmation-border: 56 189 248;
+      --color-card-success-border: 52 211 153;
+
+      /* Banking: Credit Score Bands */
+      --color-score-poor: 251 113 133;
+      --color-score-fair: 251 146 60;
+      --color-score-good: 250 204 21;
+      --color-score-excellent: 52 211 153;
+
+      /* Overlay (darker in dark mode) */
+      --color-overlay: 0 0 0;
+    }
   }
 }

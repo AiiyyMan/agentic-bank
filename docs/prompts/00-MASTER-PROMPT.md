@@ -83,7 +83,7 @@ The app uses a **three-tier design token architecture** that allows changing one
 
 To reskin for a new client: change the semantic tier only. Everything else propagates automatically.
 
-**Stack:** NativeWind v4 + Gluestack UI v3 + Tailwind CSS. Tokens are defined as CSS custom properties via NativeWind's `vars()` function, mapped through `tailwind.config.js`, and consumed by components via semantic Tailwind classes (`bg-primary`, `text-foreground`). A `<BrandProvider>` wrapper enables runtime theme switching — no rebuild needed.
+**Stack:** NativeWind v4.2 (stable) + Tailwind CSS v3.4. Tokens are defined as CSS custom properties (RGB triplets) in `apps/mobile/global.css`, mapped through `tailwind.config.js` using `rgb(var(--color-name) / <alpha-value>)`, and consumed by components via semantic Tailwind classes (`bg-brand-default`, `text-text-primary`). A `<BrandProvider>` wrapper using NativeWind's `vars()` function enables runtime theme switching — no rebuild needed. No component library (Gluestack UI is NOT installed); components are built directly from specs in `agent-design-instructions.md`.
 
 **Banking-specific semantic tokens:** `money.positive` / `money.negative` / `money.pending`, `ai.bubble.assistant` / `ai.bubble.user`, `card.confirmation.border` (amber) / `card.success.border` (green), `score.poor` / `score.fair` / `score.good` / `score.excellent`.
 
@@ -107,7 +107,7 @@ During Foundation (F1b), design tokens are extracted from the SwiftBank Figma fi
 The [Southleft Figma Console MCP](https://github.com/southleft/figma-console-mcp) is available as a tool for Claude agents. It provides 56+ tools for reading Figma files, extracting design tokens, and inspecting component specs.
 
 **Primary use cases:**
-1. **One-time token extraction** — `figma_get_design_system_kit` pulls all colors, typography, spacing, radii as structured JSON from the SwiftBank file. Claude transforms this into `tokens.ts` + `tailwind.config.js` entries.
+1. **One-time token extraction** — `figma_get_design_system_kit` pulls all colors, typography, spacing, radii as structured JSON from the SwiftBank file. Claude transforms this into `global.css` CSS variables + `tailwind.config.js` mappings (done in Phase 1e).
 2. **Component reference** — during implementation, Claude agents can inspect specific SwiftBank frames to understand layout, spacing, and component structure.
 3. **Token export** — export as CSS custom properties, Tailwind config, or Sass variables directly.
 
@@ -119,7 +119,7 @@ The [Southleft Figma Console MCP](https://github.com/southleft/figma-console-mcp
 
 Storybook 9 with Expo support provides a component catalogue for verifying card components render correctly with different brand themes. Setup:
 - `/storybook` route in Expo Router (dev-only, hidden in production)
-- Global decorator wraps stories in `<BrandProvider>` + `<GluestackUIProvider>`
+- Global decorator wraps stories in `<BrandProvider>`
 - Stories render with different brands — toggle in Storybook toolbar
 - Components documented with usage examples, props, and variant previews
 - Priority: **P1** (set up in Foundation F1b, populated during Phase 7)

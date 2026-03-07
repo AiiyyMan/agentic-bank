@@ -29,7 +29,7 @@
 | **Colour-coded categories** | Each spending category gets a consistent colour across charts, lists, and insights | Monzo (13 categories), Starling, Emma | High |
 | **Bottom navigation** | 4-5 tab bar: Home, Payments, Savings/Spaces, Profile/More | Nearly universal across UK neobanks | High |
 
-**Key Insight:** Leading neobanks invest in bespoke design systems rather than using off-the-shelf component libraries. For a POC, the pragmatic approach is to use a component library (e.g., Gluestack UI / NativeWind) with a custom theme layer that implements fintech-specific tokens -- particularly for typography scales, financial figure formatting, and status colours. **[Medium]**
+**Key Insight:** Leading neobanks invest in bespoke design systems rather than using off-the-shelf component libraries. For a POC, the pragmatic approach is to use NativeWind v4 (stable, Tailwind CSS v3) with a semantic token layer that implements fintech-specific tokens -- particularly for typography scales, financial figure formatting, and status colours. Component specs are defined in `agent-design-instructions.md` and built directly; no third-party component library is needed for POC scope. **[Medium]**
 
 ### 1.2 Data-Dense Screen Patterns
 
@@ -312,7 +312,7 @@ Before defining our own patterns, it is worth mapping the existing AI banking as
 | **Hey George** | Erste Bank | 2024 | 1M+ (beta) | UX Design Award 2025, overcame chatbot trust deficit, real-world usage matched research predictions | German-speaking markets only, limited public documentation | High |
 | **Cleo** | Cleo (standalone) | 2016 | 7M+ | Conversational-first, Smart Insights Agent (o3), Roast/Hype modes, proactive nudges | Not a bank (overlay), limited transactional capability, US-focused | High |
 | **Klarna AI** | Klarna | 2024 | N/A | 2/3 of all chats handled, 2-min avg resolution, 25% fewer repeat contacts, equivalent of 700 agents | Customer service focus not banking, limited proactive features | High |
-| **Monzo** | Monzo | N/A | 9M+ | Weekly spending reports, Trends/Summary, excellent categorisation | No conversational AI assistant; insights are push-notification-based, not chat-based | High |
+| **Monzo** | Monzo | N/A | 12.2M+ | Weekly spending reports, Trends/Summary, excellent categorisation | No conversational AI assistant; insights are push-notification-based, not chat-based | High |
 
 **Gap Analysis:** No UK neobank currently offers a truly AI-first conversational interface where the chat IS the primary banking experience. Monzo has the best spending insights but delivers them via static screens and push notifications, not conversation. Erica is the closest to our vision but is US-only and lacks the agentic tool-use pattern (propose -> confirm -> execute). Cleo demonstrates the conversational tone and proactive insight model but is an overlay app, not a bank. **Our POC occupies an unserved position: a UK neobank where the AI chat is the home screen, handles transactions with two-phase confirmation, and proactively surfaces insights conversationally.** **[Medium -- based on synthesis of available evidence]**
 
@@ -506,7 +506,7 @@ Errors in a chat interface must be handled differently from traditional UI error
 
 | Decision | Recommendation | Rationale |
 |----------|---------------|-----------|
-| Component library | Gluestack UI v3 + NativeWind v4 | Already in stack; good TypeScript support, themeable |
+| Styling engine | NativeWind v4.2 (stable) + Tailwind CSS v3.4 | Production-stable; CSS variables in `global.css` + `tailwind.config.js` mappings. Build lightweight components directly -- no component library needed for POC scope |
 | Colour palette | Financial-grade palette: dark navy primary, accent green for positive, red for negative, amber for warnings | Trust-building, accessible |
 | Typography | System fonts (SF Pro / Roboto) with tabular numerals for financial figures | Performance, familiarity, scannability |
 | Dark mode | Implement from day one using design tokens; base: `#121212` | User expectation in 2026; easier to build in than bolt on |

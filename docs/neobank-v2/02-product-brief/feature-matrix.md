@@ -44,7 +44,7 @@
 | 11 | Savings tab (dedicated screen) | CB | P0 | Drill-down | M | Pot list, goals, progress | Screen component |
 | 12 | Pot card (rich chat component) | EX | P0 | Yes (renders) | M | Pot data from CB | Shared component |
 | 13 | Lock pot until date | CB | P1 | Yes (write, confirmation) | S | Pot metadata | Mock (Supabase flag) |
-| 14 | Auto-save rules (recurring pot deposit) | CB | P2 | Yes (write, confirmation) | L | Scheduled jobs, pot transfer | Mock (Supabase cron) |
+| 14 | Auto-save rules (recurring pot deposit) | CB | P1 | Yes (write, confirmation) | L | Scheduled jobs, pot transfer | Mock (Supabase cron) |
 | 15 | Round-up savings | CB | P1 | Yes (write, auto) | L | Transaction webhook, pot transfer | Mock |
 | 16 | Rename / update pot goal | CB | P1 | Yes (write, confirmation) | S | Pot metadata | Supabase |
 | 17 | Close pot (return to main) | CB | P1 | Yes (write, confirmation) | S | Pot + main account | Griffin or mock |
@@ -196,16 +196,16 @@
 | 143 | AI chat rate limiting (cost control) | EX | P2 | No (system) | S | Rate limiter middleware | Server-side per-user limit |
 | | | | | | | | |
 | | **DESIGN SYSTEM & THEMING** | | | | | | |
-| 126 | Design token architecture (3-tier: primitive → semantic → component) | EX | P0 | No (system) | M | NativeWind v4 | tokens.ts + tailwind.config.js |
+| 126 | Design token architecture (3-tier: primitive → semantic → component) | EX | P0 | No (system) | M | NativeWind v4.2 + Tailwind CSS v3.4 | global.css vars + tailwind.config.js |
 | 127 | BrandProvider (runtime theme switching) | EX | P0 | No (system) | M | NativeWind vars() | React context + CSS variables |
-| 128 | Agentic Bank brand tokens (extracted from SwiftBank) | EX | P0 | No (system) | M | Figma Console MCP, SwiftBank kit | One-time extraction |
-| 129 | NativeWind v4 + Gluestack UI v3 install + config | EX | P0 | No (system) | M | Expo, Metro config | Foundation setup |
-| 130 | tailwind.config.js (maps CSS vars → utility classes) | EX | P0 | No (system) | S | Token architecture | Config file |
-| 131 | Light + dark mode support | EX | P0 | No (system) | M | NativeWind vars() per mode | Two token sets |
-| 132 | Banking semantic tokens (money.positive, ai.bubble, card.border) | EX | P0 | No (system) | S | Token architecture | tokens.ts |
+| 128 | Agentic Bank brand tokens (extracted from SwiftBank) | EX | P0 | No (system) | M | SwiftBank kit | One-time extraction (DONE in Phase 1e) |
+| 129 | NativeWind v4.2 + Tailwind CSS v3.4 config | EX | P0 | No (system) | M | Expo, Metro, Babel config | Foundation setup (already configured) |
+| 130 | tailwind.config.js (maps CSS vars → utility classes) | EX | P0 | No (system) | S | Token architecture | Config file (already exists) |
+| 131 | Light + dark mode support | EX | P0 | No (system) | M | NativeWind dark: variant + .dark:root in global.css | Two token sets |
+| 132 | Banking semantic tokens (money.positive, ai.bubble, card.border) | EX | P0 | No (system) | S | Token architecture | global.css + tailwind.config.js |
 | 133 | Storybook 9 setup (Expo + /storybook route) | EX | P1 | No (system) | M | Storybook 9, Expo Router | Dev-only route |
 | 134 | Dev-mode BrandSwitcher (demo theme toggle) | EX | P1 | No (UI) | S | BrandProvider | Floating button, dev-only |
-| 135 | useThemeColor hook (JS contexts: charts, headers, etc.) | EX | P0 | No (system) | S | NativeWind useUnstableNativeVariable | Utility hook |
+| 135 | useThemeColor hook (JS contexts: charts, headers, etc.) | EX | P0 | No (system) | S | NativeWind v4 useUnstableNativeVariable | Utility hook |
 
 ---
 
@@ -214,13 +214,13 @@
 | Priority | Count | Notes |
 |----------|-------|-------|
 | **P0** | 59 | Core experience: chat, balance, pots, payments, onboarding (incl. welcome card, funding, checklist), insights, infrastructure, design system, context reset |
-| **P1** | 65 | Depth: international, lending, Flex Purchase, credit score, payment history, request money, recurring detection, onboarding recovery, notifications, card mgmt, Storybook |
-| **P2** | 19 | Polish: charts, NL search, direct debits, deep linking, offline, rate limiting, auto-save rules, card limits |
+| **P1** | 66 | Depth: international, lending, Flex Purchase, credit score, payment history, request money, recurring detection, auto-save rules, onboarding recovery, notifications, card mgmt, Storybook |
+| **P2** | 18 | Polish: charts, NL search, direct debits, deep linking, offline, rate limiting, card limits |
 | **Total** | 143 | |
 
 | Squad | P0 | P1 | P2 | Total |
 |-------|----|----|-----|-------|
-| **Core Banking (CB)** | 16 | 21 | 7 | 44 |
+| **Core Banking (CB)** | 16 | 22 | 6 | 44 |
 | **Lending (LE)** | 0 | 21 | 0 | 21 |
 | **Experience (EX)** | 43 | 23 | 12 | 78 |
 

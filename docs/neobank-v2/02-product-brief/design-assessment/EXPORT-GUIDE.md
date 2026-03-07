@@ -156,9 +156,9 @@ Aliases (references to other tokens) look like:
 Once the JSON files are in the repo, we will:
 1. Parse and validate the token JSON
 2. Map to our three-tier architecture (primitive → semantic → component)
-3. Generate NativeWind/Tailwind theme config (`tailwind.config.ts`)
-4. Generate TypeScript token constants
-5. Set up light/dark theme switching if modes are present
+3. Update `global.css` CSS variables (RGB triplets) + `tailwind.config.js` mappings
+4. Generate TypeScript token constants for programmatic use (charts, gauges)
+5. Validate light/dark theme switching via `@media (prefers-color-scheme: dark)` CSS overrides + NativeWind `dark:` variant
 
 ## Sources
 

@@ -9,7 +9,7 @@
 - **No UK neobank offers AI-first conversational banking.** Monzo has spending insights via static screens; Revolut is hiring for AI agents but has not shipped one. Erica (BofA, US) is closest with 50M users and 3B+ interactions, but is primarily informational, not agentic
 - Cleo (7M users) demonstrates conversational-first tone and proactive nudges but is an overlay app, not a bank
 - Key risk: Monzo/Revolut could copy the AI-first approach within 12-24 months given their data and engineering capacity
-- Target persona validated: UK 22-35 professionals, 71% use mobile banking weekly, 51% open to AI financial advice, multi-bankers seeking consolidation
+- Target persona validated: UK 22-35 professionals, 84% check balances digitally, 43% would trust AI with financial info, multi-bankers seeking consolidation
 
 ## UX Benchmarks (Phase 1b)
 
@@ -19,7 +19,7 @@
   3. Rich message types: balance cards, transaction lists, quick-reply pills, confirmation cards, chart cards
   4. Progressive disclosure: AI summarises, user taps to drill down to full screens
   5. Skeleton screens + haptic feedback for perceived performance and native feel
-- Onboarding benchmark: Monzo/Revolut achieve 5-min account opening in 12-18 screens; our target: <3 min via conversational flow
+- Onboarding benchmark: Monzo/Revolut achieve 3-5 min account opening in 12-18 screens; our target: ≤3 min via conversational flow
 - Payments: 3-4 steps domestic, 4-5 international. AI conversation can reduce international from 5-screen form to guided chat
 - Savings pots: Monzo Pots + Revolut Vaults set expectations. Key AI opportunity: pattern-based auto-save suggestions
 - Navigation: 4-tab bottom bar (Chat/Home, Activity, Savings, More). Chat is the default home tab

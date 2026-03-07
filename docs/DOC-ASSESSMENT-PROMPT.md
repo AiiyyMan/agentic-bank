@@ -15,7 +15,7 @@ This is **Agentic Bank** — a conversational AI banking app where users interac
 ### Stack
 - **Monorepo**: Turborepo + npm workspaces (`apps/api`, `apps/mobile`, `packages/shared`)
 - **API**: Fastify 5, Node 22, TypeScript
-- **Mobile**: React Native + Expo SDK 55 + Gluestack UI
+- **Mobile**: React Native + Expo SDK 55 + NativeWind v4.2 (stable) + Tailwind CSS v3.4
 - **LLM**: Claude API (Sonnet 4) via @anthropic-ai/sdk, tool-use agent loop
 - **Banking**: Griffin BaaS (sandbox) — accounts, payments, KYC
 - **Auth + DB**: Supabase (Auth + Postgres + RLS)
