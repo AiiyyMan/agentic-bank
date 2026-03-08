@@ -25,6 +25,7 @@ Also review:
 - `apps/api/src/__tests__/` — existing test setup and mocks
 - `packages/shared/` — shared types (created in F1b) and test constants (created in F1a)
 - All 3 squad test plans: `docs/neobank-v2/05-squad-plans/*/test-plan.md` — review "Test Data Requirements" sections for MockBankingAdapter configuration needs
+- `docs/neobank-v2/04-cpto-review/qa-architecture-review.md` — QA review findings. Items tagged with `(QA C1-C6, U1-U6, T1-T7)` in this prompt reference specific findings from this review.
 
 ## Session Scope
 
@@ -57,6 +58,29 @@ Set up the mobile app structure:
 - Base components (cards, buttons, inputs, loading skeletons, error states)
 - API client setup with proper error handling
 - State management setup
+- **Test infrastructure:** Set up vitest (or jest) config for mobile, test utils, mock providers (navigation, auth, API). This is needed before any squad can write component tests.
+
+**QA-critical items for this task (from qa-architecture-review.md):**
+
+1. **Token refresh (QA U1):** The API client must implement automatic 401 handling:
+   - Intercept 401 responses
+   - Call `supabase.auth.refreshSession()` to get a new JWT
+   - Retry the original request with the new token
+   - If refresh fails, redirect to login screen with a "Session expired" message
+   - This must work for both REST calls and SSE streams (reconnect with new token)
+
+2. **Pending action resurfacing (QA U3):** On app reopen (AppState change from background to active), check for pending actions via `GET /api/pending-actions?status=pending`. If one exists and hasn't expired, resurface it as a ConfirmationCard in the chat. This prevents users losing ConfirmationCards after app restart/crash.
+
+3. **Confirm button safety (QA U5):** The Confirm button on ConfirmationCards must:
+   - Disable immediately on tap (prevent double-send)
+   - Show a loading/spinner state
+   - On network timeout (e.g., 10s), show "Checking status..." and poll `GET /api/confirm/:id` for current status
+   - Never show "Payment failed" if the server actually processed it
+
+4. **Network error UX:** Create a reusable network error handler that:
+   - Shows a non-intrusive toast for transient errors (retry automatically)
+   - Shows a blocking modal for auth errors (redirect to login)
+   - Shows an inline error for domain errors (e.g., "Insufficient funds")
 
 ### Task 4a: Banking Port Interface and Mock Adapter
 
@@ -120,6 +144,23 @@ Set up testing patterns:
 - Test coverage configuration
 
 Add a **conversation reconstruction test**: Write a test that inserts 3 turns of structured `content_blocks` (including `tool_use` and `tool_result` blocks) into the messages table, loads them via `getConversationHistory()`, and asserts the result is valid Anthropic `MessageParam[]`. This verifies the M-2 fix works with all block types.
+
+**QA-required tests (from qa-architecture-review.md):**
+
+1. **Multi-turn conversation persistence test (QA T1):** Verify that after a `respond_to_user` call, the synthetic `tool_result` is persisted, and the next turn loads valid history. This is the exact flow that the C1 bug breaks:
+   ```
+   Turn 1: "What's my balance?" → check_balance → respond_to_user (with synthetic tool_result)
+   Turn 2: "Send £50 to James" → loads Turn 1 history → should NOT get 400 from Claude
+   ```
+
+2. **Multi-tool-per-iteration test (QA T2):** Verify that when Claude returns 2+ `tool_use` blocks in one response, all are executed and their results are returned correctly.
+
+3. **Error simulation tests (QA T5):** At least one test per error type:
+   - `mock.configure('getBalance', new Error('Service unavailable'))` → tool returns provider error
+   - Supabase query returning `{ data: null, error: { message: '...' } }` → handled gracefully
+   - Agent loop with mocked Anthropic 429 → appropriate error card returned
+
+4. **Griffin response shape contract tests (QA T4):** Pin the expected response shapes from Griffin endpoints in contract tests. When the `GriffinAdapter` normalises responses, these tests verify the normalisation is correct by testing against known response fixtures.
 
 ### Task 6a: Test Fixtures
 
@@ -276,3 +317,12 @@ After all tasks complete:
 9. CLAUDE.md updated with adapter, fixture, and harness documentation
 10. At least one test exercises MockBankingAdapter error simulation
 11. Foundation retrospective written
+
+### QA Verification (from qa-architecture-review.md)
+12. Multi-turn conversation test passes (Turn 1 respond_to_user → Turn 2 loads valid history) — proves C1 fix works
+13. Multi-tool-per-iteration test passes (2+ tool_use blocks in one Claude response)
+14. Error simulation tests pass (provider error, Supabase error, Anthropic 429)
+15. Mobile API client implements 401 → token refresh → retry flow
+16. Confirm button disables on tap and handles timeout gracefully
+17. Pending action resurfacing on app reopen is implemented
+18. Mobile test infrastructure (config, utils, mock providers) is set up

@@ -35,6 +35,7 @@ Then read your squad's plan:
 Architecture reference:
 8. `docs/neobank-v2/03-architecture/api-design.md` — API contracts
 9. `docs/neobank-v2/03-architecture/data-model.md` — database schema
+10. `docs/neobank-v2/04-cpto-review/qa-architecture-review.md` — QA review findings (issues that must be addressed during implementation)
 
 ## Resuming a Session
 
@@ -64,11 +65,27 @@ For each task:
 Follow everything in CLAUDE.md, plus:
 - All API endpoints must validate input
 - All database tables must have RLS policies
-- All write operations must be logged
+- All write operations must be logged to `audit_log` (entity_type, entity_id, action, actor_id, before/after state)
 - All external API calls must have error handling
 - Mock implementations must implement the same interface as real ones
 - Every task must have at least one test
 - **At least one test per squad must exercise a MockBankingAdapter error state** (e.g., `mock.configure('getBalance', new Error('Service unavailable'))`) to verify error handling
+
+### QA Standards (from qa-architecture-review.md)
+
+These standards address real failures identified during QA architecture review. They are not optional.
+
+1. **Error differentiation:** Tool handlers must return specific error types, not generic "unavailable":
+   - `validationError()` for bad input (Claude can retry with different params)
+   - `notFoundError()` for missing resources (e.g., beneficiary deleted)
+   - `providerUnavailable()` only for actual external service failures
+   - Claude uses these to give the user a meaningful response
+
+2. **Beneficiary-deleted-during-confirm (QA U2):** Write operations that reference related resources (e.g., payment referencing a beneficiary) must check the resource still exists at execution time and return a specific error: "This beneficiary no longer exists. Please add them again." — not a generic failure.
+
+3. **No trusted Claude params:** Tool handlers must validate all required fields from `params` exist and have correct types. Claude can pass `undefined`, empty strings, or wrong types. Use `validateToolParams()` from Foundation.
+
+4. **Audit trail:** Every state mutation (payment sent, beneficiary added, loan applied, pot created/transferred, action confirmed/rejected) must write to `audit_log`. This is a banking product — every change must be traceable.
 
 ## Banking Service Layer (ADR-17)
 

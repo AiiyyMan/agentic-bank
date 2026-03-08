@@ -229,5 +229,6 @@ The demo reset script (`scripts/demo-reset.ts`) must restore all of the above se
 - Expert QA seed data items (§5.1) — payday, spending spike, Flex-eligible transaction, international recipient
 - QA test scenario requirements (§5.2) ensuring seed data supports feature-level validation
 - Regression data assertions (§5.3) for demo reset script
+- QA architecture review findings — see `qa-architecture-review.md` for full details. Key items embedded into Foundation prompts (06a, 06b, 06c) and implementation prompt (07).
 
 If any of the three gates fail, we stop and reassess before burning squad implementation time.

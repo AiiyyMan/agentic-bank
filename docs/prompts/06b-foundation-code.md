@@ -23,6 +23,7 @@ Also review:
 - `supabase/migrations/` — migration files (created in Phase F1a, for table shapes)
 - `packages/shared/src/test-constants.ts` — test constants (created in Phase F1a)
 - `apps/api/src/` — current API structure
+- `docs/neobank-v2/04-cpto-review/qa-architecture-review.md` — QA review findings. Items tagged with `(QA C1-C6, U1-U6, T1-T7)` in this prompt reference specific findings from this review.
 
 ## Session Scope
 
@@ -109,6 +110,28 @@ Set up the API route structure:
 - Logging patterns
 - Error response helpers
 
+**QA-critical items for this task (from qa-architecture-review.md):**
+
+1. **Anthropic API timeout (C6/Checklist):** The current `agent.ts` has no timeout on `anthropic.messages.create()`. A slow Claude response blocks the request indefinitely. Add a timeout (30s) to the Claude API call. Use `AbortController` with `signal` passed to the SDK, or wrap in a `Promise.race` with a timeout. On timeout, return an error card to the user: "I'm taking longer than expected. Please try again."
+
+2. **Agent loop exhaustion recovery (C3):** Increase `MAX_TOOL_ITERATIONS` from 5 to 8. When the loop exhausts, log a warning with the full tool call history, and if a `pending_action` was created during the loop, include its `action_id` in the response so the user can still confirm.
+
+3. **Tool param validation (Checklist):** Add a `validateToolParams(toolName, params)` utility that checks required fields exist and have correct types before executing. Currently `params` is `Record<string, unknown>` — Claude can pass undefined or wrong types for any field. At minimum validate: `send_payment` has `beneficiary_name` (string, non-empty) and `amount` (number, > 0); `add_beneficiary` has `name`, `account_number`, `sort_code`.
+
+4. **Error differentiation (Checklist):** Refactor tool handler error responses to distinguish error types. Instead of all errors collapsing to `providerUnavailable()`, use:
+   - `validationError()` for bad input (Claude can retry with different params)
+   - `providerUnavailable()` for external service failures (retry later)
+   - `notFoundError()` for missing resources (e.g., beneficiary not found)
+   This lets Claude give the user a meaningful response instead of always saying "service unavailable".
+
+5. **Partial tool failure handling (C4):** When executing multiple tool calls in one iteration, wrap each call individually. If one fails, return its error as a `tool_result` (let Claude interpret it) rather than aborting the entire loop.
+
+6. **Rate limit correction (Checklist):** Architecture specifies 20 req/min for chat. Current code has 10. Update to match.
+
+7. **Unknown tool logging (U4):** When `handleToolCall` receives an unknown tool name, log it at `warn` level with the full tool name. This detects Claude tool hallucination patterns.
+
+8. **Re-validate params at execution time (C5):** Add `validateAmount()` and input validation at the top of `executeWriteTool()` as defence-in-depth, since `pending_actions.params` is typed as `any`.
+
 ### Task 4b: Tool Routing Strategy
 
 Implement tool namespacing to support 30+ tools without degrading Claude's selection accuracy:
@@ -136,12 +159,15 @@ When conversations exceed the configured message limit (`maxConversationMessages
    - The prompt must instruct Haiku to preserve: pending actions, recent balances, beneficiary names used, any in-progress flows (onboarding state, loan application status)
    - Stores the summary in the `conversations` table (`summary` column — add if not present)
    - Trims the messages table: keep the summary + last 20 messages, archive or delete older ones
+   - **Error handling (QA U6):** If summarisation fails (Anthropic error, timeout), log the error but do NOT delete messages. The conversation continues without summarisation. Never silently lose context.
 
 2. **Background trigger:** After the agent loop completes and the response is streamed, queue the summarisation check as a fire-and-forget background job (not blocking the response). Use `setImmediate()` or a simple in-process queue for POC — no external job runner needed.
 
 3. **History loading:** Update the conversation loading logic (referenced in Task 4 API scaffolding) to check for an existing summary. If present, prepend it as a system message before the recent messages when building the Claude API request.
 
 4. **Summarisation prompt:** Store in a constant alongside the other system prompt blocks (system-architecture.md §3.2). The prompt should be ~200 tokens and produce a ~500-token summary.
+
+5. **Replace hard message cap (QA U6):** The current code at `agent.ts:74-83` does a hard cut at 50 messages (`history.length = 0`), losing all context with no summarisation. This must be replaced with the summarisation flow above. The conversation cap should trigger summarisation, not a fresh conversation.
 
 Reference: tech-decisions.md ADR-05 (Timing section), system-architecture.md §3.2, cost-analysis.md §2.
 
@@ -178,3 +204,11 @@ After all tasks complete:
 4. API route scaffolding works — a squad can add a route file and register it
 5. Tool registry with namespacing is in place
 6. CI/CD pipeline runs on PR
+
+### QA Verification (from qa-architecture-review.md)
+7. Anthropic API calls have a 30s timeout — test by mocking a slow response
+8. Agent loop returns pending_action_id on exhaustion (not a vague message)
+9. Tool handler errors differentiate between validation, not-found, and provider errors
+10. Chat rate limit is 20 req/min (matching architecture spec)
+11. Hard message cap replaced with summarisation trigger
+12. `validateToolParams()` catches missing/invalid required fields

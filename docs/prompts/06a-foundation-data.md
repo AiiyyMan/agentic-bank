@@ -103,6 +103,23 @@ Create ordered migration files based on the data model:
   2. If no DB connection string is available, create a migration runner script `scripts/apply-migrations.ts` that reads each `.sql` file from `supabase/migrations/` in order and executes it via the Supabase JS client using `supabase.rpc()` or a custom SQL execution function. Alternatively, concatenate the SQL and output instructions for manual paste into the Supabase SQL Editor.
 - Verify tables exist by querying: `supabase.from('accounts').select('id').limit(0)` (should return 200, not 404)
 
+**QA-critical: RLS policies (from qa-architecture-review.md C2):**
+
+The current codebase uses `SUPABASE_SERVICE_ROLE_KEY` for ALL queries, which bypasses RLS entirely. This is a data leakage risk — if any code path misses an ownership check, one user can access another's data.
+
+Migration 016 (RLS policies) is critical. Every table with a `user_id` column must have:
+```sql
+CREATE POLICY "users_own_data" ON table_name
+  FOR ALL USING (user_id = auth.uid())
+  WITH CHECK (user_id = auth.uid());
+```
+
+After RLS policies are in place, the API server should use **two Supabase clients**:
+- **User-scoped client** (created per-request with the user's JWT): Used for all user-data queries. RLS automatically enforces ownership.
+- **Service role client** (singleton): Used ONLY for admin operations (seed scripts, audit_log writes, cross-user queries).
+
+Document this pattern in CLAUDE.md so squads use the correct client.
+
 Verify these tables exist in the final migration set. If the data model omits any, create them:
 
 **Core (existing — preserve):**
@@ -131,6 +148,9 @@ Verify these tables exist in the final migration set. If the data model omits an
 **Agent (new):**
 - `insights` — (id, user_id, type, title, body, data jsonb, dismissed boolean default false, created_at)
 - `agent_context` — (id, user_id, key text, value jsonb, updated_at)
+
+**Operational (new — QA Checklist):**
+- `audit_log` — (id uuid, entity_type text NOT NULL, entity_id text NOT NULL, action text NOT NULL, actor_id uuid REFERENCES auth.users, before_state jsonb, after_state jsonb, created_at timestamptz DEFAULT now()). **Append-only**: RLS policy allows SELECT for own records (`actor_id = auth.uid()`), INSERT via service_role only, NO UPDATE or DELETE policies. This is required for banking regulatory compliance — every mutation must be traceable. See data-model.md migration 017.
 
 ### Task 2a: Seed Data
 
