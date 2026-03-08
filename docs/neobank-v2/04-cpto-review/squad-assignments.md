@@ -29,6 +29,8 @@
 
 **Tools (20):** check_balance, get_accounts, get_pots, create_pot, transfer_to_pot, transfer_from_pot, update_pot, close_pot, get_beneficiaries, add_beneficiary, delete_beneficiary, send_payment, get_payment_history, get_transactions, create_standing_order, get_standing_orders, edit_standing_order, cancel_standing_order, create_auto_save_rule, categorise_transaction
 
+> **Note:** All tool input/output schemas are defined in `docs/neobank-v2/03-architecture/api-design.md` §3 (Tool Catalog).
+
 ### 1.2 Interfaces
 
 **Produces (consumed by other squads):**
@@ -70,6 +72,7 @@ Tasks ordered by dependency. Each is Medium complexity (1-3 hours).
 - All write tools → domain service → BankingPort → adapter. Never call BankingPort directly for writes.
 - Tool handlers are thin: parse params, call service, format ToolResult. No business logic in handlers.
 - Return `ServiceResult<T>` with `mutations` array from services — the agent loop emits `data_changed` SSE events for TanStack Query cache invalidation.
+- See CLAUDE.md (Foundation F1a deliverable) for the complete pattern catalogue including error handling, RLS policies, and input validation.
 
 **Pitfalls to avoid:**
 - Don't hardcode Alex's user ID or balance in tool handlers. Use `req.user.id` and live data.
@@ -251,6 +254,8 @@ Since Lending has no P0 features, Phase 1 is preparation work so P1 features can
 | EXN-8 | **Weekly summary** — get_weekly_summary tool. Total spending, top 3 categories, comparison to previous week. | EXN-1 | Returns accurate weekly totals. Comparison shows direction (up/down/flat) | Unit test: verify weekly totals match transaction sums |
 | EXN-9 | **Insight caching** — Pre-compute category averages daily. Store in user_insights_cache. InsightService reads from cache, not raw transactions. | EXN-1 | Cache populated. InsightService uses cache. App-open query hits cache (< 100ms) | Performance test: cache read < 100ms |
 | EXN-10 | **REST endpoints for insights** — GET /api/insights/spending, GET /api/insights/proactive. For future traditional UI screens. | EXN-1 | Endpoints return same data as tools. Proper auth | API test: authenticated requests return correct data |
+
+> **V8 Validation:** Validate V8: conversation summarisation preserves context across sessions (see production-readiness.md §4).
 
 ### 3.4 Squad-Specific Notes
 

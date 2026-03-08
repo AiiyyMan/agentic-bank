@@ -48,6 +48,8 @@ Task 6a (Fixtures) ── depends on Task 4a (BankingPort types) and F1a Task 2b
 Task 6b (Agent Test Harness) ── depends on Task 6a (fixtures) and Task 4a (adapters)
 ```
 
+> **Task numbering note:** Task numbers are non-sequential because they were assigned globally across all Foundation sessions (F1a: 1-2b, F1b: 2b-7, F2: 4a-6b). Task 5 here (Mobile Scaffolding) is distinct from F1b's Task 5 (Summarisation). When resuming, use git log to determine which tasks are done.
+
 ---
 
 ### Task 5: Mobile Scaffolding

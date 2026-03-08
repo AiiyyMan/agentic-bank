@@ -49,6 +49,8 @@ Task 7 (CI/CD) ── depends on Task 4
 
 Work through tasks in this order.
 
+> **Task numbering note:** Task numbers continue from F1a. This session starts at Task 2b (SSE Validation) because Tasks 1-2b were completed in F1a. The "Task 2b" here is F1b's first task, distinct from F1a's Task 2b (Test Constants). When resuming, use git log to determine which tasks are done.
+
 ---
 
 ### Task 2b: SSE Streaming Validation (HIGHEST RISK)
@@ -65,6 +67,7 @@ This is the highest-risk validation item in the entire project. If SSE streaming
 4. **Platform coverage:** Test on both iOS Simulator and Android Emulator. Both must pass.
 5. **If it fails:** Document the failure mode and implement long-polling as the fallback transport (ADR-04b). Update system-architecture.md §11.5 accordingly.
 6. **Deliverable:** A short validation report (pass/fail per test case, per platform) committed to `docs/validation/sse-streaming.md`.
+7. **SSE test utilities (QA T3):** As a side effect of this validation, extract reusable test utilities: a mock SSE server helper and a stream assertion helper (e.g., `expectStreamEvents(stream, ['token1', 'token2', ...])`). These will be needed by EX-Infra for streaming integration tests. Place in `apps/api/src/__tests__/helpers/sse-test-utils.ts`.
 
 Reference: system-architecture.md §11.5 V1, plan-assessment.md §5.1.
 
