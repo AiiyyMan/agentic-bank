@@ -1138,7 +1138,7 @@ Every Supabase table has RLS enabled. Policies enforce:
 
 | Endpoint | Limit | Window | Per |
 |----------|-------|--------|-----|
-| POST /api/chat | 10 | 1 minute | User |
+| POST /api/chat | 20 | 1 minute | User |
 | POST /api/confirm | 20 | 1 minute | User |
 | GET /api/* (read) | 60 | 1 minute | User |
 | POST /api/auth/* | 5 | 5 minutes | IP |

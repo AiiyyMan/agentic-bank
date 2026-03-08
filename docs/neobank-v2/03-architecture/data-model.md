@@ -149,8 +149,9 @@ CREATE TABLE pending_actions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   conversation_id UUID REFERENCES conversations(id),
-  tool_name TEXT NOT NULL,
+  action_type TEXT NOT NULL,       -- e.g., "send_payment", "transfer_to_pot", "apply_for_loan"
   params JSONB NOT NULL,
+  display JSONB NOT NULL,          -- ConfirmationCard rendering data: { title, items, amount?, currency? }
   status TEXT NOT NULL DEFAULT 'pending'
     CHECK (status IN ('pending', 'confirmed', 'rejected', 'expired')),
   result JSONB,                  -- Populated after execution
@@ -265,9 +266,11 @@ CREATE TABLE transactions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   account_id UUID,               -- Main account or pot
-  merchant TEXT NOT NULL,
+  merchant_name TEXT NOT NULL,
   category TEXT NOT NULL DEFAULT 'Other',
+  category_icon TEXT,              -- Phosphor icon name for category display
   amount NUMERIC(12,2) NOT NULL,  -- Negative = debit, positive = credit
+  currency TEXT NOT NULL DEFAULT 'GBP',
   reference TEXT,
   balance_after NUMERIC(12,2),
   posted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -277,7 +280,7 @@ CREATE TABLE transactions (
 
 CREATE INDEX idx_transactions_user ON transactions(user_id, posted_at DESC);
 CREATE INDEX idx_transactions_category ON transactions(user_id, category, posted_at DESC);
-CREATE INDEX idx_transactions_merchant ON transactions(user_id, merchant);
+CREATE INDEX idx_transactions_merchant ON transactions(user_id, merchant_name);
 ```
 
 ### 2.11 auto_save_rules

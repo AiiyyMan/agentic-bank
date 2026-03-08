@@ -157,10 +157,10 @@ The semantic token layer covers general UI well but lacks banking-specific token
 | `--color-card-confirmation-border` | Confirmation card accent | `var(--color-warning-40)` |
 | `--color-card-success-border` | Success card accent | `var(--color-success-40)` |
 | `--color-card-error-border` | Error card accent | `var(--color-destructive-40)` |
-| `--color-score-poor` | Credit score <400 | `var(--color-destructive-50)` |
-| `--color-score-fair` | Credit score 400-599 | `var(--color-warning-50)` |
-| `--color-score-good` | Credit score 600-799 | `var(--color-success-50)` |
-| `--color-score-excellent` | Credit score 800+ | `var(--color-brand-50)` |
+| `--color-score-poor` | Credit score 0-559 | `var(--color-destructive-50)` |
+| `--color-score-fair` | Credit score 560-659 | `var(--color-orange-50)` |
+| `--color-score-good` | Credit score 660-724 | `var(--color-warning-50)` |
+| `--color-score-excellent` | Credit score 725-999 | `var(--color-success-50)` |
 
 **DONE (2026-03-07).** All banking tokens added to `global.css` as flattened RGB triplets with both light and dark mode values. Mapped in `tailwind.config.js`.
 

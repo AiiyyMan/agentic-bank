@@ -666,7 +666,7 @@ Proactive cards for app open.
     cards: Array<{
       type: 'bill_reminder' | 'spending_spike' | 'savings_milestone'
             | 'payday' | 'pattern' | 'weekly_summary' | 'celebration';
-      priority: 'high' | 'medium' | 'low';
+      priority: 'high' | 'medium' | 'low';  // Maps from internal numeric priority (1=high, 2=medium, 3=low)
       title: string;
       body: string;
       quick_replies?: string[];

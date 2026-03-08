@@ -121,10 +121,10 @@ The categorisation strategy (ADR-08) is sound: rule-based mapping for top 50 UK 
 ### 3.3 Seed Data Completeness
 
 **Alex's demo account is well-specified:**
-- Balance: £1,247.50 (after pending standing order)
-- 2 pots: Holiday Fund (£340/£2,000), Emergency Fund (£1,200/£3,000)
-- 5 beneficiaries: Mum, James (flatmate), David (landlord), Sarah (sister), Wise
-- 60 days of categorised transactions (~2,000 rows)
+- Balance: £2,345.67
+- 3 pots: Holiday Fund (£850/£2,000), Emergency Fund (£1,200/£1,500), House Deposit (£2,000/£25,000)
+- 6 beneficiaries: Mum, James, David Brown, Sarah, James Wilson, Wise - Euro Account (5 domestic + 1 international)
+- 90+ days of categorised transactions
 - 1 standing order: £800/month to landlord
 - Credit score: 742 (deterministic from user ID)
 
@@ -146,7 +146,7 @@ The categorisation strategy (ADR-08) is sound: rule-based mapping for top 50 UK 
 |---|------|-----------|--------|------------|-------|
 | **R1** | **SSE streaming fails on React Native 0.83/Hermes.** `ReadableStream` via fetch is the preferred approach but untested on Hermes engine. If it fails, the entire chat architecture needs rethinking. | MEDIUM | CRITICAL | Validation spike V1 in Foundation F1b. Fallback: long-polling (ADR-04b). Must be resolved before any squad starts chat work. | Foundation |
 | **R2** | **Griffin sandbox doesn't support all required operations.** Some endpoints may 404, return unexpected shapes, or have different rate limits. | MEDIUM | HIGH | MockBankingAdapter is primary dev path. Griffin only for integration testing. V2 validation spike catalogues actual API coverage. | Foundation |
-| **R3** | **Proactive insight engine exceeds 1-second app-open budget.** Six sequential DB queries on Supabase free tier under cold-start conditions could take 2-3 seconds. | MEDIUM | HIGH | Pre-compute category averages daily into `user_insights_cache`. Use `Promise.all` for parallel queries. Degrade gracefully: show greeting with balance first, load insights async. | EX-Insights |
+| **R3** | **Proactive insight engine exceeds 1-second app-open budget.** Six sequential DB queries on Supabase under cold-start conditions could take 2-3 seconds. | MEDIUM | HIGH | Pre-compute category averages daily into `user_insights_cache`. Use `Promise.all` for parallel queries. Degrade gracefully: show greeting with balance first, load insights async. | EX-Insights |
 | **R4** | **Two-phase confirmation is more complex than estimated.** Touches pending_actions, timeout/expiry, re-rendering on app reopen, mid-conversation amendments, and is a dependency for EVERY write tool across ALL squads. | MEDIUM | HIGH | Build in Foundation F1b, not Phase 7. Allocate 3-4 days. No write tool can be demo'd without it. | Foundation |
 | **R5** | **Experience squad coordination failure across 4 parallel streams.** Shared CLAUDE.md conventions may not prevent conflicting patterns in chat UI, state management, or component APIs. | LOW | HIGH | EX-Infra completes first and defines the patterns. Other streams branch after EX-Infra merge. Human review gate on card renderer API before dependent streams start. | EX Lead |
 | **R6** | **Claude tool selection accuracy degrades with 44+ tools.** At 30+ tools, Claude may pick wrong tools or hallucinate tool names, especially for ambiguous requests ("show me my spending" could be 3 different tools). | LOW | MEDIUM | Tool namespacing (domain prefixes). Validation V6 in F1b. System prompt tool index. If accuracy < 90%, consider dynamic tool loading by detected intent. | Foundation |
@@ -175,10 +175,10 @@ The current seed data spec (06a-foundation-data.md Task 2a) covers the core demo
 Each P0 feature cluster must have seed data that supports automated testing. Foundation F1a must ensure:
 
 **Core Banking (17 P0):**
-- Account with known balance (£1,247.50) for balance assertion tests
-- 2+ pots with known balances and targets for pot CRUD tests
-- 5 beneficiaries (one with similar name for fuzzy matching: "James" and "James Wilson")
-- 60+ days of categorised transactions for spending query assertions
+- Account with known balance (£2,345.67) for balance assertion tests
+- 3 pots with known balances and targets for pot CRUD tests
+- 6 beneficiaries (5 domestic + 1 international, with fuzzy matching pair: "James" and "James Wilson")
+- 90+ days of categorised transactions for spending query assertions
 - Known category totals per month documented in test-constants.ts
 - At least 1 pending standing order for payment history tests
 

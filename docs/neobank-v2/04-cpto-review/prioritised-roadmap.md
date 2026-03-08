@@ -18,7 +18,7 @@
 |------|------------|---------------|
 | CLAUDE.md | Project conventions file | All squads can read and follow patterns without asking questions |
 | Database migrations | 17 migration files (003-017) | `npx supabase db push` succeeds. All tables exist with correct columns, indexes, RLS policies |
-| Seed data | Alex's demo account fully populated | Balance £1,247.50, 3 pots (1 near target for milestone), 6 beneficiaries (incl. international + fuzzy pair), 90+ days transactions with spending spike in March dining, 1 standing order (due within 3 days), Flex-eligible transaction, credit score 742 |
+| Seed data | Alex's demo account fully populated | Balance £2,345.67, 3 pots (1 near target for milestone), 6 beneficiaries (incl. international + fuzzy pair), 90+ days transactions with spending spike in March dining, 1 standing order (due within 3 days), Flex-eligible transaction, credit score 742 |
 | QA seed data | Demo-scenario-aligned data items | Payday notification trigger, spending spike (March dining +42% vs Jan), Flex-eligible txn (Currys £89.99), international recipient, near-target pot (80%+) |
 | Test constants | `packages/shared/src/test-constants.ts` | Single source of truth for all test values. Imported by seed scripts and test fixtures. Monthly spending totals documented for assertion tests |
 | Demo reset assertions | `scripts/demo-reset.ts` post-reset checks | Balance, pot balances, beneficiary count, transaction count, category totals, Emma onboarding-ready — all verified after reset |

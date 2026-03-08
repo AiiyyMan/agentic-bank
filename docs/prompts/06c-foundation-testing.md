@@ -86,7 +86,7 @@ mock.configure('getBalance', { balance: '0.00', currency: 'GBP' }); // Override 
 
 Key design decisions:
 - **Must expose a `reset()` method** that restores initial state. Test `beforeEach` should call `reset()` for test isolation.
-- **Do NOT maintain in-memory balance state.** When a payment is made through the mock, the tool handler should update the local `accounts` table balance in Supabase directly. The `check_balance` tool handler should read from the local `accounts` table, not from the adapter. This makes demo state persistent across server restarts and consistent with what the mobile app shows.
+- **Do NOT maintain in-memory balance state.** When a payment is made through the mock, the tool handler should update the local `accounts` table balance in Supabase directly. The `check_balance` tool handler should call `BankingPort.getBalance()` — the adapter decides where to read from (mock reads from local `accounts` table, real adapter calls Griffin API). This makes demo state persistent across server restarts and consistent with what the mobile app shows.
 - **`listTransactions` must return enriched data** (with merchant_name, category, description) — not raw Griffin format. For the POC, the mock IS the enrichment layer. Mock transactions are pre-categorised.
 - Supports error simulation: `mock.configure('getBalance', new Error('Service unavailable'))` to test error handling.
 - Simulates realistic delays (100-500ms) in dev mode, instant in test mode.
@@ -94,12 +94,12 @@ Key design decisions:
 
 **4. Critical: Transaction read path refactoring.**
 
-The `get_transactions` tool handler must read from the **local `transactions` Supabase table** (which has enriched data with merchant_name and category), NOT from `BankingPort.listTransactions()`. The BankingPort's `listTransactions` is reserved for sync purposes only. This ensures:
+The `get_transactions` tool handler must read from the **local `transactions` Supabase table** (which has enriched data with merchant_name and category), NOT from `BankingPort.getTransactions()`. The BankingPort's `getTransactions` is reserved for sync purposes only. This ensures:
 - Spending analytics work (they query the local enriched table)
 - Mock and real modes behave identically
 - No sync service needed for the POC
 
-Similarly, `check_balance` should read from the local `accounts` table balance.
+Similarly, `check_balance` should call `BankingPort.getBalance()` — the adapter decides the data source (mock reads from local `accounts` table, real adapter calls Griffin API).
 
 **5. Transaction write path.**
 
@@ -139,7 +139,7 @@ Create `apps/api/src/__tests__/fixtures/` with standardised data.
 
 **`griffin-responses.ts`** — Typed BaaS response objects (for MockBankingAdapter default returns):
 - `ALEX_BALANCE_RESPONSE`: Balance matching test-constants
-- `ALEX_PAYEES_RESPONSE`: 5 beneficiaries matching seed data
+- `ALEX_PAYEES_RESPONSE`: 6 beneficiaries matching seed data (5 domestic + 1 international)
 - `PAYMENT_CREATED_RESPONSE`: Response from creating a payment
 - `PAYMENT_SUBMITTED_RESPONSE`: Response from submitting a payment
 - `EMPTY_PAYEES_RESPONSE`: Empty payee list
@@ -150,7 +150,7 @@ Create `apps/api/src/__tests__/fixtures/` with standardised data.
 - `ALEX_MONTHLY_SPENDING`: Pre-computed spending by category for current month — imported from test-constants
 
 **`payments.ts`** — Payment fixtures:
-- `ALEX_BENEFICIARIES`: Array of 5 beneficiaries matching seed data (local table format)
+- `ALEX_BENEFICIARIES`: Array of 6 beneficiaries matching seed data (5 domestic + 1 international, local table format)
 - `ALEX_STANDING_ORDERS`: Array of standing orders matching seed data
 - `ALEX_DIRECT_DEBITS`: Array of direct debits matching seed data
 - `PENDING_PAYMENT_ACTION`: A `pending_actions` row for `send_payment` tool

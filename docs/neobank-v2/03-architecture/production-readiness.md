@@ -244,7 +244,7 @@ These are already well-addressed or need minor changes only.
 | **No audit log table** | Low for POC (demo only). High if any data persists beyond demo. | **ADDRESSED:** `audit_log` table added (data-model.md §2.23). Domain services write to it on every state mutation. Added to Foundation F1b (system-architecture.md §11.4.3). Migration 017. | POC |
 | **No circuit breaker on Griffin/Anthropic** | If external APIs degrade during demo, the app hangs with no graceful fallback. | **ADDRESSED:** Timeout configuration documented (system-architecture.md §5.4). 5s Griffin, 30s Anthropic. Slow response logging at 2s threshold. Added to Foundation F1b (§11.4.2). | POC |
 | **Tool handlers trust Claude's parameter construction** | Claude could pass invalid beneficiary IDs or amounts. Confirmation card catches user-visible errors but invalid data shouldn't reach pending_actions. | **ADDRESSED:** Server-side validation requirements documented per tool (system-architecture.md §11.4.1). Domain services (ADR-17) own validation. | POC |
-| **Standing order / auto-save execution not specified** | No worker/scheduler documented for recurring transfers. | **ADDRESSED:** Scheduled job strategy documented (system-architecture.md §11.4.4). pg_cron + Supabase Edge Functions for POC; dedicated worker for production. | POC |
+| **Standing order / auto-save execution not specified** | No worker/scheduler documented for recurring transfers. | **ADDRESSED:** Scheduled job strategy documented (system-architecture.md §11.4.4). Manual trigger for standing order execution; pg_cron for insight pre-computation and pending action cleanup. Dedicated worker for production. | POC |
 
 ### MVP stage (post-POC, pre-production)
 

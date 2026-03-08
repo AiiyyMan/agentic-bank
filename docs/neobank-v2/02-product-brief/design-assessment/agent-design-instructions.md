@@ -294,10 +294,10 @@ Container:   bg-surface-raised rounded-2xl p-6 shadow-sm border border-border-de
 Gauge:       w-40 h-40 (semi-circular arc, 180deg)
   Track:     stroke-background-tertiary, stroke-width 8
   Fill:      stroke colour by band:
-             Excellent (>800): purple-500 (#A855F7)
-             Good (700-799):   brand-default (#0EA5E9)
-             Fair (600-699):   warning-default (#EAB308)
-             Poor (<600):      status-error-default (#F43F5E)
+             Excellent (725-999): score-excellent / success-default (#10B981)
+             Good (660-724):      score-good / warning-default (#EAB308)
+             Fair (560-659):      score-fair / orange (#F97316)
+             Poor (0-559):        score-poor / status-error-default (#F43F5E)
 Score:       text-text-primary text-4xl font-bold text-center (inside gauge)
 Band label:  text-xs font-extrabold uppercase tracking-widest mt-2
              colour matches fill band
@@ -570,7 +570,10 @@ Three tiers:
 | Pending / processing    | Yellow #EAB308           | money-pending                 |
 | Info / notifications    | Blue #3B82F6             | status-info-default           |
 | AI assistant accent     | Indigo #818CF8           | ai-avatar-icon / ai-avatar-bg |
-| Credit score excellent  | Green #10B981            | score-excellent               |
+| Credit score excellent  | Green #10B981            | score-excellent (725-999)     |
+| Credit score good      | Yellow #EAB308           | score-good (660-724)          |
+| Credit score fair      | Orange #F97316           | score-fair (560-659)          |
+| Credit score poor      | Rose #F43F5E             | score-poor (0-559)            |
 | Brand accent            | Sky blue #0EA5E9         | brand-default                 |
 
 ---

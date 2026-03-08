@@ -135,12 +135,12 @@ interface ToolResultWithUI {
 // Example: check_balance tool result
 {
   success: true,
-  data: { balance: 1247.50, currency: "GBP", account_id: "..." },
+  data: { balance: 2345.67, currency: "GBP", account_id: "..." },
   ui_components: [{
     type: "balance_card",
     data: {
       account_name: "Current Account",
-      balance: 1247.50,
+      balance: 2345.67,
       currency: "GBP",
       sort_code: "04-00-04",
       account_number: "12345678"

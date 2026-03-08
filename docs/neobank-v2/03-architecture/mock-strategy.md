@@ -36,7 +36,7 @@ These operations call the real Griffin API in production. The mock adapter repla
 |-----------|--------------------|--------------------|
 | Get account balance | Griffin API → real balance | Read `mock_accounts` table |
 | Execute a payment | Griffin API → real money moves | Update `mock_accounts` balance |
-| Provision account (KYC) | Griffin onboarding workflow | Insert into `accounts` table |
+| Provision account (KYC) | Griffin onboarding workflow | Insert into `mock_accounts` table + update `profiles` with account metadata |
 | List/create payees | Griffin payee API | Insert into `beneficiaries` table |
 
 **`mock_accounts` is the only table unique to mock mode.** It exists solely to simulate account balances without calling Griffin.
@@ -48,7 +48,7 @@ These live in Supabase regardless of whether mocking is on or off. Griffin doesn
 | Data | Why it's always local |
 |------|----------------------|
 | Enriched transactions | Griffin gives raw transactions. We add merchant names, categories, and icons locally for the AI to query. |
-| Savings pots | Conceptually bank sub-accounts, but managed locally for the POC. In production, these could map to Griffin book transfers. |
+| Pots (+ pot_transfers) | Conceptually bank sub-accounts, but managed locally for the POC. In production, these could map to Griffin book transfers. |
 | Standing orders | Scheduling logic managed locally. |
 | Beneficiary list (enriched) | We mirror Griffin payees locally and add nicknames, fuzzy matching support. |
 | Conversations, messages | Chat infrastructure — nothing to do with banking. |
@@ -118,7 +118,7 @@ For the POC, both adapters end up hitting Supabase for these methods (because Gr
 | Through BankingPort (mock swaps these) | Direct Supabase (always, both modes) |
 |----------------------------------------|--------------------------------------|
 | Account listing, balance retrieval | Enriched transaction queries (spending, insights) |
-| Savings pot CRUD + transfers | Pot rules, pot transactions (ledger entries) |
+| Pot CRUD + transfers | Auto-save rules, pot_transfers (ledger entries) |
 | Payment creation and submission | Direct debits |
 | Payee/beneficiary management | Loans, loan applications |
 | Standing order CRUD | Insights, agent context |
@@ -183,12 +183,13 @@ Type definitions for all parameter and return types live in `packages/shared/src
 
 | Table | What it does | Mock-only? |
 |-------|-------------|-----------|
-| `mock_accounts` | Simulates account balances. The only table that exists solely for mock mode. | YES |
-| `accounts` | Canonical local account record (id, name, status). In real mode, balance comes from Griffin; in mock mode, balance comes from `mock_accounts`. | NO — shared |
+| `mock_accounts` | Simulates account balances and account metadata (sort code, account number) for mock mode. The only table that exists solely for mock mode. | YES |
+| `accounts` | **Does not yet exist in data-model.md.** A local `accounts` table (id, user_id, name, sort_code, account_number, status, griffin_account_url) is needed to store canonical account metadata for both modes — in real mode, balance comes from Griffin; in mock mode, balance comes from `mock_accounts`. **Action: add this table to data-model.md during Foundation F1a.** | NO — shared (to be created) |
 | `transactions` | Enriched local transactions with merchant_name, category, description. | NO — shared |
 | `beneficiaries` | Local beneficiary records. | NO — shared |
 | `payments` | Payment records. | NO — shared |
-| `savings_pots` | Pot balances and metadata. | NO — shared |
+| `pots` | Pot balances and metadata. | NO — shared |
+| `pot_transfers` | Ledger entries for pot deposits/withdrawals (amount, direction, balance snapshots). See data-model.md §2.6. | NO — shared |
 | `standing_orders` | Standing order records. | NO — shared |
 
 ### 5.2 Constructor and Configuration
@@ -239,7 +240,9 @@ EX-Insights tools (`get_spending_by_category`, `get_spending_insights`, `get_wee
 
 ### 6.2 Balance Reads
 
-In mock mode, `check_balance` reads from the `mock_accounts` table. In real mode, it reads from the `accounts` table (balance synced from Griffin). The handler calls `BankingPort.getBalance()` — the adapter decides where to look.
+In mock mode, `check_balance` reads from the `mock_accounts` table (which also stores account metadata like sort code and account number). In real mode, it calls the Griffin API directly for live balance. The handler calls `BankingPort.getBalance()` — the adapter decides where to look.
+
+> **Note:** There is currently no local `accounts` table in data-model.md. Once the `accounts` table is created (Foundation F1a), real-mode account metadata (name, sort code, status) will be stored there, with balance still coming from Griffin. In mock mode, `mock_accounts` continues to serve as the balance source.
 
 ### 6.3 Payment Writes (the full confirmation flow)
 
@@ -251,6 +254,16 @@ In mock mode, `check_balance` reads from the `mock_accounts` table. In real mode
 6. Handler inserts enriched row into local `transactions` table
 7. Handler updates balance in `mock_accounts` (mock) or waits for Griffin webhook (real)
 8. Pending action status → `'confirmed'`
+
+#### Reject path
+
+1. User taps "Reject" on ConfirmationCard → `POST /api/confirm/:id/reject`
+2. Domain service validates pending_action (status, expiry, ownership)
+3. Pending action status → `'rejected'`
+4. No balance change, no transaction created, no Griffin API call
+5. Claude receives rejection context and responds appropriately (e.g., "OK, I've cancelled that payment")
+
+This is not an edge case — it is half of every write operation's user flow. Every ConfirmationCard presents both Confirm and Reject, and the reject path must be implemented alongside the confirm path.
 
 The `pending_actions` table is always Supabase-local — it works identically in both modes. See `cross-dependencies.md` Contract 2 for the full `PendingAction` interface.
 
