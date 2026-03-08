@@ -440,7 +440,7 @@ limit?: number
 #### POST /api/standing-orders
 Create a standing order.
 
-> **Implementation:** Route through `StandingOrderService` per ADR-17.
+> **Implementation:** Route through `PaymentService` per ADR-17.
 
 **Request:**
 ```typescript
@@ -456,12 +456,12 @@ Create a standing order.
 #### PATCH /api/standing-orders/:id
 Edit amount, frequency, or day.
 
-> **Implementation:** Route through `StandingOrderService` per ADR-17.
+> **Implementation:** Route through `PaymentService` per ADR-17.
 
 #### DELETE /api/standing-orders/:id
 Cancel a standing order.
 
-> **Implementation:** Route through `StandingOrderService` per ADR-17.
+> **Implementation:** Route through `PaymentService` per ADR-17.
 
 ---
 
@@ -582,7 +582,7 @@ List active flex plans.
 #### POST /api/flex/plans
 Create a flex plan from an eligible transaction.
 
-> **Implementation:** Route through `FlexService` per ADR-17.
+> **Implementation:** Route through `LendingService` per ADR-17.
 
 **Request:**
 ```typescript
@@ -595,7 +595,7 @@ Create a flex plan from an eligible transaction.
 #### POST /api/flex/plans/:id/payoff
 Pay off a flex plan early.
 
-> **Implementation:** Route through `FlexService` per ADR-17.
+> **Implementation:** Route through `LendingService` per ADR-17.
 
 ---
 
@@ -1007,7 +1007,6 @@ function getAvailableTools(onboardingStep: string): ToolDefinition[] {
 const ONBOARDING_TOOLS = [
   'respond_to_user',
   'get_onboarding_status',
-  'collect_personal_details',
   'verify_identity',
   'provision_account',
   'get_accounts',

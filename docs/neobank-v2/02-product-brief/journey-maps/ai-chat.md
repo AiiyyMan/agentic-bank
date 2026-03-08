@@ -840,8 +840,8 @@ Client message
 - `content_blocks` stores full structured content (tool_use / tool_result blocks) for multi-turn tool context
 - Plain `content` field stores human-readable text summary for display compatibility
 - Conversation sessions tracked with session_id (new session on "New conversation")
-- Max history sent to Claude: last 50 messages (each tool cycle = 2 extra messages, so ~8 multi-tool turns)
-- Older messages summarised if context window is tight
+- Max history: 100 messages per conversation. At 80 messages, a post-response background job (Haiku) summarises the oldest 60 into a single system message, keeping the last 20 verbatim (ADR-05)
+- Each tool cycle = 2 extra messages, so ~25 multi-tool turns before summarisation triggers
 
 ### What to Mock vs. Integrate
 

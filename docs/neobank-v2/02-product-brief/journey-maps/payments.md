@@ -132,6 +132,8 @@ Total: 4 conversational turns + 1 confirmation tap
 
 ### Create Standing Order (Chat Path)
 
+> **Note:** Standing order creation (#35) is P1 and execution (#39) is P2. This flow illustrates the target UX; it is not in scope for the P0 POC demo.
+
 ```
 Alex: "Set up a standing order of £800 to my landlord on the 1st of every month"
   -> AI resolves "landlord" to saved beneficiary (or asks to identify)

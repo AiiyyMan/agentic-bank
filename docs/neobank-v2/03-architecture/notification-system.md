@@ -462,10 +462,10 @@ Body: £{{amount}} sent to {{recipient_name}}
 1. In-app feed channel step
 2. Push channel step
 
-**Trigger point:** A Supabase Edge Function (cron) calls the internal API endpoint `POST /api/internal/notifications/bill-reminders`. The route delegates to `StandingOrderService.sendDueReminders()`, which queries upcoming bills, writes audit log entries, and dispatches notifications. See system-architecture.md §11.4.4 for the scheduled job pattern.
+**Trigger point:** A Supabase Edge Function (cron) calls the internal API endpoint `POST /api/internal/notifications/bill-reminders`. The route delegates to `PaymentService.sendDueReminders()`, which queries upcoming bills, writes audit log entries, and dispatches notifications. See system-architecture.md §11.4.4 for the scheduled job pattern.
 
 ```typescript
-// In StandingOrderService.sendDueReminders() (called from internal API endpoint, triggered by Edge Function cron):
+// In PaymentService.sendDueReminders() (called from internal API endpoint, triggered by Edge Function cron):
 const dueTomorrow = await this.standingOrderRepo.findDueTomorrow();
 
 for (const order of dueTomorrow) {

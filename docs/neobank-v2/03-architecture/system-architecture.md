@@ -1378,7 +1378,7 @@ See §5.4 for timeout values per adapter. Implementation during Foundation F1b:
 
 #### 11.4.3 Audit Log Table
 
-Add the `audit_log` table (see data-model.md §2.24) during Foundation F1b. Domain services write to it on every state mutation. This is the foundation for regulatory compliance — even at POC stage, having an audit trail from day one means no backfilling is needed later.
+Add the `audit_log` table (see data-model.md §2.23) during Foundation F1b. Domain services write to it on every state mutation. This is the foundation for regulatory compliance — even at POC stage, having an audit trail from day one means no backfilling is needed later.
 
 #### 11.4.4 Scheduled Job Strategy
 

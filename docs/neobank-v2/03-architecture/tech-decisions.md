@@ -511,7 +511,7 @@ REST Route   → BankingPort (read-only, no business logic)
 **Implementation guidance:**
 - Services are plain classes, not frameworks. Constructor-injected dependencies (`BankingPort`, `supabase`).
 - Services throw typed domain errors (`InsufficientFundsError`, `InvalidBeneficiaryError`) that tool handlers and REST routes translate to their own response formats.
-- Services write to `audit_log` on every state mutation (see data-model.md §2.24).
+- Services write to `audit_log` on every state mutation (see data-model.md §2.23).
 - No service-to-service calls. If `PaymentService` needs a balance check, it calls `BankingPort.getBalance()` directly, not `AccountService`.
 
 **Alternatives Considered:**
