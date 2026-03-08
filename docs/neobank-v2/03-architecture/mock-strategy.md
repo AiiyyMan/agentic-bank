@@ -1,89 +1,137 @@
 # Mock Banking Strategy
 
-> **Canonical reference** for the MockBankingAdapter. Squad developers: read this one document to understand how mocks work. No other file is required.
+> **Canonical reference** for how mocking works in this project. Read this one document — no other file is required.
 
 ---
 
-## 1. What It Is
+## 1. Why We Mock
 
-The `MockBankingAdapter` is a pure-Supabase implementation of the `BankingPort` interface. It replaces the `GriffinAdapter` (which calls the real Griffin BaaS API) with local database operations against the same Supabase instance used for all other data.
+Griffin is a real Banking-as-a-Service provider. It holds real (sandbox) money, executes real payments, and provisions real accounts. It is the **system of record** for anything that touches money.
 
-**Purpose:**
-- Offline development — no Griffin API calls, no network dependency
-- Demo reliability — deterministic data, instant responses, no sandbox flakiness
-- Test isolation — configurable per-test returns, error simulation, `reset()` between tests
+But during development and demos, we don't want to depend on Griffin for every interaction:
+- Griffin's sandbox can be slow or flaky
+- Griffin doesn't categorise transactions (we need categories for spending insights)
+- We need deterministic data for demos and tests
+- Developers should be able to work offline
 
-**One flag swaps the entire banking backend:**
+So we built a **mock adapter** — a local Supabase-only implementation that pretends to be Griffin. One environment variable swaps between real and fake:
 
-```typescript
-// apps/api/.env
-USE_MOCK_BANKING=true   # MockBankingAdapter (recommended for dev/demo)
-USE_MOCK_BANKING=false  # GriffinAdapter (Griffin sandbox integration testing)
+```bash
+# apps/api/.env
+USE_MOCK_BANKING=true   # Local Supabase mock (recommended for dev/demo)
+USE_MOCK_BANKING=false  # Real Griffin sandbox API
 ```
 
 ---
 
-## 2. Architecture
+## 2. The Three Categories of Data
 
-### 2.1 Where It Sits
+Not everything goes through Griffin. There are three distinct categories of data in this system, and understanding them is the key to understanding the mock:
+
+### Category 1: Griffin-owned (this is what the mock replaces)
+
+These operations call the real Griffin API in production. The mock adapter replaces those API calls with local Supabase queries against a `mock_accounts` table.
+
+| Operation | Real mode (Griffin) | Mock mode (Supabase) |
+|-----------|--------------------|--------------------|
+| Get account balance | Griffin API → real balance | Read `mock_accounts` table |
+| Execute a payment | Griffin API → real money moves | Update `mock_accounts` balance |
+| Provision account (KYC) | Griffin onboarding workflow | Insert into `accounts` table |
+| List/create payees | Griffin payee API | Insert into `beneficiaries` table |
+
+**`mock_accounts` is the only table unique to mock mode.** It exists solely to simulate account balances without calling Griffin.
+
+### Category 2: Always local (Supabase in both modes)
+
+These live in Supabase regardless of whether mocking is on or off. Griffin doesn't know about them — they're app-layer concerns.
+
+| Data | Why it's always local |
+|------|----------------------|
+| Enriched transactions | Griffin gives raw transactions. We add merchant names, categories, and icons locally for the AI to query. |
+| Savings pots | Conceptually bank sub-accounts, but managed locally for the POC. In production, these could map to Griffin book transfers. |
+| Standing orders | Scheduling logic managed locally. |
+| Beneficiary list (enriched) | We mirror Griffin payees locally and add nicknames, fuzzy matching support. |
+| Conversations, messages | Chat infrastructure — nothing to do with banking. |
+| Insights, spending analytics | Computed from enriched local transactions. |
+| Profiles, audit log | App-level data. |
+| Loans, loan applications | Managed locally (mock credit decisioning for POC). |
+| Pending actions | Confirmation flow state — always local. |
+
+### Category 3: The sync gap (not built for POC)
+
+In production, Griffin would send webhooks when transactions settle, and we'd insert enriched rows into the local `transactions` table. For the POC, there is no sync — the mock adapter writes directly to Supabase, and in Griffin mode, tool handlers write to both Griffin (via the port) and the local table (directly).
 
 ```
-Tool Handler / REST Route
+// TODO in codebase: Replace with webhook-based transaction sync for production
+```
+
+---
+
+## 3. Hexagonal Architecture — How the Swap Works
+
+### 3.1 Naming (this is consistent — don't be confused)
+
+| Term | What it is | It is NOT |
+|------|-----------|-----------|
+| **BankingPort** | The TypeScript interface. Always the interface, never an implementation. | Not a name for the mock. Not a name for Griffin. |
+| **GriffinAdapter** | The class that implements BankingPort by calling Griffin's real API. | — |
+| **MockBankingAdapter** | The class that implements BankingPort using local Supabase queries. | Not a "fake" — it's a full implementation against a different data source. |
+
+### 3.2 How It Plugs Together
+
+```
+Your code (tool handlers, REST routes)
         │
         ▼
-  Domain Service (writes only)    ← PaymentService, PotService, etc.
+  Domain Service (for writes)     ← PaymentService, PotService, etc.
         │
         ▼
-    BankingPort                   ← Interface (ports/banking.ts)
+    BankingPort                   ← Interface defined in ports/banking.ts
         │
     ┌───┴───┐
     ▼       ▼
-Griffin   Mock                    ← Adapters (adapters/griffin.ts, adapters/mock-banking.ts)
+Griffin   Mock                    ← Two adapters, same interface
  (API)   (Supabase)
 ```
 
-### 2.2 Adapter Selection
-
 ```typescript
-// lib/config.ts
-export const config = {
-  useMockBanking: process.env.USE_MOCK_BANKING === 'true',
-};
-
-// server.ts (at startup)
+// server.ts — one line decides everything
 const bankingPort: BankingPort = config.useMockBanking
   ? new MockBankingAdapter(supabase)
   : new GriffinAdapter(griffinClient);
 ```
 
-The `bankingPort` is injected into tool handlers via `ToolContext` and into domain services via constructor injection. No handler ever imports `GriffinClient` or `MockBankingAdapter` directly.
+The `bankingPort` is injected into tool handlers via `ToolContext` and into domain services via constructor injection. **No handler ever imports `GriffinClient` or `MockBankingAdapter` directly.** Code that uses the port doesn't know (or care) which adapter is behind it.
 
-`NODE_ENV=test` also selects `MockBankingAdapter` automatically (no need to set `USE_MOCK_BANKING` in test environments).
+`NODE_ENV=test` also selects `MockBankingAdapter` automatically.
 
-**The adapter is selected at server startup.** Changing `USE_MOCK_BANKING` requires a server restart — there is no hot-swap capability.
+**The adapter is selected at server startup.** Changing `USE_MOCK_BANKING` requires a server restart — there is no hot-swap.
 
-### 2.3 What the Mock Covers vs What It Doesn't
+### 3.3 A Pragmatic POC Compromise
 
-The `BankingPort` covers **external banking operations only**:
+The BankingPort interface includes methods for operations that are always local in the POC (pots, standing orders). In a real bank, pots would be Griffin sub-accounts and standing orders would be Griffin scheduled payments — so including them in the port is architecturally correct for production.
 
-| Covered by BankingPort (mock swaps these) | NOT covered (always Supabase, both modes) |
-|------------------------------------------|------------------------------------------|
-| Account listing, balance retrieval | Pot rules, pot transactions (ledger) |
-| Savings pot CRUD + transfers | Direct debits |
-| Payment creation and submission | Loans, loan applications |
-| Payee/beneficiary management | Insights, agent context |
-| Transaction listing | Conversations, messages |
-| Standing order CRUD | Profiles, audit log |
-| Account provisioning (onboarding KYC) | |
-| Health check | |
+For the POC, both adapters end up hitting Supabase for these methods (because Griffin's sandbox doesn't support sub-accounts). This means the mock and real adapters do the same thing for pot/standing-order operations. That's fine — the interface is designed for where the product is going, not just where it is today.
 
-**Key implication:** Squads working on loans, insights, or direct debits use direct Supabase queries — these are local-only entities that never go through the BankingPort, regardless of mock/real mode. Pots, standing orders, and beneficiaries go through the BankingPort (the adapter handles the underlying storage).
+### 3.4 What Goes Through the Port vs What Doesn't
+
+| Through BankingPort (mock swaps these) | Direct Supabase (always, both modes) |
+|----------------------------------------|--------------------------------------|
+| Account listing, balance retrieval | Enriched transaction queries (spending, insights) |
+| Savings pot CRUD + transfers | Pot rules, pot transactions (ledger entries) |
+| Payment creation and submission | Direct debits |
+| Payee/beneficiary management | Loans, loan applications |
+| Standing order CRUD | Insights, agent context |
+| Account provisioning (onboarding KYC) | Conversations, messages |
+| Health check | Profiles, audit log, pending actions |
+
+**Rule of thumb:** If it would call Griffin in production → goes through BankingPort. If it's app-layer data that Griffin doesn't know about → direct Supabase query.
 
 ---
 
-## 3. BankingPort Interface
+## 4. BankingPort Interface
 
-Full interface definition (implemented by both adapters):
+Full interface (implemented by both adapters):
 
 ```typescript
 interface BankingPort {
@@ -129,43 +177,44 @@ Type definitions for all parameter and return types live in `packages/shared/src
 
 ---
 
-## 4. MockBankingAdapter Implementation
+## 5. MockBankingAdapter Implementation
 
-### 4.1 Data Tables
+### 5.1 Data Tables
 
-| Table | Mock behaviour | Shared with Griffin? |
-|-------|---------------|---------------------|
-| `mock_accounts` | Simulates account balances. Only table unique to mock mode. | NO — mock only |
-| `transactions` | Enriched local copy with merchant_name, category, description | YES — shared |
-| `beneficiaries` | Local beneficiary records | YES — shared |
-| `payments` | Payment records | YES — shared |
-| `savings_pots` | Pot balances and metadata | YES — shared (local-only entity) |
-| `standing_orders` | Standing order records | YES — shared (local-only entity) |
+| Table | What it does | Mock-only? |
+|-------|-------------|-----------|
+| `mock_accounts` | Simulates account balances. The only table that exists solely for mock mode. | YES |
+| `accounts` | Canonical local account record (id, name, status). In real mode, balance comes from Griffin; in mock mode, balance comes from `mock_accounts`. | NO — shared |
+| `transactions` | Enriched local transactions with merchant_name, category, description. | NO — shared |
+| `beneficiaries` | Local beneficiary records. | NO — shared |
+| `payments` | Payment records. | NO — shared |
+| `savings_pots` | Pot balances and metadata. | NO — shared |
+| `standing_orders` | Standing order records. | NO — shared |
 
-### 4.2 Constructor and Configuration
+### 5.2 Constructor and Configuration
 
 ```typescript
-// Default mode (dev/demo) — loads seed data automatically
+// Default mode (dev/demo) — uses seed data in Supabase
 const mock = new MockBankingAdapter(supabase);
 
-// Test mode — configure specific returns per method
+// Test mode — override specific returns per method
 const mock = new MockBankingAdapter(supabase);
 mock.configure('getBalance', { balance: '0.00', currency: 'GBP' });
-mock.configure('getBalance', new Error('Service unavailable')); // error simulation
+mock.configure('getBalance', new Error('Service unavailable')); // simulate failure
 ```
 
-### 4.3 Test API
+### 5.3 Test API
 
 | Method | Purpose |
 |--------|---------|
 | `configure(method, returnValue)` | Override return value for a specific method. Pass an `Error` to simulate failures. |
 | `reset()` | Restore initial state. Call in `beforeEach` for test isolation. |
 
-### 4.4 Behavioural Rules
+### 5.4 Behavioural Rules
 
-1. **No in-memory balance state.** When a payment is made, the tool handler updates the `mock_accounts` table balance in Supabase directly. `check_balance` reads from `mock_accounts`. This makes demo state persistent across server restarts.
+1. **No in-memory balance state.** When a payment is made, the tool handler updates `mock_accounts` in Supabase directly. `check_balance` reads from `mock_accounts`. This makes demo state persistent across server restarts.
 
-2. **Enriched transaction data.** `listTransactions` returns data with `merchant_name`, `category`, `description` — not raw Griffin format. The mock IS the enrichment layer for POC.
+2. **Enriched transaction data.** The mock returns transactions with `merchant_name`, `category`, `description` already populated — not raw Griffin format. In mock mode, the mock IS the enrichment layer. In real mode, a sync process would enrich Griffin's raw data (not built for POC).
 
 3. **Realistic delays in dev mode.** 100–500ms simulated latency. Instant in test mode (`NODE_ENV=test`).
 
@@ -173,46 +222,43 @@ mock.configure('getBalance', new Error('Service unavailable')); // error simulat
 
 ---
 
-## 5. Read/Write Path Details
+## 6. Read/Write Paths — How Data Flows
 
-### 5.1 Transaction Reads
+### 6.1 Transaction Reads (spending queries, transaction history)
 
-Tool handlers for `get_transactions` and spending queries read from the **local `transactions` Supabase table** (enriched data), NOT from `BankingPort.getTransactions()`. The port's `getTransactions` is reserved for sync purposes only.
+Tool handlers for `get_transactions` and spending queries read from the **local `transactions` Supabase table** (enriched data), NOT from `BankingPort.getTransactions()`. The port's `getTransactions` exists for sync purposes only.
 
 ```
 get_transactions tool  ──► Supabase `transactions` table (direct query)
                            NOT ──► BankingPort.getTransactions()
 ```
 
-This ensures spending analytics work identically in mock and real modes.
+This ensures spending analytics work identically in mock and real modes — both query the same local table.
 
-EX-Insights tools (`get_spending_by_category`, `get_spending_insights`, `get_weekly_summary`) also read from the local `transactions` table directly. They do not use BankingPort at all. The mock adapter is irrelevant to insight queries — insights work identically regardless of `USE_MOCK_BANKING`.
+EX-Insights tools (`get_spending_by_category`, `get_spending_insights`, `get_weekly_summary`) also read from the local `transactions` table directly. They do not use BankingPort at all. The mock adapter is irrelevant to insight queries.
 
-### 5.2 Balance Reads
+### 6.2 Balance Reads
 
-`check_balance` reads from the `mock_accounts` table (in mock mode) or from the `accounts` table synced via Griffin (in real mode). The `mock_accounts` table is the only table unique to mock mode — it simulates account balances without Griffin API calls. The `accounts` table stores the canonical local account record (id, user_id, account_name, status, etc.) shared by both modes; `mock_accounts` shadows the balance field for mock-mode use.
+In mock mode, `check_balance` reads from the `mock_accounts` table. In real mode, it reads from the `accounts` table (balance synced from Griffin). The handler calls `BankingPort.getBalance()` — the adapter decides where to look.
 
-### 5.3 Payment Writes
+### 6.3 Payment Writes (the full confirmation flow)
 
-After a successful payment through the BankingPort:
-1. Handler calls `PaymentService.sendPayment()` → validates, creates `pending_action` row with `status: 'pending'` and 5-minute TTL
-2. EX renders `ConfirmationCard` from the pending_action's `display` field
-3. On user confirm: `POST /api/confirm/:id` → domain service calls `BankingPort.sendPayment()`
-4. Handler inserts enriched row into local `transactions` table
-5. Handler updates local balance in `mock_accounts`
-6. Pending action status changes to `'confirmed'`
+1. User says "Send £50 to James"
+2. Tool handler calls `PaymentService.sendPayment()` → validates, creates `pending_action` row (`status: 'pending'`, 5-minute TTL)
+3. Mobile app renders `ConfirmationCard` from the pending_action's `display` field
+4. User taps "Confirm" → `POST /api/confirm/:id`
+5. Domain service calls `BankingPort.sendPayment()` — **this is the only step that differs between mock and real**
+6. Handler inserts enriched row into local `transactions` table
+7. Handler updates balance in `mock_accounts` (mock) or waits for Griffin webhook (real)
+8. Pending action status → `'confirmed'`
 
-The `pending_actions` table is always Supabase-local — it is NOT part of BankingPort and works identically in mock and real modes. See `cross-dependencies.md` Contract 2 for the full `PendingAction` interface.
-
-```
-// TODO: Replace with webhook-based transaction sync for production
-```
+The `pending_actions` table is always Supabase-local — it works identically in both modes. See `cross-dependencies.md` Contract 2 for the full `PendingAction` interface.
 
 ---
 
-## 6. Seed Data
+## 7. Seed Data
 
-The mock adapter's demo data comes from the seed scripts, not from the adapter itself.
+The mock adapter's demo data comes from seed scripts, not from the adapter itself.
 
 | File | What it seeds |
 |------|--------------|
@@ -221,7 +267,6 @@ The mock adapter's demo data comes from the seed scripts, not from the adapter i
 | `packages/shared/src/test-constants.ts` | Single source of truth for all values (balances, names, amounts) |
 | `scripts/demo-reset.ts` | Drops and re-seeds Alex/Emma data. Run before every demo. |
 
-**npm scripts:**
 ```bash
 npm run seed          # Initial seed
 npm run demo:reset    # Reset to clean demo state
@@ -231,7 +276,7 @@ See `docs/prompts/06a-foundation-data.md` Task 2a for the full seed data specifi
 
 ---
 
-## 7. Test Fixtures
+## 8. Test Fixtures
 
 Test fixtures live in `apps/api/src/__tests__/fixtures/` and import values from `test-constants.ts`:
 
@@ -249,7 +294,7 @@ All fixtures use consistent IDs and amounts from test-constants. Monthly spendin
 
 ---
 
-## 8. Agent Test Harness
+## 9. Agent Test Harness
 
 Two testing levels in `apps/api/src/__tests__/helpers/agent-test-harness.ts`:
 
@@ -288,7 +333,7 @@ No Anthropic API key needed for unit tests.
 
 ---
 
-## 9. Known Gaps vs Real API
+## 10. Known Gaps vs Real API
 
 The mock adapter does NOT simulate:
 
@@ -302,7 +347,7 @@ The mock adapter does NOT simulate:
 
 ---
 
-## 10. How to Add a New Tool Using the Mock
+## 11. How to Add a New Tool Using the Mock
 
 Step-by-step for a squad developer implementing a new tool (e.g., CB adding `payments_send_payment`):
 
@@ -338,7 +383,7 @@ const result = await assertToolHandler({
 
 ---
 
-## 11. File Locations
+## 12. File Locations
 
 | File | Purpose |
 |------|---------|
