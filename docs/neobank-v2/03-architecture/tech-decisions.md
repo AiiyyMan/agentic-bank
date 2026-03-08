@@ -132,12 +132,12 @@ async function maybeSummariseHistory(
     messages: toSummarise.map(m => ({ role: m.role, content: m.content })),
   });
 
-  const summaryMessage: Message = {
-    role: 'system',
-    content: `[Conversation summary: ${summary.content[0].text}]`,
-  };
+  // Summary is injected into the system prompt, NOT as a message
+  // (Anthropic API does not accept 'system' as a message role)
+  // The caller prepends this to the system prompt string.
+  const summaryText = `[Prior conversation summary: ${summary.content[0].text}]`;
 
-  return [summaryMessage, ...recent];
+  return { summaryText, recentMessages: recent };
 }
 ```
 
@@ -251,7 +251,7 @@ Each squad file exports a `registerXTools(registry: ToolRegistry)` function. The
 - **Transactions:** 60 days of realistic UK spending (seeded from test-constants)
 - **Payments:** Instant success (no Griffin poll delays)
 - **Beneficiaries:** 5 pre-seeded (James, Sarah, Landlord, Mum, Netflix)
-- **Balances:** Calculated from transaction history (not stored statically)
+- **Balances:** Stored in `mock_accounts.balance` column, updated on each transaction/transfer (not computed from history — simpler and avoids fragility)
 
 **Consequences:**
 - (+) Offline development, zero external dependencies
@@ -322,7 +322,8 @@ The Chat tab is the default/home tab. It's the leftmost tab and the one shown on
 **State machine:**
 ```
 STARTED → NAME_COLLECTED → EMAIL_REGISTERED → DOB_COLLECTED → ADDRESS_COLLECTED
-→ KYC_VERIFIED → ACCOUNT_PROVISIONED → FUNDING_OFFERED → ONBOARDING_COMPLETE
+→ VERIFICATION_PENDING → VERIFICATION_COMPLETE → ACCOUNT_PROVISIONED
+→ FUNDING_OFFERED → ONBOARDING_COMPLETE
 ```
 
 State persisted in `profiles.onboarding_step`. On resume, the AI picks up from the current step.

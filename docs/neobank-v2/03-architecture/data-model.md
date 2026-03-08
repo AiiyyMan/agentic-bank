@@ -68,8 +68,8 @@ CREATE TABLE profiles (
   onboarding_step TEXT DEFAULT 'STARTED'
     CHECK (onboarding_step IN (
       'STARTED', 'NAME_COLLECTED', 'EMAIL_REGISTERED', 'DOB_COLLECTED',
-      'ADDRESS_COLLECTED', 'KYC_VERIFIED', 'ACCOUNT_PROVISIONED',
-      'FUNDING_OFFERED', 'ONBOARDING_COMPLETE'
+      'ADDRESS_COLLECTED', 'VERIFICATION_PENDING', 'VERIFICATION_COMPLETE',
+      'ACCOUNT_PROVISIONED', 'FUNDING_OFFERED', 'ONBOARDING_COMPLETE'
     )),
   griffin_legal_person_url TEXT,
   griffin_account_url TEXT,
@@ -355,7 +355,8 @@ CREATE INDEX idx_loan_payments_loan ON loan_payments(loan_id, due_date ASC);
 CREATE TABLE flex_plans (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  transaction_id UUID NOT NULL REFERENCES transactions(id),
+  transaction_id UUID REFERENCES transactions(id),  -- Nullable: Griffin txns may not have local row yet
+  griffin_transaction_id TEXT,                       -- Griffin reference when using real adapter
   merchant TEXT NOT NULL,
   original_amount NUMERIC(12,2) NOT NULL,
   plan_months INTEGER NOT NULL CHECK (plan_months IN (3, 6, 12)),
@@ -453,6 +454,9 @@ CREATE TABLE user_insights_cache (
 
 ```sql
 -- Only used when USE_MOCK_BANKING=true
+-- Balance is the source of truth (updated on each transaction/transfer).
+-- NOT computed from transaction history — stored balance is simpler and
+-- avoids fragility from missing transactions.
 CREATE TABLE mock_accounts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -499,21 +503,35 @@ Two migrations exist:
 
 ### 4.2 Migration Plan
 
+**Existing migrations (do not modify):**
+- `001_schema.sql` — profiles, conversations, messages, pending_actions, loan_products, loan_applications, loans
+- `002_content_blocks.sql` — adds content_blocks to messages
+
+**New migrations (ALTER existing + CREATE new):**
+
 ```
-003_pots.sql                    # pots, pot_transfers
-004_beneficiaries_payments.sql  # beneficiaries, payments (replace Griffin-only flow)
-005_transactions.sql            # transactions (local store for categorisation + insights)
-006_standing_orders.sql         # standing_orders
-007_auto_save_rules.sql         # auto_save_rules
-008_flex.sql                    # flex_plans, flex_payments
-009_loan_payments.sql           # loan_payments (amortisation tracking)
-010_credit_scores.sql           # credit_scores
-011_insights_cache.sql          # user_insights_cache
-012_profile_onboarding.sql      # Add onboarding_step, checklist, address fields to profiles
-013_mock_accounts.sql           # mock_accounts (conditional, for mock adapter)
-014_international.sql           # international_recipients, international_transfers (P1)
-015_indexes.sql                 # All performance indexes (consolidated)
-016_rls_policies.sql            # All RLS policies (consolidated)
+003_schema_alignment.sql        # ALTER existing tables to match architecture:
+                                #   - messages: ADD user_id UUID REFERENCES auth.users
+                                #   - conversations: ADD title TEXT, message_count INTEGER
+                                #   - pending_actions: ADD conversation_id UUID, result JSONB
+                                #   - loans: ADD payments_made INTEGER, payoff_date DATE
+                                #   - profiles: ADD onboarding_step, checklist_* booleans,
+                                #     date_of_birth, address_* fields
+                                # NOTE: Do NOT recreate existing RLS policies from 001
+004_pots.sql                    # CREATE pots, pot_transfers
+005_beneficiaries_payments.sql  # CREATE beneficiaries, payments
+006_transactions.sql            # CREATE transactions (local store for categorisation + insights)
+007_standing_orders.sql         # CREATE standing_orders
+008_auto_save_rules.sql         # CREATE auto_save_rules
+009_flex.sql                    # CREATE flex_plans, flex_payments
+010_loan_payments.sql           # CREATE loan_payments (amortisation tracking)
+011_credit_scores.sql           # CREATE credit_scores
+012_insights_cache.sql          # CREATE user_insights_cache
+013_mock_accounts.sql           # CREATE mock_accounts (for mock adapter)
+014_international.sql           # CREATE international_recipients, international_transfers (P1)
+015_new_indexes.sql             # CREATE indexes for NEW tables only (004-014)
+016_new_rls_policies.sql        # RLS policies for NEW tables only (004-014)
+                                # Existing 001 RLS policies are preserved as-is
 ```
 
 ### 4.3 Seed Data

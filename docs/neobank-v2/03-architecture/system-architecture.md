@@ -304,7 +304,7 @@ interface ToolResult {
 }
 ```
 
-The registry is built at server startup:
+The registry is built at server startup. **Tool availability is gated by onboarding state:**
 
 ```typescript
 // tools/index.ts
@@ -313,8 +313,11 @@ registerCoreBankingTools(registry);
 registerLendingTools(registry);
 registerExperienceTools(registry);
 
-// Available as registry.getClaudeTools() for the API call
-// and registry.execute(toolName, params, context) for handling
+// At chat time, filter by onboarding state:
+const tools = registry.getToolsForUser(user.onboarding_step);
+// Returns ALL tools if ONBOARDING_COMPLETE
+// Returns only onboarding tools if still onboarding
+// See api-design.md §3.4 for the full gating matrix
 ```
 
 ### 3.4 Streaming (SSE)
@@ -371,8 +374,20 @@ Client                          Server                         Claude API
 | `token` | `{ text: string }` | Streamed text token |
 | `tool_start` | `{ tool: string }` | Tool execution began (show typing indicator) |
 | `tool_result` | `{ data, ui_components? }` | Tool completed (render cards) |
+| `ui_components` | `UIComponent[]` | Rich cards to render (from `respond_to_user` tool) |
 | `error` | `{ code, message }` | Error during processing |
 | `done` | `{ conversation_id, message_id }` | Stream complete |
+
+**Special handling for `respond_to_user` tool:**
+
+When Claude calls `respond_to_user` during streaming, the server intercepts it — it is NOT executed as a normal tool. Instead:
+1. The `message` parameter is streamed as text tokens
+2. The `ui_components` parameter is emitted as a `ui_components` event
+3. No tool_result is sent back to Claude (the tool call terminates the agent loop)
+
+This matches the existing pattern in `agent.ts` where `respond_to_user` is the final tool call that produces the response.
+
+**Refactoring note:** The existing `agent.ts` uses `anthropic.messages.create()` (non-streaming). This must be rewritten to use `anthropic.messages.stream()` for the SSE architecture. The tool execution loop within the agent service is preserved — only the HTTP transport layer changes.
 
 ---
 
@@ -729,3 +744,44 @@ export const features = {
 ```
 
 Simple env-var flags. No feature flag service needed for POC.
+
+---
+
+## 11. Foundation Refactoring Requirements
+
+The existing codebase requires the following changes during Foundation to align with this architecture. These are prerequisites for parallel squad implementation.
+
+### 11.1 Must Refactor (Foundation F1b)
+
+| File | Current State | Target State | Why |
+|------|--------------|-------------|-----|
+| `tools/definitions.ts` | Monolithic, 10 tools | Split into `tools/core-banking.ts`, `tools/lending.ts`, `tools/experience.ts` + `tools/registry.ts` | Prevents merge conflicts; enables parallel squad work |
+| `tools/handlers.ts` | Hardcodes `GriffinClient` directly | Inject `BankingPort` interface via `ToolContext` | Enables mock adapter; hexagonal pattern |
+| `services/agent.ts` | `anthropic.messages.create()` (non-streaming) | `anthropic.messages.stream()` with SSE event emission | Chat must stream tokens to mobile |
+| `routes/chat.ts` | Returns JSON response | Returns SSE event stream | Streaming architecture |
+| `packages/shared/src/types/api.ts` | `UIComponent` has 6 card types | Expand to 28+ card types; split into `cards.ts`, `tools.ts`, `chat.ts`, `banking.ts`, `insights.ts` | Squads need complete type definitions |
+| `send_payment` tool | Uses `beneficiary_name` string | Use `beneficiary_id` UUID (from `get_beneficiaries`) | Removes fragile string matching; plan-assessment flagged this |
+
+### 11.2 Must Add (Foundation F1b)
+
+| Item | Purpose |
+|------|---------|
+| `ports/banking.ts` | BankingPort interface definition |
+| `adapters/griffin.ts` | GriffinAdapter wrapping existing GriffinClient |
+| `adapters/mock-banking.ts` | MockBankingAdapter for offline development |
+| `tools/registry.ts` | ToolRegistry class with squad registration + onboarding gating |
+| `lib/streaming.ts` | SSE stream writer utility |
+| `services/insight.ts` | InsightService (proactive engine) |
+| `services/onboarding.ts` | OnboardingService (state machine) |
+| Migrations 003-016 | Schema expansion (see data-model.md §4.2) |
+
+### 11.3 Preserve (No Changes Needed)
+
+| File | Why |
+|------|-----|
+| `lib/griffin.ts` | GriffinClient is correct; GriffinAdapter wraps it |
+| `lib/supabase.ts` | Supabase client singleton works as-is |
+| `middleware/auth.ts` | JWT auth middleware is correct |
+| `lib/validation.ts` | Validation functions reusable |
+| `services/lending.ts` | Loan decisioning logic is sound; needs minor expansion for flex |
+| `routes/health.ts` | Health check works; rename `claude` → `anthropic` in response |

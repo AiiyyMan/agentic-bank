@@ -738,7 +738,11 @@ System health check (no auth required).
 | `get_transactions` | Read | List recent transactions. Supports filtering by category, merchant, date range. Returns merchant, amount, category, and date. |
 | `create_standing_order` | Write | Set up a recurring payment. Requires beneficiary_id, amount, frequency (weekly/monthly). Optional: day_of_month, first_date. |
 | `get_standing_orders` | Read | List all standing orders with next payment dates and status. |
-| `categorise_transaction` | Read | Get or set the category for a transaction. Uses rule-based merchant mapping. |
+| `edit_standing_order` | Write | Edit a standing order's amount, frequency, or day. Requires standing_order_id and at least one field to update. |
+| `cancel_standing_order` | Write | Cancel an active standing order. Requires standing_order_id. |
+| `delete_beneficiary` | Write | Remove a saved payment recipient. Requires beneficiary_id. |
+| `create_auto_save_rule` | Write | Set up automatic savings. Requires pot_id, amount, and frequency (weekly/monthly/on_payday). Returns next run date. |
+| `categorise_transaction` | Read | Get or set the category for a transaction. Uses rule-based merchant mapping. Internal tool -- not exposed as API route. |
 
 ### 3.2 Lending Tools
 
@@ -766,7 +770,37 @@ System health check (no auth required).
 | `get_upcoming_bills` | Read | Get bills and scheduled payments due in the next 48 hours. Returns bill name, amount, and due date. |
 | `get_proactive_cards` | Read | Get prioritised proactive insight cards for the current session. Returns max 3 cards ranked by urgency (time-sensitive > actionable > informational). |
 | `get_onboarding_checklist` | Read | Get the getting-started checklist with completion status for each item. |
+| `update_checklist_item` | Write | Mark a checklist item as completed. Requires item key and completed status. |
 | `get_value_prop_info` | Read | Get information about a specific value proposition topic (speed, control, FSCS protection, FCA regulation, features). Used during onboarding exploration. |
+| `get_onboarding_status` | Read | Get the user's current onboarding step and progress percentage. |
+| `verify_identity` | Write | Submit KYC verification (mocked for POC -- instant approval). Returns verification status. |
+| `provision_account` | Write | Provision a bank account after KYC verification. Creates Griffin/mock account, returns sort code and account number. |
+| `complete_onboarding` | Write | Mark onboarding as complete. Transitions system prompt from onboarding mode to full banking mode. Unlocks all banking tools. |
+
+### 3.4 Tool Availability by Onboarding State
+
+> **IMPORTANT:** Tools are gated by `profiles.onboarding_step`. During onboarding, only onboarding + read tools are available. After `ONBOARDING_COMPLETE`, all tools are available.
+
+| Onboarding State | Available Tools |
+|-----------------|-----------------|
+| `STARTED` → `ADDRESS_COLLECTED` | `get_value_prop_info`, `get_onboarding_status`, `respond_to_user` |
+| `KYC_VERIFIED` → `ACCOUNT_PROVISIONED` | Above + `verify_identity`, `provision_account`, `get_account_details` |
+| `FUNDING_OFFERED` | Above + `check_balance` (to verify funding) |
+| `ONBOARDING_COMPLETE` | **All tools** (full banking mode) |
+
+The tool registry implements this gating:
+
+```typescript
+function getAvailableTools(onboardingStep: string): ToolDefinition[] {
+  if (onboardingStep === 'ONBOARDING_COMPLETE') {
+    return registry.getAllTools();
+  }
+  // During onboarding, restrict to onboarding-only tools
+  return registry.getTools().filter(t =>
+    t.squad === 'experience' && ONBOARDING_TOOLS.includes(t.name)
+  );
+}
+```
 
 ---
 
