@@ -30,6 +30,7 @@ All blocking services are already configured from the initial build. This sectio
 | **Supabase** | Connected (200) | `apps/api/.env`, `apps/mobile/.env` |
 | **Anthropic** | Connected (200) | `apps/api/.env` |
 | **Griffin Sandbox** | Connected (200) | `apps/api/.env` |
+| **Knock** | Configured (test keys) | `apps/api/.env`, `apps/mobile/.env` |
 | **EAS CLI** | v18.1.0 installed | `apps/mobile/eas.json` configured |
 | **Supabase CLI** | v2.77.0 installed | — |
 
@@ -97,6 +98,9 @@ All services should return `200`. If any return `401` or `403`, the correspondin
 | `GRIFFIN_PRIMARY_ACCOUNT_URL` | When `USE_MOCK_BANKING=false` | Dashboard → Bank Accounts → master account URL | Balance normalisation |
 | `GRIFFIN_EMBEDDED_PRODUCT_URL` | When `USE_MOCK_BANKING=false` | Dashboard → Products → embedded product URL | Account opening |
 | `GRIFFIN_RELIANCE_WORKFLOW_URL` | When `USE_MOCK_BANKING=false` | Dashboard → Workflows → reliance workflow URL | KYC onboarding |
+| `KNOCK_SECRET_API_KEY` | Yes | knock.app → Developers → API Keys | NotificationService (server-side) |
+| `KNOCK_EXPO_CHANNEL_ID` | Yes | knock.app → Integrations → Channels → Expo push | Push notification delivery |
+| `KNOCK_FEED_CHANNEL_ID` | Yes | knock.app → Integrations → Channels → In-app feed | In-app notification feed |
 | `DATABASE_URL` | Optional | Supabase Dashboard → Settings → Database → Connection string | `supabase db push` (faster migrations) |
 | `USE_MOCK_BANKING` | Recommended | Set manually | Adapter selection (system-architecture.md §5.2) |
 | `PORT` | No (default: 3000) | Set manually | Fastify server |
@@ -111,6 +115,9 @@ All services should return `200`. If any return `401` or `403`, the correspondin
 | `EXPO_PUBLIC_API_URL` | Yes | API server URL (localhost:3000 for dev, 10.0.2.2:3000 for Android emulator) |
 | `EXPO_PUBLIC_SUPABASE_URL` | Yes | Same as `SUPABASE_URL` above |
 | `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Yes | Same as `SUPABASE_ANON_KEY` above (anon, not service role) |
+| `EXPO_PUBLIC_KNOCK_PUBLIC_API_KEY` | Yes | knock.app → Developers → API Keys (public key) |
+| `EXPO_PUBLIC_KNOCK_EXPO_CHANNEL_ID` | Yes | Same as `KNOCK_EXPO_CHANNEL_ID` above |
+| `EXPO_PUBLIC_KNOCK_FEED_CHANNEL_ID` | Yes | Same as `KNOCK_FEED_CHANNEL_ID` above |
 
 ### Future Variables (not yet needed)
 
@@ -118,13 +125,7 @@ These will be added during Implementation phase when the corresponding services 
 
 | Variable | Phase | Service | Reference |
 |----------|-------|---------|-----------|
-| `KNOCK_SECRET_API_KEY` | Implementation (EX squad) | Knock | notification-system.md §8.1 |
-| `KNOCK_EXPO_CHANNEL_ID` | Implementation (EX squad) | Knock | notification-system.md §8.1 |
-| `KNOCK_FEED_CHANNEL_ID` | Implementation (EX squad) | Knock | notification-system.md §8.1 |
-| `KNOCK_SIGNING_KEY` | Implementation (EX squad) | Knock | notification-system.md §8.1 |
-| `EXPO_PUBLIC_KNOCK_PUBLIC_API_KEY` | Implementation (EX squad) | Knock | notification-system.md §8.1 |
-| `EXPO_PUBLIC_KNOCK_EXPO_CHANNEL_ID` | Implementation (EX squad) | Knock | notification-system.md §8.1 |
-| `EXPO_PUBLIC_KNOCK_FEED_CHANNEL_ID` | Implementation (EX squad) | Knock | notification-system.md §8.1 |
+| `KNOCK_SIGNING_KEY` | Implementation (EX squad, optional) | Knock | notification-system.md §8.1 — enhanced security mode, not needed for POC |
 | `WISE_API_TOKEN` | Implementation (P1 stretch) | Wise | .env.example |
 | `WISE_BASE_URL` | Implementation (P1 stretch) | Wise | .env.example |
 
