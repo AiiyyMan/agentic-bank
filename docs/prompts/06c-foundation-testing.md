@@ -60,22 +60,15 @@ Set up the mobile app structure:
 
 ### Task 4a: Banking Port Interface and Mock Adapter
 
+> **Reference:** `docs/neobank-v2/03-architecture/mock-strategy.md` is the consolidated mock documentation. This task implements what that document specifies. Read it first for the full picture (architecture, data tables, read/write paths, known gaps, test API).
+
 Refactor the direct `GriffinClient` usage into a hexagonal architecture.
 
-**1. Define `BankingPort` interface** (type defined in F1b's shared types, implementation here):
-```typescript
-interface BankingPort {
-  getBalance(accountUrl: string): Promise<AccountBalance>
-  listTransactions(accountUrl: string, options?: TransactionOptions): Promise<TransactionList>
-  listAccounts(ownerUrl: string): Promise<AccountList>
-  createPayment(accountUrl: string, details: PaymentDetails): Promise<Payment>
-  submitPayment(paymentUrl: string): Promise<PaymentSubmission>
-  createPayee(ownerUrl: string, details: PayeeDetails): Promise<Payee>
-  listPayees(ownerUrl: string): Promise<PayeeList>
-}
-```
+**1. Define `BankingPort` interface** (type defined in F1b's shared types, implementation here).
 
-**Scope clarification:** The BankingPort covers **external banking operations only** (balance, transactions, payments, payees). Savings pots, pot rules, pot transactions, standing orders, direct debits, loans, and insights are managed **locally in Supabase** and do NOT go through the BankingPort. Squads should use direct Supabase queries for these entities.
+The canonical interface is defined in `system-architecture.md §5.1` and consolidated in `mock-strategy.md §3`. Implement that full interface (18+ methods covering accounts, pots, beneficiaries, payments, transactions, standing orders, onboarding, and health check). Do NOT use Griffin-style URL-based signatures — use `userId`-based domain names (e.g., `getBalance(userId)` not `getBalance(accountUrl)`).
+
+**Scope clarification:** The BankingPort covers accounts, pots, beneficiaries, payments, transactions, standing orders, and onboarding. Pot rules, pot transactions (ledger), direct debits, loans, and insights are managed **locally in Supabase** and do NOT go through the BankingPort. See `mock-strategy.md §2.3` for the full coverage table.
 
 **2. Create `GriffinAdapter`** in `apps/api/src/adapters/griffin.adapter.ts`:
 - Wraps existing `GriffinClient`

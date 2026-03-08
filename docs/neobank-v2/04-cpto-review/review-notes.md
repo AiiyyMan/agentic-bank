@@ -116,7 +116,7 @@ The categorisation strategy (ADR-08) is sound: rule-based mapping for top 50 UK 
 
 **Clearly defined.** The BankingPort interface (system-architecture.md §5.1) specifies 20+ methods across accounts, payments, pots, beneficiaries, and standing orders. The MockBankingAdapter uses `mock_accounts` table for balance simulation; all other tables (transactions, beneficiaries, payments, pots) are shared between mock and Griffin adapters.
 
-**One concern:** The MockBankingAdapter specification is spread across system-architecture.md §5.2 and the Foundation prompts (06c-foundation-testing.md). A squad developer looking for "how does mock work" has to read both. Foundation should produce a clear README or inline documentation.
+**~~One concern:~~ RESOLVED.** ~~The MockBankingAdapter specification is spread across system-architecture.md §5.2 and the Foundation prompts (06c-foundation-testing.md). A squad developer looking for "how does mock work" has to read both.~~ Consolidated into `docs/neobank-v2/03-architecture/mock-strategy.md` — single canonical reference covering architecture, data tables, read/write paths, test API, seed data, fixtures, known gaps, and file locations. Both source files now cross-reference this document.
 
 ### 3.3 Seed Data Completeness
 

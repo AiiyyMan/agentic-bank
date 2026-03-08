@@ -77,7 +77,7 @@ Tasks ordered by dependency. Each is Medium complexity (1-3 hours).
 - Transaction categorisation: don't overthink it. Rule-based map for P0. The AI fallback is P2.
 - Beneficiary fuzzy matching: simple `ILIKE '%name%'` is sufficient for POC. No need for Levenshtein or fuzzy search libraries.
 
-**What to mock:** GriffinAdapter is mocked via MockBankingAdapter. No Griffin API calls needed during Phase 1. Use `USE_MOCK_BANKING=true`.
+**What to mock:** GriffinAdapter is mocked via MockBankingAdapter. No Griffin API calls needed during Phase 1. Use `USE_MOCK_BANKING=true`. See `docs/neobank-v2/03-architecture/mock-strategy.md` for the full mock reference.
 
 ---
 

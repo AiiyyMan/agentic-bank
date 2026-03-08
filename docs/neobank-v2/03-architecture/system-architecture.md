@@ -880,24 +880,14 @@ interface BankingPort {
 
 ### 5.2 Adapter Selection
 
-```typescript
-// lib/config.ts
-export const config = {
-  useMockBanking: process.env.USE_MOCK_BANKING === 'true',
-  // ...
-};
+`USE_MOCK_BANKING=true` swaps the entire banking backend from Griffin to a pure-Supabase mock. One flag, no code changes.
 
-// server.ts (at startup)
-const bankingPort: BankingPort = config.useMockBanking
-  ? new MockBankingAdapter(supabase)
-  : new GriffinAdapter(griffinClient);
-```
+**Full mock strategy documentation:** See **`mock-strategy.md`** for the complete reference — adapter selection, data tables, read/write paths, test configuration, seed data, fixtures, known gaps, and file locations.
 
-**GriffinAdapter:** Wraps the existing GriffinClient. Maps Griffin's kebab-case API responses to our internal types. Handles retry logic.
-
-**MockBankingAdapter:** Pure Supabase implementation. Uses `mock_accounts` for account/balance simulation, and the standard `transactions`, `beneficiaries`, `payments`, `pots`, and `standing_orders` tables for all other data. Only the account/balance layer is mock-specific — all other tables are shared between mock and Griffin adapters. Includes realistic seed data for demo scenarios.
-
-**WiseAdapter (P1):** International transfers only. Implements a separate `InternationalPort` interface (not part of BankingPort, since Wise has different semantics — quotes, recipients, transfers).
+**Summary:**
+- **GriffinAdapter:** Wraps the existing GriffinClient. Maps Griffin's kebab-case API responses to our internal types. Handles retry logic.
+- **MockBankingAdapter:** Pure Supabase implementation. Uses `mock_accounts` for balance simulation; all other tables shared between adapters. See `mock-strategy.md §4` for full details.
+- **WiseAdapter (P1):** International transfers only. Implements a separate `InternationalPort` interface (not part of BankingPort, since Wise has different semantics — quotes, recipients, transfers).
 
 ### 5.3 Banking Service Layer (ADR-17)
 
