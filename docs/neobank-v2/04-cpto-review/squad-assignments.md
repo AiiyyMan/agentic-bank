@@ -156,9 +156,9 @@ Since Lending has no P0 features, Phase 1 is preparation work so P1 features can
 ### 3.1 Ownership
 
 **Features (from feature-matrix.md):**
-- P0: #61-72 (chat interface, card rendering, streaming, tool dispatch), #73-82 (onboarding), #83-92 (AI agent capabilities), #93-102 (insights, proactive engine), #103-108 (proactive cards), #109-112 (confirmation flow)
-- P1: #113-135 (advanced chat, notifications, preferences, search)
-- P2: #136-143 (charts, natural language search, deep linking)
+- P0: #5, #12, #19, #25, #26 (card components), #31, #32 (beneficiary AI), #67-77, #80, #81 (onboarding), #89-100 (AI chat core), #101-107 (spending insights), #115 (sign out), #119, #123 (infrastructure). 8 DONE: ~~#126-132, #135~~ (design system)
+- P1: #33, #41, #45, #47, #51, #54, #55, #58, #60, #62, #63, #65, #78, #79, #82, #83, #84, #86, #87, #108-111, #114, #124, #133, #134, #139, #140 (advanced chat, notifications, preferences, lending cards)
+- P2: #112, #113, #118, #141, #142, #143 (charts, natural language search, deep linking, offline, rate limiting)
 
 **API Endpoints:**
 - POST /api/chat (SSE streaming — the core endpoint)
@@ -189,7 +189,7 @@ Since Lending has no P0 features, Phase 1 is preparation work so P1 features can
 
 ### 3.3 Phase 1 Task Lists (4 Parallel Streams)
 
-#### EX-Infra Stream (12 features, Days 1-5) — CRITICAL PATH
+#### EX-Infra Stream (8 features, Days 1-5) — CRITICAL PATH
 
 | # | Task | Depends On | Acceptance Criteria | Test |
 |---|------|-----------|--------------------|----|
@@ -206,7 +206,7 @@ Since Lending has no P0 features, Phase 1 is preparation work so P1 features can
 | EXI-11 | **Message input** — Text input with send button. Disable during streaming. Multi-line support. | EXI-1, EXI-3 | Input enables/disables based on chat state. Send triggers API call. Multi-line works | Visual test: type, send, verify disable during stream |
 | EXI-12 | **Message persistence** — Save messages to Supabase. Load history on app open. Handle content_blocks JSONB format. | EXI-8 | Messages persist across app restarts. History loads correctly. Tool results visible in history | Integration test: send message, kill app, reopen, verify history |
 
-#### EX-Cards Stream (11 features, Days 4-10)
+#### EX-Cards Stream (14 features, Days 4-10)
 
 | # | Task | Depends On | Acceptance Criteria | Test |
 |---|------|-----------|--------------------|----|
@@ -222,7 +222,7 @@ Since Lending has no P0 features, Phase 1 is preparation work so P1 features can
 | EXC-10 | **ChecklistCard** — Onboarding checklist with completed/pending items. Progress indicator. | EXI-4 | Shows 5 checklist items. Completed items checked. Progress updates | Snapshot test: partial completion |
 | EXC-11 | **Card skeleton states** — Loading placeholders for all cards. Shimmer animation. | EXI-4 | Each card type has a skeleton. Skeleton shows during tool execution | Visual test: skeletons render during loading |
 
-#### EX-Onboarding Stream (10 features, Days 4-10)
+#### EX-Onboarding Stream (12 features, Days 4-10)
 
 | # | Task | Depends On | Acceptance Criteria | Test |
 |---|------|-----------|--------------------|----|
@@ -237,7 +237,7 @@ Since Lending has no P0 features, Phase 1 is preparation work so P1 features can
 | EXO-9 | **Onboarding REST endpoints** — POST /api/onboarding/start, POST /api/onboarding/verify, GET /api/onboarding/checklist. Route through OnboardingService. | EXO-1 | REST endpoints work alongside chat-driven flow | API test: all endpoints return expected data |
 | EXO-10 | **Tool gating transition** — When onboarding completes, switch from ONBOARDING_TOOLS (7 tools) to full tool set (44 tools). Seamless in-conversation transition. | EXO-1, EXI-6 | After completion, Claude can access all tools. No app restart needed | Integration test: complete onboarding, immediately ask balance |
 
-#### EX-Insights Stream (10 features, Days 5-12)
+#### EX-Insights Stream (8 features, Days 5-12)
 
 | # | Task | Depends On | Acceptance Criteria | Test |
 |---|------|-----------|--------------------|----|
@@ -278,6 +278,6 @@ Since Lending has no P0 features, Phase 1 is preparation work so P1 features can
 
 | Squad | Phase 1 Load | Phase 2 Load | Notes |
 |-------|-------------|-------------|-------|
-| **Core Banking** | HIGH (17 P0) | MEDIUM (P1 features) | Steady workload. No blockers on other squads |
+| **Core Banking** | HIGH (20 P0) | MEDIUM (P1 features) | Steady workload. No blockers on other squads |
 | **Lending** | LOW (0 P0, prep only) | HIGH (all P1 features) | Available to assist CB/EX in Phase 1 |
-| **Experience** | VERY HIGH (34 P0, 4 streams) | MEDIUM (integration, polish) | Critical path. EX-Infra is the #1 dependency |
+| **Experience** | VERY HIGH (42 P0, 4 streams) | MEDIUM (integration, polish) | Critical path. EX-Infra is the #1 dependency |

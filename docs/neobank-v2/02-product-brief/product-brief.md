@@ -334,4 +334,6 @@ The agent's tool registry expands across squads:
 
 **Experience squad tools:** `respond_to_user`, `get_spending_insights`, `get_spending_by_category`, `get_weekly_summary`, `search_transactions`
 
+> See ai-chat.md §3 for the complete Experience squad tool catalogue.
+
 The Experience squad owns the agent loop, tool routing, and conversation state. It registers tools from all squads into a unified tool registry. The AI model receives all available tools and decides which to invoke based on user intent.

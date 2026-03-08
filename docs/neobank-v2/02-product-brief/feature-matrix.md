@@ -213,27 +213,27 @@
 
 | Priority | Count | Remaining | Notes |
 |----------|-------|-----------|-------|
-| **P0** | 59 | **51** | 8 DONE (design system #126-132, useTokens #135). Remaining: chat, balance, pots, payments, onboarding, insights, infrastructure |
-| **P1** | 66 | 66 | Depth: international, lending, Flex Purchase, credit score, payment history, request money, recurring detection, auto-save rules, onboarding recovery, notifications, card mgmt, Storybook |
-| **P2** | 18 | 18 | Polish: charts, NL search, direct debits, deep linking, offline, rate limiting, card limits |
+| **P0** | 70 | **62** | 8 DONE (design system #126-132, useTokens #135). Remaining: chat, cards, onboarding, insights, infrastructure |
+| **P1** | 61 | 61 | Depth: international, lending, Flex Purchase, credit score, payment history, request money, recurring detection, auto-save rules, onboarding recovery, notifications, card mgmt, Storybook |
+| **P2** | 12 | 12 | Polish: charts, NL search, deep linking, offline, rate limiting, card limits |
 | **Total** | 143 | **135** | |
 
 | Squad | P0 (original) | P0 (remaining) | P1 | P2 | Total |
 |-------|--------------|----------------|-----|-----|-------|
-| **Core Banking (CB)** | 16 | **17** (+1: #22 categorisation) | 22 | 6 | 45 |
-| **Lending (LE)** | 0 | 0 | 21 | 0 | 21 |
-| **Experience (EX)** | 43 | **34** (-8 DONE, -1 moved to CB) | 23 | 12 | 69 |
+| **Core Banking (CB)** | 19 | **20** (+1: #22 categorisation) | 20 | 6 | 46 |
+| **Lending (LE)** | 0 | 0 | 12 | 0 | 12 |
+| **Experience (EX)** | 51 | **42** (-8 DONE, -1 moved to CB) | 29 | 6 | 85 |
 
 ### Experience Squad Parallel Streams (Approach 4)
 
-> **Decision (2026-03-07):** To address the EX overload risk, the 34 remaining EX P0 features are split into 4 parallel agent streams. Each stream runs in an isolated git worktree with shared CLAUDE.md conventions. See plan-assessment.md §4.1 for details.
+> **Decision (2026-03-07):** To address the EX overload risk, the 42 remaining EX P0 features are split into 4 parallel agent streams. Each stream runs in an isolated git worktree with shared CLAUDE.md conventions. See plan-assessment.md §4.1 for details.
 
 | Stream | Scope | Features | Est. Size | Dependencies |
 |--------|-------|----------|-----------|--------------|
-| **EX-Infra** | Chat interface, card renderer, confirmation flow, tool registry, streaming, conversation state | #89-100 | 12 features | None — builds foundation first |
-| **EX-Cards** | 8 critical-path cards: Balance, Confirmation, Success, Error, Insight, TransactionList, QuickReplies, Welcome + remaining chat cards | #5, #12, #19, #25, #26, #91, #93, #97, #99, #67, #68 | 11 features | Card renderer from EX-Infra |
-| **EX-Onboarding** | Full onboarding flow: welcome → data collection → KYC → provisioning → checklist | #69-77, #80, #81, #119 | 10 features | Chat interface from EX-Infra |
-| **EX-Insights** | Spending queries, spike detection, weekly summary, proactive engine, morning greeting, beneficiary AI | #31, #32, #101-107 | 10 features | Tool registry from EX-Infra |
+| **EX-Infra** | Chat interface, card renderer, confirmation flow, tool registry, streaming, conversation state, system prompt | #89, #90, #92, #94, #95, #96, #98, #100 | 8 features | None — builds foundation first |
+| **EX-Cards** | Visual card components: Balance, Pot, TransactionList, Confirmation, Success, Error, Insight, Welcome, ValueProp, QuickReplies, TypingIndicator, NewConversation, SignOut, Skeletons | #5, #12, #19, #25, #26, #67, #68, #91, #93, #97, #99, #105, #115, #123 | 14 features | Card renderer from EX-Infra |
+| **EX-Onboarding** | Full onboarding flow: welcome → data collection → KYC → provisioning → checklist + auth | #69, #70, #71, #72, #73, #74, #75, #76, #77, #80, #81, #119 | 12 features | Chat interface from EX-Infra |
+| **EX-Insights** | Spending queries, spike detection, weekly summary, proactive engine, morning greeting, beneficiary AI | #31, #32, #101, #102, #103, #104, #106, #107 | 8 features | Tool registry from EX-Infra |
 
 **Sequencing:**
 ```

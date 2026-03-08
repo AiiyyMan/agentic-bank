@@ -193,10 +193,10 @@ Trade-off: the first turn after 80 messages uses more input tokens (sending all 
 
 **Consequences:**
 - (+) Single service for auth + data + potentially realtime
-- (+) Free tier sufficient for POC
+- (+) Free tier sufficient for POC (resolved — project is on Supabase Pro)
 - (+) RLS provides row-level security without custom middleware
 - (+) Already configured and working
-- (-) Supabase free tier has connection limits (may hit during load testing)
+- (-) Supabase free tier has connection limits (may hit during load testing) (resolved — project is on Supabase Pro)
 - (-) Cold connection latency (~200ms) affects insight engine performance
 
 ---

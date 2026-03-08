@@ -849,7 +849,7 @@ Notification preference and feed routes are managed by Knock. See `notification-
 | `cancel_standing_order` | Write | Cancel an active standing order. Requires standing_order_id. |
 | `delete_beneficiary` | Write | Remove a saved payment recipient. Requires beneficiary_id. |
 | `create_auto_save_rule` | Write | Set up automatic savings. Requires pot_id, amount, and frequency (weekly/monthly/on_payday). Returns next run date. Chat-only — no corresponding REST endpoint. |
-| `categorise_transaction` | Read | Get or set the category for a transaction. Uses rule-based merchant mapping. Internal tool — not exposed as API route. |
+| `categorise_transaction` | Read | Get the category for a transaction. Pure lookup against rule-based merchant mapping (top 50 UK merchants → category + icon). No database writes. Internal tool — not exposed as API route. |
 
 ### 3.2 Lending Tools
 
@@ -869,7 +869,7 @@ Notification preference and feed routes are managed by Knock. See `notification-
 
 | Tool | Type | Description (for Claude) |
 |------|------|--------------------------|
-| `respond_to_user` | System | Send a message to the user with optional rich UI components (cards). Include `ui_components` only when the response contains structured financial data, a confirmation action, or a proactive insight — not for conversational replies. See §3.4.1 for the full card usage policy. |
+| `respond_to_user` | System (synthetic) | Send a message to the user with optional rich UI components (cards). Include `ui_components` only when the response contains structured financial data, a confirmation action, or a proactive insight — not for conversational replies. See §3.4.1 for the full card usage policy. **Synthetic tool — intercepted by agent loop, never executed server-side.** See §3.3.1. |
 | `get_spending_by_category` | Read | Get spending breakdown by category for a period. Returns total spent, per-category amounts with percentages, and comparison to the previous period. |
 | `get_spending_insights` | Read | Get spending insights and anomalies. Returns spending spikes, patterns, and actionable suggestions. |
 | `get_weekly_summary` | Read | Get a weekly spending summary. Returns total spent, top categories, comparison to previous week, and largest transaction. |
@@ -881,9 +881,68 @@ Notification preference and feed routes are managed by Knock. See `notification-
 | `get_value_prop_info` | Read | Get information about a specific value proposition topic (speed, control, FSCS protection, FCA regulation, features). Used during onboarding exploration. |
 | `get_onboarding_status` | Read | Get the user's current onboarding step and progress percentage. |
 | `verify_identity` | Write | Submit KYC verification (mocked for POC -- instant approval). Returns verification status. |
-| `provision_account` | Write | Provision a bank account after KYC verification. Creates Griffin/mock account, returns sort code and account number. |
+| `provision_account` | Write | Provision a bank account after KYC verification. Creates Griffin/mock account, returns sort code and account number. Route through AccountService per ADR-17. |
 | `complete_onboarding` | Write | Mark onboarding as complete. Transitions system prompt from onboarding mode to full banking mode. Unlocks all banking tools. |
 | `update_pending_action` | Write | Amend a pending confirmation action. Requires action_id and a params object with fields to update (e.g., `{ amount: 75 }`). Only works on pending (not expired/confirmed) actions. Resets the 5-minute expiry. Returns updated params and a new ConfirmationCard. Use when the user says things like "actually make it £75" or "change the reference". |
+
+#### 3.3.1 `respond_to_user` — Synthetic Tool Specification
+
+`respond_to_user` is a **synthetic tool** — it is defined in Claude's tool list but is NOT executed as server-side code. Instead, the agent loop intercepts this tool call to:
+
+1. Extract `message` and `ui_components` from the tool input
+2. Stream the message text + render UI cards to the mobile client
+3. Terminate the agent loop (this is the "final response" signal)
+
+**Input schema:**
+
+```typescript
+{
+  name: "respond_to_user",
+  input_schema: {
+    type: "object",
+    properties: {
+      message: {
+        type: "string",
+        description: "Conversational text to display to the user"
+      },
+      ui_components: {
+        type: "array",
+        description: "Rich UI cards to render. Omit for text-only responses.",
+        items: {
+          type: "object",
+          properties: {
+            type: { type: "string" },  // UIComponentType enum (see §3.4)
+            data: { type: "object" }   // Component-specific payload
+          },
+          required: ["type", "data"]
+        }
+      }
+    },
+    required: ["message"]
+  }
+}
+```
+
+**Critical API contract — synthetic `tool_result` MUST be persisted:**
+
+The Claude Messages API requires every `tool_use` block to have a matching `tool_result` in the conversation history. Since `respond_to_user` is not a real tool execution, the agent loop must persist a synthetic `tool_result` to keep the conversation valid:
+
+```typescript
+// After intercepting respond_to_user:
+// 1. Save assistant message (contains the tool_use block)
+await saveStructuredMessage(conversationId, 'assistant', response.content);
+
+// 2. Save synthetic tool_result (prevents 400 on next turn)
+await saveStructuredMessage(conversationId, 'user', [{
+  type: 'tool_result',
+  tool_use_id: respondCall.id,
+  content: 'Response delivered to user.',
+}]);
+```
+
+**Omitting this causes a 400 error on every subsequent conversation turn.** This is the #1 most common Claude tool-use bug. The existing code at `apps/api/src/services/agent.ts` (lines 158-169) does NOT currently persist this synthetic result — **this must be fixed during Foundation F1b.**
+
+**Edge case — mixed tool calls:** If Claude emits other tool_use blocks alongside `respond_to_user` in the same response (e.g., `check_balance` + `respond_to_user`), the agent loop must execute the other tools first, persist their results, then handle the `respond_to_user` exit.
 
 ### 3.4 UIComponent Types
 

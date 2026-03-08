@@ -66,22 +66,22 @@
 ```
 Day 1  ──────────────────────────────────────── Day 15
   │                                                │
-  ├── EX-Infra (12 features) ─────┐               │
+  ├── EX-Infra (8 features) ──────┐               │
   │   Chat interface, card renderer│               │
   │   Confirmation flow, streaming │               │
   │                                │               │
   │   Day 5 ── MERGE GATE ────────┤               │
   │                                │               │
-  │   ├── EX-Cards (11) ──────────┼── MERGE ──────┤
-  │   ├── EX-Onboarding (10) ─────┤               │
-  │   └── EX-Insights (10) ───────┘               │
+  │   ├── EX-Cards (14) ──────────┼── MERGE ──────┤
+  │   ├── EX-Onboarding (12) ─────┤               │
+  │   └── EX-Insights (8) ────────┘               │
   │                                                │
-  ├── Core Banking (17 P0) ──── MERGE ────────────┤
+  ├── Core Banking (20 P0) ──── MERGE ────────────┤
   │                                                │
   └── Lending (prep work) ──── (no P0 features) ──┤
 ```
 
-### Core Banking Squad (17 P0 features)
+### Core Banking Squad (20 P0 features)
 
 **Dependencies:** Foundation complete. No cross-squad blockers.
 **Key deliverables:**
@@ -93,11 +93,11 @@ Day 1  ────────────────────────�
 6. Send payment (with PaymentService validation + ConfirmationCard)
 7. Payment history
 
-**Done criteria:** All 17 P0 tools return correct data via mock adapter. Payment flow end-to-end: message → tool_use → ConfirmationCard → confirm → SuccessCard. All tests pass.
+**Done criteria:** All 20 P0 tools return correct data via mock adapter. Payment flow end-to-end: message → tool_use → ConfirmationCard → confirm → SuccessCard. All tests pass.
 
-### Experience Squad — 4 Parallel Streams (34 P0 features)
+### Experience Squad — 4 Parallel Streams (42 P0 features)
 
-**EX-Infra (12 features, Days 1-5) — CRITICAL PATH:**
+**EX-Infra (8 features, Days 1-5) — CRITICAL PATH:**
 - Custom FlatList ChatView component
 - SSE stream consumer + chat state machine (idle → thinking → streaming → tool_executing)
 - Card renderer (dispatches UIComponentType to card components)
@@ -107,14 +107,14 @@ Day 1  ────────────────────────�
 - System prompt assembly (static blocks + dynamic context)
 - Agent loop orchestration (AgentService)
 
-**EX-Cards (11 features, Days 4-10) — after Infra merge gate:**
+**EX-Cards (14 features, Days 4-10) — after Infra merge gate:**
 - BalanceCard, TransactionListCard, SuccessCard, ErrorCard
 - InsightCard, SpendingBreakdownCard, PotStatusCard
 - QuickReplyGroup, WelcomeCard
 - ChecklistCard (onboarding)
 - Card loading/skeleton states
 
-**EX-Onboarding (10 features, Days 4-10):**
+**EX-Onboarding (12 features, Days 4-10):**
 - Welcome screen + value proposition cards
 - Personal details collection (chat-driven, no forms)
 - Identity verification (KYC via Griffin/mock)
@@ -122,7 +122,7 @@ Day 1  ────────────────────────�
 - Onboarding checklist + progress tracking
 - First action prompt ("Check your balance", "Add a beneficiary")
 
-**EX-Insights (10 features, Days 5-12):**
+**EX-Insights (8 features, Days 5-12):**
 - get_spending_by_category tool integration
 - get_spending_insights + proactive card generation
 - Morning greeting flow (app open → InsightService → proactive cards)

@@ -62,7 +62,7 @@
 
 - Working Griffin integration (accounts, payments, beneficiaries, onboarding)
 - AI chat with tool use: 5 read tools, 4 write tools, two-phase confirmation via pending_actions
-- Mobile: React Native + Expo with 3-tab layout (chat, transactions, settings)
+- Mobile: React Native + Expo with 3-tab layout (existing — target is 4-tab, see product-brief.md) (chat, transactions, settings)
 - Lending service with realistic mock decisioning (affordability checks, decline scenarios)
 - Missing: savings pots, international transfers, spending insights, proactive AI, rich message types beyond basics
 - Architecture supports restructure; hexagonal pattern partially implemented

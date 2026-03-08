@@ -25,12 +25,12 @@ The five journey maps (accounts, payments, lending, onboarding, ai-chat) cover t
 
 ### 1.2 Feature Matrix Realism
 
-143 features (59 P0, 66 P1, 18 P2) is ambitious but right-sized for a POC built with agentic development tools. The key question: can 59 P0 features ship across 3 squads?
+143 features (70 P0, 61 P1, 12 P2) is ambitious but right-sized for a POC built with agentic development tools. The key question: can 62 remaining P0 features (70 minus 8 DONE) ship across 3 squads?
 
 **Assessment: Yes, with caveats.**
-- Core Banking (17 P0): Straightforward CRUD + payment flow. Medium complexity. Achievable.
+- Core Banking (20 P0): Straightforward CRUD + payment flow. Medium complexity. Achievable.
 - Lending (0 P0): No P0 pressure. Can contribute to shared infrastructure or start P1 early.
-- Experience (34 P0): Highest risk. Mitigated by 4 parallel agent streams (EX-Infra, EX-Cards, EX-Onboarding, EX-Insights). The key dependency is EX-Infra completing first (chat interface, card renderer, confirmation flow) before the other 3 streams can start.
+- Experience (42 P0): Highest risk. Mitigated by 4 parallel agent streams (EX-Infra 8, EX-Cards 14, EX-Onboarding 12, EX-Insights 8). The key dependency is EX-Infra completing first (chat interface, card renderer, confirmation flow) before the other 3 streams can start.
 
 **Features to watch:**
 - **Proactive insight engine (#103-108):** 6 features, all P0. Requires pre-computation strategy, < 1s app-open latency, and coordination with CB's transaction data. This is the highest-risk EX feature cluster.
@@ -174,7 +174,7 @@ The current seed data spec (06a-foundation-data.md Task 2a) covers the core demo
 
 Each P0 feature cluster must have seed data that supports automated testing. Foundation F1a must ensure:
 
-**Core Banking (17 P0):**
+**Core Banking (20 P0):**
 - Account with known balance (£2,345.67) for balance assertion tests
 - 3 pots with known balances and targets for pot CRUD tests
 - 6 beneficiaries (5 domestic + 1 international, with fuzzy matching pair: "James" and "James Wilson")
@@ -182,19 +182,19 @@ Each P0 feature cluster must have seed data that supports automated testing. Fou
 - Known category totals per month documented in test-constants.ts
 - At least 1 pending standing order for payment history tests
 
-**Experience — Cards (11 P0):**
+**Experience — Cards (14 P0):**
 - Transaction data spanning 2+ months for TransactionListCard pagination
 - Multiple categories with > 3 transactions each for SpendingBreakdownCard
 - At least one pot near target (> 80%) for milestone celebration in PotStatusCard
 - Onboarding-incomplete user (Emma) for ChecklistCard rendering
 
-**Experience — Insights (10 P0):**
+**Experience — Insights (8 P0):**
 - Spending spike: March dining > January dining by > 30% (seeded transaction amounts must achieve this)
 - Bill reminder: standing order due within 3 days of demo date
 - Payday: salary transaction on 28th of each month (next one must be "upcoming")
 - Weekly summary: enough transactions in current week for meaningful aggregation
 
-**Experience — Onboarding (10 P0):**
+**Experience — Onboarding (12 P0):**
 - Emma user with no Griffin URLs, no completed KYC — tests full onboarding flow
 - Alex user with complete profile — tests tool gating transitions
 

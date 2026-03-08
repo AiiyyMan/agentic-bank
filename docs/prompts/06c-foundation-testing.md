@@ -178,7 +178,7 @@ Provide **two testing levels:**
 Calls the real `runAgentLoop` function with a mock Anthropic client and the MockBankingAdapter. Tests the orchestration logic:
 - Iteration control (MAX_TOOL_ITERATIONS)
 - Message persistence (intermediate tool_use/tool_result messages saved to DB)
-- `respond_to_user` special handling
+- `respond_to_user` special handling — **CRITICAL: must persist synthetic `tool_result` after `respond_to_user` tool_use.** Existing code at `agent.ts:158-169` does NOT do this, causing 400 errors on subsequent turns. See api-design.md §3.3.1 for the fix pattern.
 - `end_turn` handling
 - Error recovery
 

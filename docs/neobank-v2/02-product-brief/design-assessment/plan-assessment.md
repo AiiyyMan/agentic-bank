@@ -12,7 +12,7 @@
 
 No -- not if "ship" means production-quality. But 143 is achievable if the priorities hold and the team treats P1/P2 as stretch goals that are only built when P0 is demo-stable.
 
-The 59 P0 features are the real product. They cover a complete story: onboard, fund, check balance, pay someone, see insights, manage savings -- all through chat. That is enough for a compelling demo. The P1 and P2 tiers exist to guide what comes next, not to promise what ships on day one.
+The 70 P0 features (62 remaining after 8 DONE) are the real product. They cover a complete story: onboard, fund, check balance, pay someone, see insights, manage savings -- all through chat. That is enough for a compelling demo. The P1 and P2 tiers exist to guide what comes next, not to promise what ships on day one.
 
 **Recommendation:** Treat the P0 set as the hard scope boundary. P1 features enter the sprint only after their P0 dependencies are demo-stable and have passing integration tests. Do not interleave P0 and P1 work within the same squad in the same sprint.
 
@@ -186,7 +186,7 @@ contentStyle: { backgroundColor: '#0f0f23' },
 
 ### 4.1 Experience Squad Overload — RESOLVED (2026-03-07)
 
-**Original problem:** The Experience squad owned 43 of 59 P0 features (73%), including chat infrastructure, all card components, the insight engine, onboarding, and the design system. This was the single biggest risk to the project.
+**Original problem:** The Experience squad owned 51 of 70 P0 features (73%), including chat infrastructure, all card components, the insight engine, onboarding, and the design system. This was the single biggest risk to the project.
 
 **Resolution: Approach 4 (Hybrid) — Redistribute + Parallel Agent Streams**
 
@@ -196,24 +196,24 @@ Three changes reduce and rebalance the load:
 
 2. **Transaction categorisation (#22) moved to Core Banking.** Rule-based categorisation operates on CB's transaction data and merchant mappings. CB owns the data, CB owns the logic.
 
-3. **Remaining 34 EX P0 features split into 4 parallel agent streams.** Each stream runs in an isolated git worktree with shared CLAUDE.md conventions, following Anthropic's recommended [Agent Teams](https://code.claude.com/docs/en/agent-teams) and [worktree patterns](https://code.claude.com/docs/en/common-workflows#run-parallel-claude-code-sessions-with-git-worktrees).
+3. **Remaining 42 EX P0 features split into 4 parallel agent streams.** Each stream runs in an isolated git worktree with shared CLAUDE.md conventions, following Anthropic's recommended [Agent Teams](https://code.claude.com/docs/en/agent-teams) and [worktree patterns](https://code.claude.com/docs/en/common-workflows#run-parallel-claude-code-sessions-with-git-worktrees).
 
 **Revised squad distribution:**
 
 | Squad | P0 Remaining | Notes |
 |-------|-------------|-------|
-| Core Banking (CB) | 17 | +1 (#22 categorisation) |
+| Core Banking (CB) | 20 | +1 (#22 categorisation) |
 | Lending (LE) | 0 | All P1 |
-| Experience (EX) | 34 | -8 DONE, -1 moved to CB. Split into 4 parallel streams. |
+| Experience (EX) | 42 | -8 DONE, -1 moved to CB. Split into 4 parallel streams. |
 
 **Parallel stream breakdown:**
 
 | Stream | Scope | Features | Size |
 |--------|-------|----------|------|
-| **EX-Infra** | Chat interface, card renderer, confirmation flow, tool registry, streaming, conversation state, system prompt | #89-100 | 12 |
-| **EX-Cards** | 8 critical-path cards + remaining chat cards, typing indicator, quick replies, error cards | #5, #12, #19, #25, #26, #91, #93, #97, #99, #67, #68 | 11 |
-| **EX-Onboarding** | Welcome → data collection → KYC → provisioning → checklist + auth integration | #69-77, #80, #81, #119 | 10 |
-| **EX-Insights** | Spending queries, spike detection, weekly summary, proactive engine, morning greeting, beneficiary AI | #31, #32, #101-107 | 10 |
+| **EX-Infra** | Chat interface, card renderer, confirmation flow, tool registry, streaming, conversation state, system prompt | #89, #90, #92, #94, #95, #96, #98, #100 | 8 |
+| **EX-Cards** | Visual card components: Balance, Pot, TransactionList, Confirmation, Success, Error, Insight, Welcome, ValueProp, QuickReplies, TypingIndicator, NewConversation, SignOut, Skeletons | #5, #12, #19, #25, #26, #67, #68, #91, #93, #97, #99, #105, #115, #123 | 14 |
+| **EX-Onboarding** | Welcome → data collection → KYC → provisioning → checklist + auth integration | #69, #70, #71, #72, #73, #74, #75, #76, #77, #80, #81, #119 | 12 |
+| **EX-Insights** | Spending queries, spike detection, weekly summary, proactive engine, morning greeting, beneficiary AI | #31, #32, #101, #102, #103, #104, #106, #107 | 8 |
 
 **Sequencing:**
 
@@ -318,7 +318,7 @@ The insight engine must evaluate on app open in <1 second:
 - Recurring payment patterns
 - Flex-eligible transactions
 
-This requires 4-6 database queries. On Supabase's free tier with cold connections, each query takes 50-200ms. Six queries sequentially = 300-1200ms. This is borderline.
+This requires 4-6 database queries. On Supabase's free tier (resolved — now on Supabase Pro) with cold connections, each query takes 50-200ms. Six queries sequentially = 300-1200ms. This is borderline.
 
 **Mitigation:** Run all queries in parallel (`Promise.all`). Pre-compute category averages daily (Supabase scheduled function) and cache in a `user_insights_cache` table. On app open, read the cache + real-time balance in 2 queries instead of 6.
 
@@ -424,9 +424,9 @@ At 50 messages, Alex runs out of context after 8-10 interactions. For the demo, 
 
 | # | Risk | Likelihood | Impact | Mitigation |
 |---|------|-----------|--------|------------|
-| R1 | ~~**Experience squad bottleneck.**~~ **MITIGATED (2026-03-07).** Reduced from 43→34 P0 features (8 DONE, 1 moved to CB). Remaining 34 split into 4 parallel agent streams (EX-Infra, EX-Cards, EX-Onboarding, EX-Insights). | LOW | MEDIUM | Parallel worktree streams. Shared CLAUDE.md for consistency. Human review gates on card renderer API, tool registry interface, and confirmation flow before dependent streams start. |
+| R1 | ~~**Experience squad bottleneck.**~~ **MITIGATED (2026-03-07).** Reduced from 51→42 P0 features (8 DONE, 1 moved to CB). Remaining 42 split into 4 parallel agent streams (EX-Infra, EX-Cards, EX-Onboarding, EX-Insights). | LOW | MEDIUM | Parallel worktree streams. Shared CLAUDE.md for consistency. Human review gates on card renderer API, tool registry interface, and confirmation flow before dependent streams start. |
 | R2 | ~~NativeWind v5 preview instability.~~ **RESOLVED.** Downgraded to NativeWind v4.2.2 (stable). Pinned in `package.json`. | LOW | LOW | No action needed. |
-| R3 | **Proactive insight engine misses the <1s target.** Six sequential database queries on Supabase free tier under cold-start conditions exceed the budget. | MEDIUM | HIGH | Pre-compute daily aggregates. Use `Promise.all` for parallel queries. Cache user insights. If still slow, degrade gracefully: show greeting with balance only, load insights asynchronously. |
+| R3 | **Proactive insight engine misses the <1s target.** Six sequential database queries on Supabase free tier (resolved — now on Supabase Pro) under cold-start conditions exceed the budget. | MEDIUM | HIGH | Pre-compute daily aggregates. Use `Promise.all` for parallel queries. Cache user insights. If still slow, degrade gracefully: show greeting with balance only, load insights asynchronously. |
 | R4 | **Two-phase confirmation flow takes longer than estimated.** It touches pending_actions table, timeout logic, re-rendering on app reopen, and is a dependency for EVERY write operation across ALL squads. | MEDIUM | HIGH | Build this first in the Experience squad's sprint. No write tool can be demo'd without it. Allocate 3-4 days, not the 1-2 that "L complexity" suggests. |
 | R5 | ~~**50-message cap creates poor demo experience.**~~ **RESOLVED (ADR-05).** Cap increased to 100 messages with summarisation at 80. ~25 multi-tool interactions per conversation. | LOW | LOW | No action needed. Summarisation implemented as Foundation Task 5 (06b-foundation-code.md). |
 
@@ -434,13 +434,13 @@ At 50 messages, Alex runs out of context after 8-10 interactions. For the demo, 
 
 ## 8. Summary
 
-The plan is ambitious but structurally sound. The 59 P0 features tell a complete story: Alex opens the app, onboards through conversation, checks her balance, sends money, gets spending insights, and manages savings -- all through an AI-first chat interface. The design token system is already implemented in CSS and ready for component consumption.
+The plan is ambitious but structurally sound. The 70 P0 features tell a complete story: Alex opens the app, onboards through conversation, checks her balance, sends money, gets spending insights, and manages savings -- all through an AI-first chat interface. The design token system is already implemented in CSS and ready for component consumption.
 
 The remaining issues to resolve before architecture:
 
 1. ~~**Documentation-to-code alignment:** Stack decision made, downgraded to NativeWind v4.2 (stable).~~ **DONE (2026-03-07).**
 2. ~~**Design system blockers:** CSS var nesting, dark mode selector, missing deps, shadows, hardcoded colours.~~ **DONE (2026-03-07).** All blockers resolved: flattened CSS vars, `@media (prefers-color-scheme)` dark mode, Inter fonts, Phosphor icons, react-native-svg, runtime tokens, splash screen gate.
-3. ~~**Experience squad load:** 73% of P0 features in one squad.~~ **RESOLVED (2026-03-07).** Approach 4 (Hybrid): 8 design system features marked DONE, categorisation moved to CB, remaining 34 EX P0 features split into 4 parallel agent streams (EX-Infra → EX-Cards / EX-Onboarding / EX-Insights). See §4.1.
+3. ~~**Experience squad load:** 73% of P0 features in one squad.~~ **RESOLVED (2026-03-07).** Approach 4 (Hybrid): 8 design system features marked DONE, categorisation moved to CB, remaining 42 EX P0 features split into 4 parallel agent streams (EX-Infra → EX-Cards / EX-Onboarding / EX-Insights). See §4.1.
 4. **Technical validation:** SSE streaming on React Native must be validated in foundation (Task 2b in 06b-foundation-code.md), not discovered mid-sprint. ~~50-message cap~~ resolved by ADR-05 (100 messages + summarisation).
 
 Item 4 partially remains (SSE validation). The project is ready for architecture.

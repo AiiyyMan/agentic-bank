@@ -629,19 +629,19 @@ AI: "I understand that's frustrating. Let me check what's happened.
 - "See all" link to Activity tab
 - Each row shows merchant name, amount (credit green / debit default), date
 
-**Pot Status Card** (P1)
+**Pot Status Card** (P1) (P0 per feature matrix #12 — listed here for component grouping only)
 - Pot name with optional emoji icon
 - Current balance / Goal amount
 - Progress bar (filled proportionally, colour-coded by proximity to goal)
 - Quick action buttons: Add / Withdraw
 - Lock indicator if pot is locked (padlock icon + unlock date)
 
-**Spending Breakdown Card** (P1)
+**Spending Breakdown Card** (P1) — P0 data rendered via InsightCard or text. Dedicated rich card component is P1.
 - Category bars with percentages
 - Tap -> Spending screen drill-down
 - Shows top 5-6 categories with amounts and percentages
 
-**Weekly Summary Card** (P1)
+**Weekly Summary Card** (P1) — P0 data rendered via InsightCard or text. Dedicated rich card component is P1.
 - Aggregated weekly spending with category breakdown
 - Comparison to previous week (up/down percentage)
 - Top categories listed with amounts
@@ -784,7 +784,7 @@ AI: "I understand that's frustrating. Let me check what's happened.
 ### API Capabilities
 
 **AI Agent Orchestration:**
-- Claude API (Sonnet 4.6 default) with tool use
+- Claude API (Claude Sonnet, pinned version) with tool use
 - System prompt includes: persona context, available tools, response format guidelines
 - Multi-turn conversation via message history array
 - Tool calls return structured data; AI formats as natural language + rich cards
