@@ -1384,32 +1384,38 @@ Add the `audit_log` table (see data-model.md §2.23) during Foundation F1b. Doma
 
 #### 11.4.4 Scheduled Job Strategy
 
-Standing orders and auto-save rules require periodic execution. For POC, use **Supabase pg_cron** — no separate worker process needed.
+For POC, scheduled jobs are simplified to avoid blocking Foundation on pg_cron + Edge Function infrastructure. Only background tasks that don't require user interaction use pg_cron.
 
 | Job | Schedule | Implementation |
 |-----|----------|---------------|
-| Standing order execution | Daily at 02:00 UTC | pg_cron → Supabase Edge Function → calls `PaymentService.executeStandingOrders()` |
-| Auto-save rule execution | Daily at 06:00 UTC (after standing orders settle) | pg_cron → Supabase Edge Function → calls `PotService.executeAutoSaves()` |
+| Standing order execution | **Manual** (demo admin button) | POST `/api/internal/jobs/standing-orders` → `PaymentService.executeStandingOrders()`. Triggered manually during demos, not on a schedule. |
+| Auto-save rule execution | **Deferred to P1** | Rule creation is P0 (user can set up rules via chat). Auto-execution deferred — demo shows "rule created" without firing it. |
 | Insight pre-computation | Every 4 hours | pg_cron → Supabase Edge Function → calls `InsightService.precompute()` |
 | Stale pending action cleanup | Hourly | pg_cron → SQL: `UPDATE pending_actions SET status = 'expired' WHERE status = 'pending' AND expires_at < NOW()` |
+
+**POC simplification (accepted per CPTO review):**
+- Standing order execution uses a manual trigger button in the demo admin panel rather than pg_cron scheduling. This is simpler, more reliable for demos, and avoids Edge Function infrastructure for a feature that's P1/P2.
+- Auto-save rule execution is deferred to P1. The P0 scope is rule creation only — the demo can show "auto-save rule created" without the rule actually firing.
+- Insight pre-computation and pending action cleanup use pg_cron (available on Supabase Pro) as they are fully background operations.
 
 **Architecture:**
 
 ```
-pg_cron (Supabase)
+pg_cron (Supabase Pro)
   │
-  ├── Edge Function: execute-standing-orders
-  │     └── POST /api/internal/jobs/standing-orders (auth: service_role key)
-  │           └── PaymentService.executeStandingOrders()
-  │
-  ├── Edge Function: execute-auto-saves
-  │     └── POST /api/internal/jobs/auto-saves (auth: service_role key)
-  │           └── PotService.executeAutoSaves()
+  ├── Edge Function: precompute-insights
+  │     └── POST /api/internal/jobs/insights (auth: service_role key)
+  │           └── InsightService.precompute()
   │
   └── Direct SQL for simple operations (pending action cleanup)
+
+Manual trigger (demo admin panel):
+  │
+  └── POST /api/internal/jobs/standing-orders (auth: service_role key)
+        └── PaymentService.executeStandingOrders()
 ```
 
-**Internal job endpoints** (`/api/internal/*`) are protected by `service_role` key authentication — not exposed to the mobile client. For production, these would migrate to a dedicated worker process with proper job queuing (e.g., BullMQ + Redis), retry logic, and dead-letter handling.
+**Internal job endpoints** (`/api/internal/*`) are protected by `service_role` key authentication — not exposed to the mobile client. For production, standing orders and auto-save would migrate to pg_cron or a dedicated worker process with proper job queuing (e.g., BullMQ + Redis), retry logic, and dead-letter handling.
 
 ### 11.5 Foundation Validation Checklist (F1a)
 

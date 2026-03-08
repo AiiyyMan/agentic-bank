@@ -176,6 +176,48 @@ Transaction amounts must be **deterministic** (not random). Document the total p
 
 **Important:** All seed data values (Alex's balance, pot amounts, beneficiary names, monthly totals) must match the values in `test-constants.ts` (Task 2b). The test constants file is the single source of truth.
 
+#### QA-Critical Seed Data (CPTO review §5.1)
+
+The following items must be included in seed data to support QA validation of P0 features and demo scenarios:
+
+1. **Pending payday notification:** Alex's salary (ACME Corp, £3,800) hits on the 28th. Ensure the next payday is within 1-2 days of the expected demo date. The seed script should calculate `next_payday` relative to the current date. This unblocks EX-Insights morning greeting testing (EXN-1, EXN-3).
+
+2. **Recent spending spike:** March dining transactions must total > 30% more than January dining. Achieve this by adding 2-3 extra Deliveroo/Nandos transactions in March. Document the exact totals per month in test-constants.ts so spike detection assertions are deterministic. This unblocks EX-Insights spending spike testing (EXN-4).
+
+3. **Eligible Flex transaction:** Add one transaction that meets Flex Purchase criteria: amount > £30, category `shopping` or `electronics`, dated within the last 14 days, from a recognisable merchant (e.g., "Currys" £89.99). Even though Flex is P1, seeding this costs nothing and unblocks LE prep work (LE-4, LE-5).
+
+4. **International recipient:** Add a 6th beneficiary with international flag: `{ name: 'Wise - Euro Account', type: 'international', currency: 'EUR', iban: 'DE89370400440532013000' }`. Not a P0 blocker but enables P1 Wise integration testing without re-seeding.
+
+5. **Fuzzy match beneficiary pair:** Ensure beneficiary list includes two similar names (e.g., "James" and "James Wilson") to test fuzzy name resolution in the payment flow (CB-10).
+
+6. **Near-target pot:** One pot should be > 80% of its target (e.g., Emergency Fund £1,200/£1,500) to test savings milestone proactive cards (EXN-7).
+
+7. **Standing order due soon:** The standing order to landlord should have `next_date` within 3 days of demo date (calculated dynamically in seed script) to test bill reminder proactive cards.
+
+#### QA Regression Assertions
+
+The demo reset script must verify post-reset data integrity. Add these assertions after reset completes:
+
+```typescript
+// Post-reset assertions (log PASS/FAIL for each)
+assert(alex.balance === ALEX.balance, `Balance: expected ${ALEX.balance}`);
+assert(pots.length === Object.keys(ALEX.pots).length, 'Pot count');
+for (const [key, expected] of Object.entries(ALEX.pots)) {
+  const pot = pots.find(p => p.name === expected.name);
+  assert(pot?.balance === expected.balance, `${expected.name} balance`);
+}
+assert(beneficiaries.length >= 6, 'Beneficiary count (incl. international)');
+assert(transactions.length >= 90, 'Transaction count');
+assert(emma.griffin_account_url === null, 'Emma is onboarding-ready');
+// Category totals match test-constants
+for (const [month, cats] of Object.entries(ALEX.monthlySpending)) {
+  for (const [cat, expected] of Object.entries(cats)) {
+    const actual = sumTransactions(transactions, month, cat);
+    assert(Math.abs(actual - expected) < 0.01, `${month} ${cat}: ${actual} vs ${expected}`);
+  }
+}
+```
+
 **Demo Reset Script:**
 
 Create `scripts/demo-reset.ts` (run via `npx tsx scripts/demo-reset.ts`):
@@ -210,22 +252,25 @@ export const ALEX = {
   currency: 'GBP',
   pots: {
     holiday: { name: 'Holiday Fund', balance: 850.00, target: 2000.00, icon: '✈️', colour: '#4ECDC4' },
-    emergency: { name: 'Emergency Fund', balance: 500.00, target: 1000.00, icon: '🛡️', colour: '#FF6B6B' },
+    emergency: { name: 'Emergency Fund', balance: 1200.00, target: 1500.00, icon: '🛡️', colour: '#FF6B6B' },  // 80% of target — triggers savings milestone card
     house: { name: 'House Deposit', balance: 2000.00, target: 25000.00, icon: '🏠', colour: '#45B7D1' },
   },
-  beneficiaryCount: 5,
+  beneficiaryCount: 6,  // 5 domestic + 1 international
   beneficiaries: [
-    { name: 'Alice Johnson', accountNumberMasked: '****1234', sortCode: '04-00-04' },
-    { name: 'Bob Smith', accountNumberMasked: '****5678', sortCode: '04-00-04' },
-    { name: 'Carol Williams', accountNumberMasked: '****9012', sortCode: '04-00-04' },
-    { name: 'David Brown', accountNumberMasked: '****3456', sortCode: '04-00-04' },
-    { name: 'Eve Davis', accountNumberMasked: '****7890', sortCode: '04-00-04' },
+    { name: 'Mum', accountNumberMasked: '****1234', sortCode: '04-00-04', type: 'domestic' as const },
+    { name: 'James', accountNumberMasked: '****5678', sortCode: '04-00-04', type: 'domestic' as const },  // Fuzzy match pair with James Wilson
+    { name: 'David Brown', accountNumberMasked: '****9012', sortCode: '04-00-04', type: 'domestic' as const },  // Landlord
+    { name: 'Sarah', accountNumberMasked: '****3456', sortCode: '04-00-04', type: 'domestic' as const },
+    { name: 'James Wilson', accountNumberMasked: '****7890', sortCode: '04-00-04', type: 'domestic' as const },  // Fuzzy match pair with James
+    { name: 'Wise - Euro Account', type: 'international' as const, currency: 'EUR', iban: 'DE89370400440532013000' },
   ],
+  // QA NOTE: March dining must be > 30% higher than January dining (spending spike detection)
   monthlySpending: {
     january: { salary: 3800, rent: -850, groceries: -312.40, dining: -218.50, transport: -89.60, shopping: -156.30, subscriptions: -45.97 },
     february: { salary: 3800, rent: -850, groceries: -298.70, dining: -195.25, transport: -82.40, shopping: -132.50, subscriptions: -45.97 },
-    march: { salary: 3800, rent: -850, groceries: -305.60, dining: -210.75, transport: -95.20, shopping: -145.80, subscriptions: -45.97 },
+    march: { salary: 3800, rent: -850, groceries: -305.60, dining: -310.75, transport: -95.20, shopping: -145.80, subscriptions: -45.97 },  // dining: -310.75 vs Jan -218.50 = +42% spike
   },
+  flexEligibleTransaction: { merchant: 'Currys', amount: 89.99, category: 'shopping', daysAgo: 5 },  // > £30, < 14 days — Flex P1 prep
   loanProducts: [
     { name: 'Personal Loan', minAmount: 1000, maxAmount: 25000, minTerm: 6, maxTerm: 60 },
     { name: 'Quick Cash', minAmount: 100, maxAmount: 2000, minTerm: 1, maxTerm: 12 },

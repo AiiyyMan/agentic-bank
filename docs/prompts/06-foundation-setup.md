@@ -140,15 +140,15 @@ The following PostgreSQL extensions are needed. Check availability during Founda
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Required for scheduled jobs (system-architecture.md §11.4.4)
--- Available on Supabase Pro plan and above
+-- Available on Supabase Pro (confirmed active)
 CREATE EXTENSION IF NOT EXISTS "pg_cron";
 
 -- Required for HTTP calls from scheduled jobs
--- Available on Supabase Pro plan and above
+-- Available on Supabase Pro (confirmed active)
 CREATE EXTENSION IF NOT EXISTS "pg_net";
 ```
 
-> **Free plan fallback:** If `pg_cron` / `pg_net` are unavailable, scheduled jobs (standing order execution, auto-save triggers, insight pre-computation) can be triggered via GitHub Actions cron → API endpoint. This doesn't block Foundation — it only matters during Implementation.
+> **Note:** Project is on Supabase Pro ($25/month). All extensions above are available. No free-tier limitations apply.
 
 ---
 
