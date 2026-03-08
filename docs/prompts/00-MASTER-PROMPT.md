@@ -224,7 +224,7 @@ Each phase reads the previous phase's outputs and writes its own. Phases are run
 | 3 | CPTO | All previous phases | Reviewed plan, squad assignments, roadmap | `03-cpto-review-prompt.md` | Sequential |
 | 4 | Squad agents (x3) | Phase 3 assignments | PRDs, designs, impl plans, test plans, summaries | `04-squad-planning-prompt.md` | 3 squads in parallel |
 | 5 | CPTO | Squad summaries | Validated delivery plan + merge strategy | `05-final-plan-prompt.md` | Sequential |
-| F0 | DevOps Engineer | Phase 5 plan | Configured .env files, verified service connections | `06-foundation-setup.md` | Sequential (interactive) |
+| F0 | DevOps Engineer | Phase 5 plan | Verified service connections, env var contract | `06-foundation-setup.md` | Sequential |
 | F1a | Foundation Engineer | F0 complete | CLAUDE.md, migrations, seed data, test constants | `06a-foundation-data.md` | Sequential |
 | F1b | Foundation Engineer | F1a complete | Shared types, API scaffolding, tool routing, CI/CD | `06b-foundation-code.md` | Sequential (after F1a) |
 | F2 | Foundation Engineer | F1b complete | MockBankingAdapter, test fixtures, agent harness, mobile scaffolding | `06c-foundation-testing.md` | Sequential (after F1b) |
@@ -240,7 +240,7 @@ Each phase reads the previous phase's outputs and writes its own. Phases are run
 5. **Phase 3 (CPTO Review):** Single conversation. **REVIEW GATE — read the output carefully. Verify squad assignments and risk register before proceeding.**
 6. **Phase 4 (Squad Planning):** 3 conversations **in parallel**. Start each by telling Claude which squad to run. **REVIEW GATE — skim the 3 squad summaries (150 lines total). Catch cross-squad conflicts before the final plan.**
 7. **Phase 5 (Final Plan):** Single conversation. Lightweight validation + release plan. **REVIEW GATE — last checkpoint before code. Verify merge strategy.**
-8. **Phase F0 (Foundation — Setup):** Interactive session. Set up Supabase, Anthropic, and optionally Griffin sandbox. Configure `.env` files and verify connections. ~35 minutes of human time.
+8. **Phase F0 (Foundation — Verification):** Verify all external service connections (Supabase, Anthropic, Griffin, EAS). Services are already configured — this is a pre-flight check. Set `USE_MOCK_BANKING` if not present.
 9. **Phase F1a (Foundation — Data):** Single conversation. CLAUDE.md, migrations, seed data, test constants. **REVIEW GATE — verify CLAUDE.md accuracy, spot-check seed data. A bug here cascades to ALL squads.**
 10. **Phase F1b (Foundation — Code):** Single conversation. Shared types, API scaffolding, tool routing, CI/CD.
 11. **Phase F2 (Foundation — Testing):** Single conversation. MockBankingAdapter, test fixtures, agent harness, mobile scaffolding. Writes Foundation retrospective.
