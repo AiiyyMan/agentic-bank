@@ -46,7 +46,10 @@
        ├─►│intl_recipients   │  │ intl_transfers   │
        │  └──────────────────┘  └──────────────────┘
        │
-       └─►│user_insights_cache│
+       ├─►│user_insights_cache│
+       │  └───────────────────┘
+       │
+       └─►│   audit_log       │
           └───────────────────┘
 ```
 
@@ -132,6 +135,13 @@ CREATE INDEX idx_messages_conversation ON messages(conversation_id, created_at A
 CREATE INDEX idx_messages_user ON messages(user_id);
 ```
 
+**`content_blocks` storage format:** This column stores the **exact Anthropic API format** — an array of content blocks that can be fed back to Claude as-is when loading conversation history. Preserving the raw format avoids lossy transformation and ensures tool call linkage.
+
+- `tool_use` blocks: `{ type, id, name, input }` — the `id` (e.g., `toolu_XXXX`) must be preserved to maintain the tool_use → tool_result linkage.
+- `tool_result` blocks: `{ type, tool_use_id, content, is_error }` — includes the `is_error` flag (see system-architecture.md §3.3).
+- `respond_to_user` calls: A synthetic `tool_result` (`content: "Response delivered to user."`) is persisted alongside the `tool_use` block to satisfy the Anthropic API contract (see system-architecture.md §3.4).
+- The `content` TEXT column is a human-readable summary for display in conversation lists and search — **not** used for the Claude API.
+
 ### 2.4 pending_actions
 
 ```sql
@@ -153,6 +163,8 @@ CREATE TABLE pending_actions (
 CREATE INDEX idx_pending_actions_user ON pending_actions(user_id, status);
 CREATE INDEX idx_pending_actions_expires ON pending_actions(expires_at) WHERE status = 'pending';
 ```
+
+**Expiry:** Confirmation cards expire after 5 minutes (the `expires_at` default). The scheduled job (system-architecture.md §11.4.4) cleans up expired pending actions hourly, transitioning any `pending` rows past their `expires_at` to `expired` status.
 
 ### 2.5 pots
 
@@ -283,7 +295,24 @@ CREATE TABLE auto_save_rules (
 );
 ```
 
-### 2.12 loan_applications
+### 2.12 loan_products
+
+```sql
+-- Pre-seeded product catalogue. No user_id — readable by all authenticated users.
+CREATE TABLE loan_products (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  min_amount NUMERIC(12,2) NOT NULL,
+  max_amount NUMERIC(12,2) NOT NULL,
+  interest_rate NUMERIC(5,2) NOT NULL,     -- APR %
+  min_term_months INTEGER NOT NULL,
+  max_term_months INTEGER NOT NULL,
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+### 2.13 loan_applications
 
 ```sql
 CREATE TABLE loan_applications (
@@ -304,7 +333,7 @@ CREATE TABLE loan_applications (
 CREATE INDEX idx_loan_applications_user ON loan_applications(user_id);
 ```
 
-### 2.13 loans
+### 2.14 loans
 
 ```sql
 CREATE TABLE loans (
@@ -327,7 +356,7 @@ CREATE TABLE loans (
 CREATE INDEX idx_loans_user ON loans(user_id) WHERE status = 'active';
 ```
 
-### 2.14 loan_payments
+### 2.15 loan_payments
 
 ```sql
 CREATE TABLE loan_payments (
@@ -349,7 +378,7 @@ CREATE TABLE loan_payments (
 CREATE INDEX idx_loan_payments_loan ON loan_payments(loan_id, due_date ASC);
 ```
 
-### 2.15 flex_plans
+### 2.16 flex_plans
 
 ```sql
 CREATE TABLE flex_plans (
@@ -372,7 +401,7 @@ CREATE TABLE flex_plans (
 CREATE INDEX idx_flex_plans_user ON flex_plans(user_id) WHERE status = 'active';
 ```
 
-### 2.16 flex_payments
+### 2.17 flex_payments
 
 ```sql
 CREATE TABLE flex_payments (
@@ -390,7 +419,7 @@ CREATE TABLE flex_payments (
 CREATE INDEX idx_flex_payments_plan ON flex_payments(flex_plan_id, due_date ASC);
 ```
 
-### 2.17 credit_scores
+### 2.18 credit_scores
 
 ```sql
 CREATE TABLE credit_scores (
@@ -403,7 +432,7 @@ CREATE TABLE credit_scores (
 );
 ```
 
-### 2.18 international_recipients (P1)
+### 2.19 international_recipients (P1)
 
 ```sql
 CREATE TABLE international_recipients (
@@ -417,7 +446,7 @@ CREATE TABLE international_recipients (
 );
 ```
 
-### 2.19 international_transfers (P1)
+### 2.20 international_transfers (P1)
 
 ```sql
 CREATE TABLE international_transfers (
@@ -437,7 +466,7 @@ CREATE TABLE international_transfers (
 );
 ```
 
-### 2.20 user_insights_cache
+### 2.21 user_insights_cache
 
 ```sql
 CREATE TABLE user_insights_cache (
@@ -450,7 +479,7 @@ CREATE TABLE user_insights_cache (
 );
 ```
 
-### 2.21 mock_accounts (Mock adapter only)
+### 2.22 mock_accounts (Mock adapter only)
 
 ```sql
 -- Only used when USE_MOCK_BANKING=true
@@ -468,6 +497,105 @@ CREATE TABLE mock_accounts (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 ```
+
+### 2.23 audit_log
+
+```sql
+-- Immutable append-only audit trail for all state mutations.
+-- Written by domain services (ADR-17) on every write operation.
+-- Never UPDATE or DELETE rows in this table.
+CREATE TABLE audit_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  entity_type TEXT NOT NULL,           -- 'payment', 'pot', 'beneficiary', 'standing_order', 'loan', etc.
+  entity_id UUID NOT NULL,             -- ID of the affected entity
+  action TEXT NOT NULL,                -- 'payment.created', 'pot.transferred', 'beneficiary.added', etc.
+  actor_id UUID NOT NULL REFERENCES auth.users(id),
+  actor_type TEXT NOT NULL DEFAULT 'user' CHECK (actor_type IN ('user', 'system', 'scheduled_job')),
+  before_state JSONB,                  -- null for create operations
+  after_state JSONB NOT NULL,          -- the state after the mutation
+  metadata JSONB,                      -- optional: tool_use_id, conversation_id, request_id
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Index for querying audit trail by entity
+CREATE INDEX idx_audit_log_entity ON audit_log (entity_type, entity_id, created_at DESC);
+
+-- Index for querying by actor (user activity log)
+CREATE INDEX idx_audit_log_actor ON audit_log (actor_id, created_at DESC);
+
+-- Index for querying by action type (compliance queries)
+CREATE INDEX idx_audit_log_action ON audit_log (action, created_at DESC);
+```
+
+**RLS policy:** Read-only for the owning user. No UPDATE or DELETE policies — this table is append-only by design.
+
+```sql
+ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
+
+-- Users can read their own audit entries
+CREATE POLICY "Users can view own audit log"
+  ON audit_log FOR SELECT
+  USING (actor_id = auth.uid());
+
+-- Only service_role can insert (via domain services on the API server)
+-- No UPDATE or DELETE policies exist — enforces immutability at the RLS level
+```
+
+**Example entries:**
+
+```jsonc
+// 1. Payment confirmed
+{
+  "entity_type": "payment",
+  "entity_id": "d4e5f6...",
+  "action": "payment.created",
+  "actor_id": "a1b2c3...",
+  "actor_type": "user",
+  "before_state": null,
+  "after_state": {
+    "beneficiary_id": "abc123",
+    "amount": 50.00,
+    "reference": "Dinner",
+    "status": "completed",
+    "balance_after": 1197.50
+  },
+  "metadata": { "tool_use_id": "toolu_XXXX", "conversation_id": "conv_789" }
+}
+
+// 2. Pot transfer
+{
+  "entity_type": "pot",
+  "entity_id": "p1o2t3...",
+  "action": "pot.transferred",
+  "actor_id": "a1b2c3...",
+  "actor_type": "user",
+  "before_state": { "balance": 1200.00 },
+  "after_state": { "balance": 1350.00, "direction": "in", "amount": 150.00 },
+  "metadata": { "tool_use_id": "toolu_YYYY" }
+}
+
+// 3. Beneficiary added
+{
+  "entity_type": "beneficiary",
+  "entity_id": "b4e5n6...",
+  "action": "beneficiary.added",
+  "actor_id": "a1b2c3...",
+  "actor_type": "user",
+  "before_state": null,
+  "after_state": {
+    "name": "Sarah Chen",
+    "sort_code": "040075",
+    "account_number": "12345678"
+  },
+  "metadata": { "conversation_id": "conv_789" }
+}
+```
+
+**Retention:** For POC, no retention policy. For production, UK financial regulation requires 6-year retention for financial records. PII fields in `before_state`/`after_state` should use crypto-shredding (encrypt with per-user key; delete key to "erase").
+
+### 2.24 Push Tokens — Managed by Knock
+
+Push tokens are **not stored in Supabase**. Knock manages push token registration, deregistration, and lifecycle via its channel data API. The `@knocklabs/expo` SDK on the mobile client auto-registers Expo push tokens with Knock when the user grants permission. See `notification-system.md` §2.3 for details.
 
 ---
 
@@ -490,6 +618,7 @@ CREATE POLICY "{table}_user_access" ON {table}
 - `loan_products` — readable by all authenticated users (no user_id column)
 - `mock_accounts` — standard user-scoped policy
 - `user_insights_cache` — user-scoped; server updates via service_role
+- `audit_log` — SELECT only for owning user (via `actor_id`); INSERT only via service_role; no UPDATE/DELETE (append-only)
 
 ---
 
@@ -531,6 +660,8 @@ Two migrations exist:
 014_international.sql           # CREATE international_recipients, international_transfers (P1)
 015_new_indexes.sql             # CREATE indexes for NEW tables only (004-014)
 016_new_rls_policies.sql        # RLS policies for NEW tables only (004-014)
+                                # NOTE: No push_tokens migration — Knock manages tokens externally
+017_audit_log.sql               # CREATE audit_log + indexes + RLS (append-only, see §2.23)
                                 # Existing 001 RLS policies are preserved as-is
 ```
 
@@ -658,11 +789,17 @@ User: "Send £50 to James"
          ▼
     POST /api/confirm/xyz
          │
+         ▼
+    PaymentService.confirmPayment(actionId)
+         │
+         ├── Validate pending_action (status, expiry, ownership)
          ├── BankingPort.sendPayment()  (Griffin or Mock)
          ├── payments INSERT
          ├── transactions INSERT (debit)
          ├── beneficiaries UPDATE (last_used_at)
-         └── pending_actions UPDATE (status: "confirmed")
+         ├── audit_log INSERT (action: "payment.created")
+         ├── pending_actions UPDATE (status: "confirmed")
+         └── NotificationService.dispatch("payment_sent", ...)
          │
          ▼
     SuccessCard returned

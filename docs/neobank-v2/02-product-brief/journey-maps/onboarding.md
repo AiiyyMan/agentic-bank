@@ -276,6 +276,10 @@ AI: "Now let's get some money in! How would you like to fund your account?"
 
              [Quick Replies: "Yes, remind me" | "Got it, thanks"]
 
+     **Implementation note:** Open Banking link (#78) is P1. For P0, the funding
+     screen shows "Bank transfer" details + "I'll do it later" option only.
+     Open Banking is added as a third option when #78 ships.
+
      -> If Alex taps "Link another bank" (Open Banking):
         AI: "I can connect to your existing bank so you can move money
              across instantly. Which bank are you with?"

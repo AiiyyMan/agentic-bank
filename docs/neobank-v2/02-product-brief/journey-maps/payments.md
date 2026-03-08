@@ -106,6 +106,8 @@ Alex: "Send £5,000 to Sarah"
      [Quick Replies: "Send £1,000 instead" | "Cancel"]
 ```
 
+> **Implementation note:** "AI checks balance" is shorthand. Server-side validation in `PaymentService.sendPayment()` catches insufficient funds and throws `InsufficientFundsError`. The natural-language error shown to Alex is Claude's interpretation of the structured service error, not a direct balance check by the AI.
+
 ### Add Beneficiary (Chat Path)
 
 ```

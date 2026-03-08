@@ -63,6 +63,7 @@ Review everything with a critical eye. Then organise it into an executable deliv
 - Are there simpler alternatives for any component?
 - Does the hexagonal architecture / ports-and-adapters approach work for our mocking needs?
 - Are the tech decisions well-justified?
+- Note: the architecture docs describe REST endpoints as "thin wrappers" and flag the lack of a shared service layer as a production gap. Foundation adds a Banking Service Layer (ADR-17) so that write operations route through domain services (`PaymentService`, `AccountService`, etc.) — REST endpoints and tool handlers both call these services rather than accessing `BankingPort` directly. REST endpoints are no longer thin wrappers for writes.
 - Integration risks with chosen BaaS/APIs
 
 **3. Data & Mock Strategy Review**

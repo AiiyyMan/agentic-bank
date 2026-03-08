@@ -70,6 +70,18 @@ Follow everything in CLAUDE.md, plus:
 - Every task must have at least one test
 - **At least one test per squad must exercise a MockBankingAdapter error state** (e.g., `mock.configure('getBalance', new Error('Service unavailable'))`) to verify error handling
 
+## Banking Service Layer (ADR-17)
+
+All write operations must route through domain services — never call `BankingPort` directly for mutations.
+
+- **Domain services**: `PaymentService`, `AccountService`, `PotService`, `LendingService`, `OnboardingService`. Each takes `BankingPort` + `supabase` via constructor injection.
+- **Read operations** may call `BankingPort` directly (e.g., fetching balances, listing transactions).
+- **Write operations** must go through the owning domain service, which handles validation, business rules, and writes to `audit_log` on every state mutation.
+- **Tool handlers** catch domain errors (e.g., `InsufficientFundsError`, `InvalidAmountError`) and translate them into `ToolResult` objects for the agent. Tool handlers should not contain business logic.
+- **Error types**: each service defines its own error classes extending a shared `DomainError` base. Tool handlers map these to user-friendly messages.
+
+Reference: `docs/neobank-v2/03-architecture/tech-decisions.md` (ADR-17) and `docs/neobank-v2/03-architecture/system-architecture.md` §5.3.
+
 ## Important Rules
 
 - **Do NOT start tasks whose dependencies haven't been built yet.** If blocked by another squad's work, document the blocker and move to the next unblocked task.

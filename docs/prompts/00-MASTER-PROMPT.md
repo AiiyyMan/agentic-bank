@@ -45,6 +45,8 @@ This is NOT "a banking app with a chatbot." This is "a conversational banking ex
 5. **Traditional screens are drill-downs** — When the AI shows your balance, tapping the card opens the full account screen. When it lists transactions, tapping opens the detail. The screens exist for depth, not as the primary interface.
 6. **AI handles complexity** — International transfers, loan applications, and multi-step flows are easier through conversation than through form-heavy UI. The AI guides you through them step by step.
 7. **Two-phase confirmation for safety** — The AI proposes actions, the user confirms via a clear confirmation card. Alex trusts the AI to gather info and prepare, but always has the final say.
+8. **Cards match the moment** — Rich cards appear when the user is doing banking (checking balance, making payments, reviewing spending). When the user is being conversational or asking general questions, the AI responds with text. The experience should feel like a knowledgeable person, not a card-dispensing machine. This balance will be refined through user testing throughout the POC.
+9. **Financial figures come from the bank, not the AI** — Amounts, balances, and transaction details are always shown in structured cards sourced from live data. The AI talks around the numbers ("Here's your balance", "I found those transactions") but never restates them in prose, where they could be wrong. If data isn't available, the AI says so honestly.
 
 ## Squads (3 Squads)
 
@@ -130,7 +132,8 @@ To prevent duplication across squads, ownership is split by layer:
 
 | Layer | Owner | What they build |
 |-------|-------|-----------------|
-| **Tool handlers** (business logic, validation, DB writes) | Owning squad (Core Banking, Lending) | `flex_purchase`, `send_payment`, `check_credit_score`, etc. |
+| **Tool handlers** (orchestration, error translation, calling domain services) | Owning squad (Core Banking, Lending) | `flex_purchase`, `send_payment`, `check_credit_score`, etc. |
+| **Domain services** (business logic, validation, audit logging — ADR-17) | Owning squad (Core Banking, Lending) | `PaymentService`, `AccountService`, `PotService`, `LendingService`, `OnboardingService` |
 | **Tool definitions** (JSON schemas for Claude) | Owning squad | Input/output contracts registered in tool registry |
 | **Card components** (React Native chat UI) | Experience squad | All `*Card` components rendered in chat |
 | **Chat orchestration** (system prompt, card selection, conversation state) | Experience squad | How AI formats tool results into cards |

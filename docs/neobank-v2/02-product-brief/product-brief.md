@@ -46,11 +46,11 @@ Agentic Bank solves this by being proactive. It tells Alex she overspent before 
 
 ### Principle 1: Conversation First, Screens Second
 
-The AI chat is the primary interface. Every journey starts in conversation. Traditional screens are drill-downs for exploration, not entry points.
+The AI chat is the primary interface. Every journey starts in conversation. Traditional screens are drill-downs for exploration, not entry points. But "conversation first" means matching the user's mode — when they're asking about money, show rich cards; when they're chatting, just chat. The interface should feel like talking to a person who happens to have banking tools, not a banking app that happens to have a chat window.
 
-**Manifests as:** Home screen is the chat feed. Balance, transactions, and insights appear as rich cards in the conversation. Tab bar has Chat as the default (leftmost) tab.
+**Manifests as:** Home screen is the chat feed. Balance, transactions, and insights appear as rich cards when relevant. A question like "what's my balance?" gets a card. A question like "how do standing orders work?" gets a helpful text reply. No card is better than an irrelevant card.
 
-**Anti-pattern:** A dashboard home screen with a chat icon buried in the corner or hidden behind a tab.
+**Anti-pattern:** A dashboard home screen with a chat icon buried in the corner. Equally: every response accompanied by a card, making the conversation feel like navigating a GUI with extra steps.
 
 ### Principle 2: Propose, Confirm, Execute
 
@@ -86,11 +86,11 @@ The AI starts cautious and becomes more helpful as it learns Alex's patterns. Da
 
 ### Principle 6: Honest and Transparent
 
-The AI never hides fees, rates, or risks. It explains things in plain language. When it does not know something, it says so.
+The AI never hides fees, rates, or risks. It explains things in plain language. When it does not know something, it says so — it never invents an answer. Financial figures shown to the user are grounded in real data from the bank, not fabricated or approximated by the AI.
 
-**Manifests as:** International transfers show the exchange rate, fee, and delivery time before confirmation. Loan offers show total cost of borrowing alongside monthly payment. Error states use first-person language ("I'm having trouble connecting" not "Error 500").
+**Manifests as:** International transfers show the exchange rate, fee, and delivery time before confirmation. Loan offers show total cost of borrowing alongside monthly payment. Error states use first-person language ("I'm having trouble connecting" not "Error 500"). If a request fails, the AI says so and offers to try again rather than guessing.
 
-**Anti-pattern:** Burying fees in terms and conditions, or showing only the monthly payment for loans without total cost.
+**Anti-pattern:** Burying fees in terms and conditions, or showing only the monthly payment for loans without total cost. The AI confidently stating a balance or amount it doesn't actually have data for.
 
 ### Principle 7: Delight Through Speed, Not Decoration
 

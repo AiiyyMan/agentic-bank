@@ -78,7 +78,7 @@
 | 36 | List standing orders | CB | P1 | Yes (read) | S | Standing orders table | Mock (Supabase) |
 | 37 | Edit standing order (amount, frequency) | CB | P2 | Yes (write, confirmation) | M | Standing orders table | Mock (Supabase) |
 | 38 | Cancel standing order | CB | P2 | Yes (write, confirmation) | S | Standing orders table | Mock (Supabase) |
-| 39 | Standing order execution (simulated) | CB | P1 | No (background) | M | Scheduled job, payment creation | Mock (Supabase cron) |
+| 39 | Standing order execution (simulated) | CB | P2 | No (background) | M | Scheduled job, payment creation | Mock (Supabase cron) (deferred per plan-assessment — creation/listing sufficient for POC demo) |
 | | | | | | | | |
 | | **DIRECT DEBITS** | | | | | | |
 | 137 | List active direct debits | CB | P2 | Yes (read) | M | Transaction pattern / mock DD table | Mock (Supabase) |

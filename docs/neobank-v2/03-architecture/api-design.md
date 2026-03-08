@@ -51,23 +51,39 @@ The primary endpoint. Streams Claude's response as SSE events.
 **Request:**
 ```typescript
 {
-  message: string;              // User's text message
+  message: string;              // User's text message (or "__app_open__" for greeting)
   conversation_id?: string;     // Omit to start new conversation
+  context?: {                   // Optional client-side context
+    proactive_cards?: ProactiveCard[];  // Pre-fetched insight cards for greeting
+  };
 }
 ```
 
-**Response:** SSE event stream (see system-architecture.md §3.4 for event types)
+**Response:** SSE event stream. Event types: `thinking`, `heartbeat`, `token`, `tool_start`, `tool_result`, `ui_components`, `data_changed`, `error`, `done`. See system-architecture.md §3.5 for full event type definitions, payloads, and stream recovery. The `data_changed` event carries `{ invalidate: string[] }` for client-side cache invalidation after mutating tool calls (see offline-caching-strategy.md §7.2).
 
-**Rate limit:** 10 requests/minute per user
+**Rate limit:** 20 requests/minute per user
+
+**Special message: `__app_open__`**
+
+When `message` is `"__app_open__"`, the server treats this as an app-open greeting request:
+- The message is NOT persisted to the conversation (it's a synthetic signal)
+- If `context.proactive_cards` is provided, they are injected into the system prompt as structured context for Claude to weave into a natural greeting
+- Claude generates a unified greeting with inline cards (BalanceCard, InsightCards, QuickReplies)
+- If no proactive cards are provided, Claude generates a simple greeting from user profile context
 
 **Flow:**
-1. Validate JWT, extract userId
-2. Load or create conversation
-3. Load message history (with summarisation if > 80 messages)
-4. Build system prompt with user context
-5. Stream Claude response, executing tools as needed
-6. Persist messages + tool results to Supabase
-7. Close stream
+1. Emit `event: thinking` immediately (< 100ms, before any async work)
+2. Validate JWT, extract userId
+3. Load or create conversation
+4. Load message history (if previously summarised, load summary + recent messages)
+5. Build system prompt with user context and prompt caching (+ proactive cards if `__app_open__`). See system-architecture.md §3.2 for cache structure.
+6. Stream Claude response, executing tools as needed (`max_tokens: 4096`)
+   > Note: Claude may emit multiple `tool_use` blocks in a single response (e.g., "What's my balance and recent transactions?"). The agent loop collects all blocks, executes them concurrently via `Promise.all()`, and returns all `tool_result` blocks in a single user message. See system-architecture.md §3.1 for the implementation pattern.
+7. Persist messages + tool results to Supabase (including synthetic `tool_result` for `respond_to_user`)
+8. Close stream
+9. If message count > summarisation threshold, queue background summarisation job (see ADR-05)
+
+**Latency optimisation:** Step 1 ensures the client receives visual feedback (typing indicator) within 100ms of sending the request, even though steps 2-5 may take 500-1500ms. Summarisation runs post-response (step 9) to avoid blocking TTFT.
 
 ---
 
@@ -91,6 +107,38 @@ Confirm a pending write action.
 ```
 
 **Error codes:** `ACTION_NOT_FOUND`, `ACTION_EXPIRED`, `ACTION_ALREADY_EXECUTED`, `EXECUTION_FAILED`
+
+#### PATCH /api/confirm/:actionId
+Amend a pending action's parameters (mid-conversation amendment).
+
+**Request:**
+```typescript
+{
+  params: Record<string, unknown>;  // Partial params to merge into existing
+}
+```
+
+**Response:**
+```typescript
+{
+  data: {
+    success: boolean;
+    action_id: string;
+    updated_params: Record<string, unknown>;  // Full merged params
+    expires_at: string;                       // Reset to NOW() + 5 minutes
+    ui_components?: UIComponent[];            // Updated ConfirmationCard
+  }
+}
+```
+
+**Rules:**
+- Only `pending` actions can be amended
+- `expires_at` resets on every amendment
+- Params are shallow-merged: existing fields preserved unless overridden
+- Returns `ACTION_NOT_FOUND` if action doesn't exist or isn't owned by user
+- Returns `ACTION_EXPIRED` if action has expired (user must re-initiate)
+
+**Error codes:** `ACTION_NOT_FOUND`, `ACTION_EXPIRED`, `ACTION_ALREADY_EXECUTED`, `VALIDATION_ERROR`
 
 #### POST /api/confirm/:actionId/reject
 Cancel a pending action.
@@ -156,6 +204,8 @@ Get balance for a specific account.
 #### POST /api/pots
 Create a new savings pot.
 
+> **Implementation:** Route through `PotService` per ADR-17.
+
 **Request:**
 ```typescript
 {
@@ -178,6 +228,8 @@ Create a new savings pot.
 
 #### POST /api/pots/:id/transfer
 Transfer money to/from a pot.
+
+> **Implementation:** Route through `PotService` per ADR-17.
 
 **Request:**
 ```typescript
@@ -285,6 +337,8 @@ List saved beneficiaries.
 #### POST /api/beneficiaries
 Add a new beneficiary.
 
+> **Implementation:** Route through `PaymentService` per ADR-17.
+
 **Request:**
 ```typescript
 {
@@ -297,12 +351,16 @@ Add a new beneficiary.
 #### DELETE /api/beneficiaries/:id
 Remove a beneficiary.
 
+> **Implementation:** Route through `PaymentService` per ADR-17.
+
 ---
 
 ### 2.7 Banking — Payments
 
 #### POST /api/payments
 Send a domestic payment. (Usually invoked via tool + confirmation flow, but available as direct API.)
+
+> **Implementation:** Route through `PaymentService` per ADR-17.
 
 **Request:**
 ```typescript
@@ -382,6 +440,8 @@ limit?: number
 #### POST /api/standing-orders
 Create a standing order.
 
+> **Implementation:** Route through `StandingOrderService` per ADR-17.
+
 **Request:**
 ```typescript
 {
@@ -396,8 +456,12 @@ Create a standing order.
 #### PATCH /api/standing-orders/:id
 Edit amount, frequency, or day.
 
+> **Implementation:** Route through `StandingOrderService` per ADR-17.
+
 #### DELETE /api/standing-orders/:id
 Cancel a standing order.
+
+> **Implementation:** Route through `StandingOrderService` per ADR-17.
 
 ---
 
@@ -440,7 +504,7 @@ List user's active loans.
       payments_made: number;
       next_payment_date: string;
       payoff_date: string;
-      status: 'active' | 'repaid';
+      status: 'active' | 'repaid' | 'defaulted';
     }>;
   }
 }
@@ -518,6 +582,8 @@ List active flex plans.
 #### POST /api/flex/plans
 Create a flex plan from an eligible transaction.
 
+> **Implementation:** Route through `FlexService` per ADR-17.
+
 **Request:**
 ```typescript
 {
@@ -528,6 +594,8 @@ Create a flex plan from an eligible transaction.
 
 #### POST /api/flex/plans/:id/payoff
 Pay off a flex plan early.
+
+> **Implementation:** Route through `FlexService` per ADR-17.
 
 ---
 
@@ -651,7 +719,7 @@ Submit KYC verification (mocked for POC).
 {
   data: {
     verified: true;
-    onboarding_step: 'KYC_VERIFIED';
+    onboarding_step: 'VERIFICATION_COMPLETE';
   }
 }
 ```
@@ -675,7 +743,36 @@ Get getting-started checklist status.
 
 ---
 
-### 2.14 Auth
+### 2.14 Conversations (P1)
+
+#### GET /api/conversations
+List user's conversations (most recent first).
+
+**Query params:**
+```
+limit?: number                // Default 10, max 50
+offset?: number               // Pagination
+```
+
+**Response:**
+```typescript
+{
+  data: {
+    conversations: Array<{
+      id: string;
+      title: string;           // Auto-generated from first message
+      message_count: number;
+      updated_at: string;      // ISO 8601
+      preview?: string;        // Last assistant message (truncated to 100 chars)
+    }>;
+    has_more: boolean;
+  }
+}
+```
+
+---
+
+### 2.15 Auth
 
 #### GET /api/auth/profile
 Get current user profile.
@@ -695,7 +792,7 @@ Get current user profile.
 
 ---
 
-### 2.15 Health
+### 2.16 Health
 
 #### GET /api/health
 System health check (no auth required).
@@ -715,6 +812,16 @@ System health check (no auth required).
 }
 ```
 
+### 2.17 Notifications (P1)
+
+Notification preference and feed routes are managed by Knock. See `notification-system.md` §7.3 for full specification.
+
+| Route | Method | Purpose | Priority |
+|-------|--------|---------|----------|
+| `/api/notifications/preferences` | GET | Get user notification preferences | P1 |
+| `/api/notifications/preferences` | PUT | Update notification preferences | P1 |
+| `/api/auth/knock-token` | GET | Generate Knock user token for client SDK | P1 |
+
 ---
 
 ## 3. Tool Definitions
@@ -733,7 +840,7 @@ System health check (no auth required).
 | `close_pot` | Write | Close a savings pot and return all money to main account. Requires pot_id. Returns amount returned. |
 | `get_beneficiaries` | Read | List saved payment recipients. Returns name, masked account details, and last used date. Use this BEFORE send_payment to resolve beneficiary names. |
 | `add_beneficiary` | Write | Add a new payment recipient. Requires name, sort code (6 digits), and account number (8 digits). |
-| `send_payment` | Write | Send money to a saved beneficiary. Requires beneficiary_id (from get_beneficiaries), amount in GBP, and optional reference. Max £10,000. |
+| `send_payment` | Write | Send money to a saved beneficiary. Requires beneficiary_id (from get_beneficiaries), amount in GBP, and optional reference. Max £10,000. **Beneficiary resolution:** Claude must call `get_beneficiaries` first to resolve a user-provided name (e.g., "James") to a `beneficiary_id`. The `send_payment` tool handler passes `beneficiary_id` to `PaymentService`, which validates the ID belongs to the authenticated user. If a name is passed instead of a valid UUID, the service rejects the request with `InvalidBeneficiaryError`. |
 | `get_payment_history` | Read | View payment history, optionally filtered by beneficiary. Returns payments with amounts, dates, and a monthly summary. |
 | `get_transactions` | Read | List recent transactions. Supports filtering by category, merchant, date range. Returns merchant, amount, category, and date. |
 | `create_standing_order` | Write | Set up a recurring payment. Requires beneficiary_id, amount, frequency (weekly/monthly). Optional: day_of_month, first_date. |
@@ -741,8 +848,8 @@ System health check (no auth required).
 | `edit_standing_order` | Write | Edit a standing order's amount, frequency, or day. Requires standing_order_id and at least one field to update. |
 | `cancel_standing_order` | Write | Cancel an active standing order. Requires standing_order_id. |
 | `delete_beneficiary` | Write | Remove a saved payment recipient. Requires beneficiary_id. |
-| `create_auto_save_rule` | Write | Set up automatic savings. Requires pot_id, amount, and frequency (weekly/monthly/on_payday). Returns next run date. |
-| `categorise_transaction` | Read | Get or set the category for a transaction. Uses rule-based merchant mapping. Internal tool -- not exposed as API route. |
+| `create_auto_save_rule` | Write | Set up automatic savings. Requires pot_id, amount, and frequency (weekly/monthly/on_payday). Returns next run date. Chat-only — no corresponding REST endpoint. |
+| `categorise_transaction` | Read | Get or set the category for a transaction. Uses rule-based merchant mapping. Internal tool — not exposed as API route. |
 
 ### 3.2 Lending Tools
 
@@ -756,13 +863,13 @@ System health check (no auth required).
 | `flex_purchase` | Write | Split an eligible transaction (£30+, within 14 days) into instalments. Requires transaction_id and plan_months (3, 6, or 12). Returns monthly payment and total interest. |
 | `get_flex_plans` | Read | List active flex (buy now, pay later) plans. Returns merchant, original amount, monthly payment, payments made, and next payment date. |
 | `pay_off_flex` | Write | Pay off a flex plan early with no penalty. Requires flex_plan_id. Returns amount paid. |
-| `check_credit_score` | Read | Check the user's credit score (0-999). Returns score, rating (poor/fair/good/excellent), positive factors, and improvement suggestions. |
+| `check_credit_score` | Read | Check the user's credit score (300-999). Returns score, rating (poor/fair/good/excellent), positive factors, and improvement suggestions. |
 
 ### 3.3 Experience Tools
 
 | Tool | Type | Description (for Claude) |
 |------|------|--------------------------|
-| `respond_to_user` | System | Send a message to the user with optional rich UI components (cards). Use this to render balance cards, confirmation cards, insight cards, and other visual elements. |
+| `respond_to_user` | System | Send a message to the user with optional rich UI components (cards). Include `ui_components` only when the response contains structured financial data, a confirmation action, or a proactive insight — not for conversational replies. See §3.4.1 for the full card usage policy. |
 | `get_spending_by_category` | Read | Get spending breakdown by category for a period. Returns total spent, per-category amounts with percentages, and comparison to the previous period. |
 | `get_spending_insights` | Read | Get spending insights and anomalies. Returns spending spikes, patterns, and actionable suggestions. |
 | `get_weekly_summary` | Read | Get a weekly spending summary. Returns total spent, top categories, comparison to previous week, and largest transaction. |
@@ -776,15 +883,109 @@ System health check (no auth required).
 | `verify_identity` | Write | Submit KYC verification (mocked for POC -- instant approval). Returns verification status. |
 | `provision_account` | Write | Provision a bank account after KYC verification. Creates Griffin/mock account, returns sort code and account number. |
 | `complete_onboarding` | Write | Mark onboarding as complete. Transitions system prompt from onboarding mode to full banking mode. Unlocks all banking tools. |
+| `update_pending_action` | Write | Amend a pending confirmation action. Requires action_id and a params object with fields to update (e.g., `{ amount: 75 }`). Only works on pending (not expired/confirmed) actions. Resets the 5-minute expiry. Returns updated params and a new ConfirmationCard. Use when the user says things like "actually make it £75" or "change the reference". |
 
-### 3.4 Tool Availability by Onboarding State
+### 3.4 UIComponent Types
+
+#### 3.4.1 Card Usage Policy
+
+> **Design principle:** Cards enhance banking flows — they are not the default response mode. When a user is conversational, respond conversationally. Cards should feel like a natural escalation when structured data adds value, not UI noise.
+
+**Use cards when:**
+- The user requests financial data (balance, transactions, spending, credit score)
+- A write action needs confirmation (payment, transfer, standing order)
+- Displaying structured results that are hard to convey in text (spending breakdowns, loan offers, flex options)
+- Proactive insights surface actionable information (bill reminders, spending spikes)
+- Onboarding progress or checklists need visual state
+
+**Use text-only when:**
+- The user is conversational ("thanks", "cool", "tell me more")
+- The user asks a general question ("how does a standing order work?", "what's a sort code?")
+- Acknowledging an action ("got it", "I'll check that")
+- The response is a simple confirmation that doesn't need structured data ("your reference has been updated")
+- Clarifying or asking follow-up questions ("which account did you mean?")
+
+**Card usage rules for the system prompt (`CARD_USAGE_POLICY` block):**
+
+```
+CARD USAGE POLICY:
+- Only include ui_components when the response contains structured financial data,
+  a confirmation action, or a proactive insight. Not every response needs a card.
+- If the user's message is conversational, exploratory, or a general question,
+  respond with text only. No card is better than an irrelevant card.
+- Never attach a BalanceCard or TransactionListCard unless the user asked about
+  their balance or transactions (or a tool returned that data for a relevant reason).
+- QuickReplyGroup is appropriate after banking actions to suggest natural next steps,
+  but not after every message. Omit quick replies for conversational exchanges.
+- When in doubt, respond with text. Cards are an enhancement, not a requirement.
+```
+
+> **POC note:** Card usage thresholds will be refined through user testing. Log card attachment rates per message type to identify over-use patterns. Target: cards on ~40-60% of messages (banking-heavy conversations will be higher, general chat lower).
+
+#### 3.4.2 UIComponent Union
+
+The `respond_to_user` tool's `ui_components` array uses a discriminated union. Each component has a `type` field:
+
+```typescript
+type UIComponent =
+  | BalanceCard
+  | TransactionListCard
+  | ConfirmationCard
+  | SuccessCard
+  | ErrorCard
+  | InsightCard
+  | PotStatusCard
+  | SpendingBreakdownCard
+  | LoanOfferCard
+  | CreditScoreCard
+  | PaymentHistoryCard
+  | WelcomeCard
+  | InputCard
+  | QuoteCard
+  | QuickReplyGroup         // ← Quick reply pills
+  | StandingOrderCard
+  | FlexOptionsCard
+  | AutoSaveRuleCard
+  | ChecklistCard;
+
+// Quick reply pills — core interaction pattern for guided follow-ups
+interface QuickReplyGroup {
+  type: 'quick_reply_group';
+  replies: Array<{
+    label: string;          // Display text: "Check spending", "Send money"
+    value: string;          // Sent as user message when tapped
+    icon?: string;          // Optional Phosphor icon name
+  }>;
+  max_visible?: number;     // Default 4, overflow scrolls horizontally
+}
+
+// Confirmation card — includes action_id and expiry for client-side behavior
+interface ConfirmationCard {
+  type: 'confirmation_card';
+  action_id: string;        // pending_actions.id — for confirm/reject/amend API calls
+  expires_at: string;       // ISO 8601 — client renders countdown timer
+  title: string;            // "Send £50.00 to James Mitchell"
+  details: Array<{ label: string; value: string }>;  // Key-value rows
+  balance_after?: number;   // Post-action balance
+  retry_prompt?: string;    // e.g., "Send £50 to James" — used if card expires
+}
+```
+
+**Quick reply persistence:** Quick replies are stored in the message's `ui_components` JSONB column. When loading conversation history, quick replies from past messages render as **disabled pills** (non-tappable, muted styling) to show what options were available without allowing stale actions.
+
+**ConfirmationCard session resumption:** When the app reopens and renders a ConfirmationCard from history:
+1. Check `expires_at` — if past, render expired state with `retry_prompt` as quick reply
+2. If not expired, render live card with countdown timer
+3. On Confirm tap, call `POST /api/confirm/:action_id` — server validates status server-side as backup
+
+### 3.5 Tool Availability by Onboarding State
 
 > **IMPORTANT:** Tools are gated by `profiles.onboarding_step`. During onboarding, only onboarding + read tools are available. After `ONBOARDING_COMPLETE`, all tools are available.
 
 | Onboarding State | Available Tools |
 |-----------------|-----------------|
-| `STARTED` → `ADDRESS_COLLECTED` | `get_value_prop_info`, `get_onboarding_status`, `respond_to_user` |
-| `KYC_VERIFIED` → `ACCOUNT_PROVISIONED` | Above + `verify_identity`, `provision_account`, `get_account_details` |
+| `STARTED` → `ADDRESS_COLLECTED` | `get_value_prop_info`, `get_onboarding_status`, `respond_to_user`, `update_pending_action` |
+| `VERIFICATION_COMPLETE` → `ACCOUNT_PROVISIONED` | Above + `verify_identity`, `provision_account`, `get_accounts` |
 | `FUNDING_OFFERED` | Above + `check_balance` (to verify funding) |
 | `ONBOARDING_COMPLETE` | **All tools** (full banking mode) |
 
@@ -800,6 +1001,19 @@ function getAvailableTools(onboardingStep: string): ToolDefinition[] {
     t.squad === 'experience' && ONBOARDING_TOOLS.includes(t.name)
   );
 }
+```
+
+```typescript
+const ONBOARDING_TOOLS = [
+  'respond_to_user',
+  'get_onboarding_status',
+  'collect_personal_details',
+  'verify_identity',
+  'provision_account',
+  'get_accounts',
+  'check_balance',
+  'complete_onboarding',
+];
 ```
 
 ---
@@ -831,9 +1045,20 @@ function getAvailableTools(onboardingStep: string): ToolDefinition[] {
 | `INSUFFICIENT_FUNDS` | 422 | Balance too low for operation |
 | `BENEFICIARY_NOT_FOUND` | 422 | Beneficiary ID doesn't match any saved payee |
 | `PROVIDER_UNAVAILABLE` | 502 | Griffin/Wise API unreachable |
+| `AI_OVERLOADED` | 529 | Anthropic API overloaded. Retry with exponential backoff (2s, 4s, 8s + jitter). Max 3 retries. See system-architecture.md §9.1 for mid-stream timeout handling. | `{ error: "ai_overloaded", message: "Our AI is temporarily busy. Please try again in a moment.", retry_after: 5 }` |
 | `INTERNAL_ERROR` | 500 | Unhandled server error |
 
-### 4.3 Tool Error Handling
+### 4.3 Domain Service Errors (ADR-17)
+
+Domain services throw typed error classes that propagate through both the tool and REST layers:
+
+- **Domain services** throw specific errors: `InsufficientFundsError`, `InvalidBeneficiaryError`, `ActionExpiredError`, `PotLockedError`, `LoanIneligibleError`, etc. Each carries a `code`, `message`, and optional `userMessage` for client display.
+- **Tool handlers** catch these errors and return a `ToolResult` with `success: false`, mapping the error into a structured response that Claude uses to craft a natural-language reply (see below).
+- **REST route handlers** catch the same errors and map them to appropriate HTTP status codes (e.g., `InsufficientFundsError` -> 422, `InvalidBeneficiaryError` -> 422, `ActionExpiredError` -> 410). Unrecognised errors fall through to the global error handler as 500.
+
+This ensures consistent error semantics regardless of whether the operation is invoked via chat (tool) or direct API call.
+
+### 4.4 Tool Error Handling
 
 Tool errors are returned as structured `ToolResult` objects (not thrown as exceptions). Claude receives the error and crafts a natural-language response:
 

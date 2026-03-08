@@ -95,12 +95,24 @@
 - Verify: partial chunk handling, background/foreground transitions, network interruption recovery
 - If validation fails, fall back to long polling (ADR-04b)
 
+**Stream recovery strategy (added post-UX review):**
+
+The server emits `event: heartbeat` every 10 seconds during idle. The client detects dead connections via a 15-second timeout (no event received). On disconnect:
+- Retry immediately, then at 1s, then 3s (max 3 attempts)
+- Retry sends the same `conversation_id` — server resumes from last persisted state
+- Client shows `connectionStatus: 'reconnecting'` indicator in chat header
+- If all retries fail, show error card with manual retry option
+
+The server also emits `event: thinking` immediately on POST receipt (< 100ms, before any async work) to provide instant visual feedback. This ensures the client can show typing indicators even while JWT validation, conversation loading, and Claude API calls are in-flight.
+
 **Consequences:**
 - (+) No native dependencies for streaming
 - (+) Uses platform-native fetch, well-supported in Hermes
 - (+) Simple implementation: read loop with TextDecoder
+- (+) Heartbeat + timeout detection provides reliable connection health monitoring
+- (+) `thinking` event ensures < 100ms perceived response time
 - (-) Must handle SSE parsing ourselves (split on `\n\n`, parse `event:` and `data:` lines)
-- (-) No automatic reconnection (must implement retry logic on network drop)
+- (-) Must implement retry logic on network drop (3-attempt strategy with backoff)
 
 ---
 
@@ -127,7 +139,7 @@ async function maybeSummariseHistory(
 
   const summary = await claude.messages.create({
     model: CLAUDE_MODEL_FAST,  // Haiku for cost efficiency
-    max_tokens: 500,
+    max_tokens: 1024,
     system: 'Summarise this banking conversation. Include: key actions taken, current balances mentioned, pending items, and user preferences expressed. Be concise.',
     messages: toSummarise.map(m => ({ role: m.role, content: m.content })),
   });
@@ -146,12 +158,23 @@ async function maybeSummariseHistory(
 2. **Sliding window (keep last N)** — Loses context about actions taken earlier in the session.
 3. **No cap, send everything** — Token costs scale linearly. A 200-message conversation costs 4x a 50-message one with no quality improvement (Claude's attention degrades on very long contexts).
 
+**Timing:** Summarisation runs **after** the response completes, not before. The original flow (summarise at step 4 before streaming) blocks TTFT for 500-2000ms. Revised flow:
+1. Load conversation history. If a previous summary exists, load summary + recent messages.
+2. If message count > 80 but no current summary, include **all messages** for this turn (Claude handles 200K context).
+3. Stream the full response.
+4. After the `done` event, run summarisation as a **background job** and update the conversation record.
+5. The next turn loads the summarised history.
+
+Trade-off: the first turn after 80 messages uses more input tokens (sending all messages), but the user gets consistent sub-200ms TTFT. The extra cost is ~$0.05 for one turn — negligible vs the latency hit.
+
 **Consequences:**
 - (+) Conversations can run 30+ meaningful interactions
 - (+) Summary preserves key context (balances, actions, preferences)
 - (+) Haiku summarisation costs ~$0.001 per invocation
+- (+) Post-response summarisation avoids blocking TTFT
 - (-) Summary may lose nuance from early messages
 - (-) Adds a Claude API call (Haiku, fast, cheap)
+- (-) First turn past 80 messages sends full history (higher token cost for one turn)
 
 ---
 
@@ -334,3 +357,173 @@ State persisted in `profiles.onboarding_step`. On resume, the AI picks up from t
 - (+) AI can explain trust signals (FSCS, FCA) naturally during the flow
 - (-) More complex than form screens (state machine, resume logic, conditional system prompt)
 - (-) Input validation must happen in chat cards, not native form fields
+
+---
+
+## ADR-13: Knock for Notification Infrastructure
+
+**Status:** Accepted
+
+**Context:** The POC needs push notifications (payment received, bills due, payday) and in-app notifications (spending insights, weekly summaries). The original plan used `expo-server-sdk` directly with a custom `push_tokens` table, which doesn't scale to P1 requirements (8 workflows, in-app feed, user preferences).
+
+**Decision:** Use [Knock](https://knock.app) as the managed notification infrastructure provider. Implement behind `NotificationPort` (hexagonal pattern). Use `@knocklabs/node` on the API server and `@knocklabs/expo` on the mobile client.
+
+**Full specification:** See `notification-system.md` for workflow definitions, mobile integration, preference management, and phasing (§1.2).
+
+**Alternatives Considered:**
+1. **Raw `expo-server-sdk`** — Simple push delivery but no in-app feed, no preferences, no batching. Each P1/P2 feature adds significant custom code.
+2. **Novu** — Open-source. Self-hostable but adds operational burden. Less mature Expo integration.
+3. **OneSignal** — Strong push but weaker in-app feed. More marketing-focused than transactional.
+4. **Supabase Realtime + expo-server-sdk** — Two separate systems. No unified message log.
+
+**Consequences:**
+- (+) In-app feed, preferences, push delivery, and batching from a single provider
+- (+) Free tier (10K messages/month) sufficient for POC
+- (+) Knock user IDs = Supabase UUIDs — no mapping layer needed
+- (+) `NotificationPort` abstraction means Knock can be swapped out later
+- (-) Adds a third-party dependency (managed service)
+- (-) Must build feed UI ourselves (Knock has no pre-built RN components)
+- (-) Templates live in Knock dashboard, not version control (mitigated by Knock CLI)
+
+---
+
+## ADR-14: react-native-mmkv for On-Device Persistence
+
+**Status:** Proposed
+
+**Context:** The original architecture specified AsyncStorage for Zustand persist. AsyncStorage is async, unencrypted, and benchmarks at ~50-100ms for typical reads. For a banking app requiring fast rehydration (< 200ms target) and encrypted storage of financial data, this is insufficient.
+
+**Decision:** Use `react-native-mmkv` (v3+) as the storage backend for all Zustand persist stores and TanStack Query persistence. Three MMKV instances: encrypted `financial` (accounts, insights), encrypted `chat` (messages with embedded financial data via ui_components), and unencrypted `app` (UI preferences).
+
+**Full specification:** See `offline-caching-strategy.md` §2 for instance architecture, setup code, persistence policy, and §2.6 for encryption limitations.
+
+**Encryption reality:** MMKV uses **AES-128-CFB** (not AES-256). The `encryptionKey` parameter accepts max 16 bytes. CFB mode provides confidentiality but not integrity/authenticity (no HMAC or AEAD). This is a defense-in-depth layer on top of OS sandboxing and hardware-backed key storage — not a standalone security solution. See `offline-caching-strategy.md` §14 for the production upgrade path to SQLCipher (AES-256-CBC + HMAC-SHA512).
+
+**Alternatives Considered:**
+1. **AsyncStorage (status quo)** — No encryption, async API creates hydration race conditions, ~50-100ms reads.
+2. **expo-secure-store for everything** — 2KB item size limit makes it unsuitable for bulk data (messages, transactions).
+3. **SQLite (expo-sqlite)** — Overkill for key-value persistence. Adds SQL complexity for a simple read/write pattern.
+4. **SQLCipher (op-sqlite + SQLCipher)** — AES-256-CBC + HMAC-SHA512, battle-tested (Signal, WhatsApp). Deferred to pre-launch: adds native compilation complexity, schema design, and 2-3 days of Foundation work not justified for a POC with no real user data.
+
+**Consequences:**
+- (+) Rehydration target (< 200ms) trivially achieved (~5ms for 200KB)
+- (+) AES-128-CFB encryption at rest as defense-in-depth (keys in hardware-backed SecureStore)
+- (+) Synchronous reads — no async hydration loading state
+- (-) Requires `npx expo prebuild` — Expo Go no longer works
+- (-) Team must set up dev builds from day 1 of Foundation
+- (-) AES-128 not AES-256 — documented limitation with clear upgrade path (§14)
+
+---
+
+## ADR-15: TanStack Query for Server State Caching
+
+**Status:** Proposed
+
+**Context:** The original architecture used Zustand for all client state, including server-fetched data (balances, transactions, insights). This conflates UI state with server state and requires manual `lastSyncedAt` tracking, manual staleness management, and custom retry/refetch logic.
+
+**Decision:** Adopt `@tanstack/react-query` (v5) for all server-fetched data. Zustand remains for UI state and chat (hybrid — locally appended during SSE, server-persisted after). TanStack Query cache persisted to MMKV for instant app launch.
+
+**Full specification:** See `offline-caching-strategy.md` §3 for query configuration, domain hooks, and the Zustand/TanStack Query boundary table.
+
+**Alternatives Considered:**
+1. **Zustand-only (status quo)** — Manual staleness, no request deduplication, no built-in retry. Each store must implement its own refetch logic.
+2. **SWR** — Similar concept but smaller community in React Native, less mature persistence story.
+3. **Apollo Client** — Designed for GraphQL, our API is REST.
+
+**Consequences:**
+- (+) Built-in staleTime/gcTime replaces manual `lastSyncedAt`
+- (+) `refetchOnReconnect` + `refetchOnWindowFocus` automate refresh
+- (+) Request deduplication — multiple components share one request
+- (+) `networkMode: 'offlineFirst'` serves cache when offline
+- (-) Additional dependency (~30KB gzipped)
+- (-) Team needs to learn TanStack Query patterns
+
+---
+
+## ADR-16: Prompt Caching Strategy
+
+**Status:** Accepted
+
+**Context:** The agent loop re-sends the full system prompt (~3,000 tokens) and all tool definitions (~9,400 tokens) with every Claude API call. A typical turn involves 2-3 API calls (initial + tool results fed back). This 12,400-token base overhead accounts for 82% of input token cost. Anthropic's prompt caching (`cache_control`) reduces cached token read cost to 10% of the standard input price, with a 1.25× write cost on cache creation.
+
+**Decision:** Enable prompt caching on all Claude API calls. Structure: tool definitions cached automatically via the `tools` field (first in Anthropic's cache hierarchy), static system prompt blocks cached via a `cache_control: { type: "ephemeral" }` breakpoint on the last static block (SAFETY_RULES). Dynamic blocks (user context, time context, onboarding rules, conversation summary) are placed after the breakpoint and are not cached.
+
+**Cache configuration:**
+- TTL: 5-minute default (matches typical message cadence within a session)
+- Breakpoints: 1 explicit (on SAFETY_RULES), tools cached implicitly
+- Minimum cacheable: 2,048 tokens for Sonnet (our static blocks exceed this)
+- Onboarding sessions use a smaller tool set (~4-6 tools); post-onboarding uses all 47 — these are two separate cache entries
+
+**Cost impact (10 DAU mid scenario):**
+- Without caching: ~$840/month
+- With caching: ~$320/month
+- **Savings: 62% ($520/month)**
+
+See `cost-analysis.md` for the full cost model and `system-architecture.md` §3.2 for implementation.
+
+**Alternatives Considered:**
+1. **No caching (status quo)** — Simplest. But 82% of input tokens are identical across calls. Unjustifiable waste.
+2. **Dynamic tool loading (only load relevant tools per context)** — Saves 5-10K tokens per call but breaks cache when tool set changes. Net negative: cache savings (62%) far exceed tool reduction savings (~15%).
+3. **1-hour cache TTL** — Keeps cache alive across sessions (2× write cost, same 0.1× read). Consider post-POC if users message every 10-20 minutes; for now, 5-minute TTL is sufficient.
+
+**Consequences:**
+- (+) 62% reduction in Claude API input cost
+- (+) 40-60% TTFT improvement on cache hits (less processing of cached tokens)
+- (+) No code complexity — ~10 lines to add `cache_control` to the API call
+- (-) First message of each session pays 1.25× on the cached portion (cache write)
+- (-) Tool definition changes invalidate the system prompt cache downstream (Anthropic's cache hierarchy: tools → system → messages)
+
+---
+
+## ADR-17: Banking Service Layer (POC)
+
+**Status:** Accepted
+
+**Context:** The architecture has two consumers of banking logic: (1) tool handlers called by Claude during chat, and (2) REST endpoints called directly by the mobile app for drill-down screens. Currently both call `BankingPort` directly, meaning business rules (validation, authorization, side effects) must be duplicated in each consumer. The production-readiness assessment (production-readiness.md §1) identified this as the single most important structural change for dual-interface support. Originally scoped as an MVP task, but the user decided to implement during POC for better debuggability, testability, and scalability.
+
+**Decision:** Extract a lightweight Banking Service Layer between tool handlers / REST routes and `BankingPort`. Domain services are plain TypeScript classes — one per bounded context — that encapsulate validation, authorization, and orchestration logic.
+
+**Scoping rule:**
+- **Write operations** (payments, transfers, pot creation, beneficiary management) → always go through a domain service
+- **Read operations** (get balance, list transactions, list beneficiaries) → may call `BankingPort` directly when no business logic is involved
+- This avoids a pass-through service layer for simple reads while ensuring all mutations have consistent validation
+
+**Services:**
+
+| Service | Responsibility |
+|---------|---------------|
+| `PaymentService` | Payment validation (amount > 0, ≤ balance, beneficiary belongs to user), pending action creation, standing order management |
+| `AccountService` | Account provisioning, balance checks (shared by payments + pots), profile management |
+| `PotService` | Pot creation/closure, transfer validation (pot balance checks), auto-save rule management |
+| `LendingService` | Loan application validation (against `loan_products`), flex plan creation, payment scheduling |
+| `OnboardingService` | KYC flow orchestration, account provisioning sequence, checklist state management |
+
+**Call flow:**
+
+```
+Tool Handler → DomainService → BankingPort → Adapter → External API
+REST Route   → DomainService → BankingPort → Adapter → External API
+
+Tool Handler → BankingPort (read-only, no business logic)
+REST Route   → BankingPort (read-only, no business logic)
+```
+
+**Implementation guidance:**
+- Services are plain classes, not frameworks. Constructor-injected dependencies (`BankingPort`, `supabase`).
+- Services throw typed domain errors (`InsufficientFundsError`, `InvalidBeneficiaryError`) that tool handlers and REST routes translate to their own response formats.
+- Services write to `audit_log` on every state mutation (see data-model.md §2.24).
+- No service-to-service calls. If `PaymentService` needs a balance check, it calls `BankingPort.getBalance()` directly, not `AccountService`.
+
+**Alternatives Considered:**
+1. **Defer to MVP (original plan)** — Simpler POC, but tool handlers and REST routes would immediately diverge on validation logic. Fixing it later means rewriting handlers that have already been tested and validated.
+2. **Full DDD with aggregates and value objects** — Proper domain-driven design with aggregate roots, entities, and value objects. Architecturally superior but overengineered for a POC with 5 bounded contexts. Plain services are sufficient.
+3. **Middleware-based validation** — Fastify middleware that validates common params (amount, beneficiary_id) before reaching handlers. Doesn't compose well — banking validation is domain-specific, not generic.
+
+**Consequences:**
+- (+) Single source of truth for business rules — tool handlers and REST routes share validation
+- (+) Easier debugging — service methods are testable in isolation without Claude or HTTP
+- (+) Clear audit trail integration point — services write audit entries, not individual handlers
+- (+) Natural seam for future service extraction (PaymentService → Payment microservice)
+- (+) Human developers can understand the codebase without tracing through tool handler indirection
+- (-) Additional abstraction layer for write operations (handler → service → port → adapter)
+- (-) Must be disciplined about the read/write scoping rule to avoid pass-through services

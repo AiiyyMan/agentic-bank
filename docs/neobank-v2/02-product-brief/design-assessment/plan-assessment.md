@@ -32,6 +32,10 @@ The 59 P0 features are the real product. They cover a complete story: onboard, f
 | Feature | Apparent Size | Real Size | Why |
 |---------|--------------|-----------|-----|
 | #92 Two-phase confirmation flow | L (correctly rated) | XL in practice | This is the backbone of every write operation. It spans: pending_actions table, timeout logic, double-submission prevention, re-rendering pending cards on app reopen, biometric gate (P1), and cancel/expire states. Every squad depends on it. |
+
+**#92 Cross-squad ownership clarification:**
+- **EX owns the infrastructure:** `createPendingAction()` utility, ConfirmationCard component, `POST /api/confirm/:id` and `POST /api/reject/:id` routes, timeout/expiry logic, and the `expired` cleanup job. This is a Foundation F1b deliverable and must be ready before squads start parallel work.
+- **CB and LE consume it:** Their tool handlers (e.g., `send_payment`, `apply_loan`) call `createPendingAction()` with domain-specific params (`tool_name`, `params` JSONB). EX's infrastructure handles rendering, confirmation, rejection, and expiry -- the consuming squads do not need to know how the confirmation UI works.
 | #31 Beneficiary name resolution (fuzzy match) | M | M-L | "James" must match "James Mitchell" but not "James Chen" when there is only one James. When there are two, it must trigger disambiguation (#32). The fuzzy match logic needs careful threshold tuning. Levenshtein alone will produce false positives on short names. |
 | #94 Streaming responses (SSE) | M | M-L on mobile | React Native does not have native EventSource. The team must use a polyfill (e.g., `react-native-sse` or a fetch-based reader). Reconnection on network drop, background/foreground transitions, and partial message buffering all add hidden complexity. |
 | #106 Proactive card engine | L (correctly rated) | L-XL | Must evaluate 8+ rule types on app open in <1 second. If the transaction volume is high, the aggregation queries become expensive. Needs a caching or pre-computation strategy. |
@@ -53,7 +57,7 @@ Every P0 flow is end-to-end:
 - Pot goal tracking: progress bar renders from pot metadata. No gaps.
 - Savings tab: drill-down from chat or direct tab access. No gaps.
 
-**Dead-end flagged:** If Alex says "Move 1,000 to savings" but has no pots, the AI must offer to create one. The accounts journey map covers the empty-pots case ("You don't have any savings pots yet. Want to create one?") but this response is not explicitly wired into the `transfer_to_pot` tool's error handling. The tool handler must check for pot existence and return a structured error that the AI can act on.
+**Dead-end flagged:** If Alex says "Move 1,000 to savings" but has no pots, the AI must offer to create one. The accounts journey map covers the empty-pots case ("You don't have any savings pots yet. Want to create one?") but this response is not explicitly wired into the `transfer_to_pot` tool's error handling. The domain service must check for pot existence and return a structured error that the AI can act on.
 
 **Edge case gap:** The safety threshold warning ("Moving 1,000 would leave you with 230, and your phone bill is due Friday") requires cross-referencing balance, transfer amount, AND upcoming standing orders/DDs. Standing orders are P1. For P0, the AI should warn based on balance alone ("This would leave your main account at 230. Want to proceed?") without bill context.
 
@@ -67,7 +71,7 @@ Every P0 flow is end-to-end:
 - Beneficiary not found: graceful redirect to add-beneficiary flow. No gaps.
 - Insufficient funds: clear message with alternative suggestion. No gaps.
 
-**Dead-end flagged:** The payment flow assumes the AI resolves beneficiary names before calling `send_payment`. But the current tool definition (in `definitions.ts`) takes `beneficiary_name` as a string. If Claude passes "James" and the backend cannot resolve it, the tool must return a structured disambiguation response (not a raw error). The handler needs a `get_beneficiaries` call internally or the AI must be instructed (via system prompt) to always call `get_beneficiaries` first before `send_payment`.
+**Dead-end flagged:** The payment flow assumes the AI resolves beneficiary names before calling `send_payment`. But the current tool definition (in `definitions.ts`) takes `beneficiary_name` as a string. If Claude passes "James" and the backend cannot resolve it, the domain service must return a structured disambiguation response (not a raw error). The service layer needs a `get_beneficiaries` call internally or the AI must be instructed (via system prompt) to always call `get_beneficiaries` first before `send_payment`.
 
 **Observation:** The `send_payment` tool currently lacks a `beneficiary_id` parameter. It uses `beneficiary_name`, which means resolution happens at the handler level. This is fragile. Consider adding `beneficiary_id` as an optional parameter so the AI can pass an unambiguous ID after disambiguation.
 

@@ -108,25 +108,32 @@ Each task includes:
 - Complexity: S (< 1 hour) or M (1-3 hours)
 - QA checkpoint: what to test after this task (specific test commands or manual checks)
 
-**2. API Implementation**
+**2. Domain Service Implementation**
+- Identify which operations need a domain service — all write operations must route through one (`PaymentService`, `AccountService`, `PotService`, `LendingService`, `OnboardingService`)
+- Service class structure: constructor-injected `BankingPort` + `supabase` client. No direct BaaS calls outside the service.
+- Each service owns validation (input + business rules) and writes to `audit_log` on every state mutation
+- Define error types per service (e.g., `InsufficientFundsError`, `InvalidAmountError`) extending a shared `DomainError` base
+- Reference: ADR-17 in `tech-decisions.md`
+
+**3. API Implementation**
 - Endpoints to implement (reference the API design doc contracts)
 - Database queries needed
 - BaaS API calls needed (or mock implementations)
 - Error handling per endpoint
 
-**3. Mobile Implementation**
+**4. Mobile Implementation**
 - Screens to build (reference the design spec)
 - State management changes
 - Navigation changes
 - New components
 
-**4. AI Agent Implementation**
+**5. AI Agent Implementation**
 - New tools to define (input/output schemas)
 - Tool handlers to implement
 - System prompt additions for this journey
 - Example tool call sequences
 
-**5. Cross-Squad Dependencies**
+**6. Cross-Squad Dependencies**
 - What this squad needs from other squads (task IDs, what exactly, when)
 - What this squad provides to other squads (task IDs, what exactly, when)
 

@@ -38,13 +38,34 @@ If your session runs out of context, the next session should:
 ## Task Dependency Chain
 
 ```
+Task 2b (SSE Validation) ── no deps, HIGHEST RISK validation — do first
 Task 3 (Shared Types) ── depends on F1a Task 2 (needs table shapes from migrations)
 Task 4 (API Scaffolding) ── depends on Task 3
 Task 4b (Tool Routing) ── depends on Task 4
+Task 5 (Summarisation) ── depends on Task 4 (needs agent loop scaffolding)
 Task 7 (CI/CD) ── depends on Task 4
 ```
 
 Work through tasks in this order.
+
+---
+
+### Task 2b: SSE Streaming Validation (HIGHEST RISK)
+
+This is the highest-risk validation item in the entire project. If SSE streaming does not work reliably on React Native 0.83 / Hermes, the entire chat architecture (system-architecture.md §11.5 V1) needs rethinking. **Do this before any other foundation code work.**
+
+1. **API side:** Build a minimal SSE streaming endpoint on the API server. It should emit a sequence of `data:` events over ~10 seconds (simulating token-by-token Claude streaming), then close.
+2. **Mobile side:** Build a minimal React Native client screen that connects to the SSE endpoint using `fetch` with `ReadableStream` (the preferred approach for RN 0.83). Display streamed tokens as they arrive.
+3. **Test matrix:**
+   - 30-second sustained streams (no drops, no buffering issues)
+   - Mid-stream disconnect recovery (kill the server mid-stream, verify client detects and can reconnect)
+   - App backgrounding during an active stream (background the app, foreground it, verify stream resumes or reconnects)
+   - Network switches (Wi-Fi → cellular, cellular → Wi-Fi) during an active stream
+4. **Platform coverage:** Test on both iOS Simulator and Android Emulator. Both must pass.
+5. **If it fails:** Document the failure mode and implement long-polling as the fallback transport (ADR-04b). Update system-architecture.md §11.5 accordingly.
+6. **Deliverable:** A short validation report (pass/fail per test case, per platform) committed to `docs/validation/sse-streaming.md`.
+
+Reference: system-architecture.md §11.5 V1, plan-assessment.md §5.1.
 
 ---
 
@@ -103,6 +124,28 @@ Implement tool namespacing to support 30+ tools without degrading Claude's selec
    - chat_* : Respond to user, spending insights
    ```
 4. **Consider dynamic loading (optional for POC):** If the architecture doc recommends it, implement a pattern where only tools relevant to the detected intent are loaded. Otherwise, flat list with namespacing is sufficient for ~30 tools.
+
+### Task 5: Conversation Summarisation
+
+When conversations exceed the configured message limit (`maxConversationMessages: 100` in feature flags), older messages must be summarised to keep the context window manageable. This is a background job that runs after each response (see api-design.md §2.1 step 9 and tech-decisions.md ADR-05).
+
+1. **Summarisation service:** Create `services/summarisation.ts` with a `summariseConversation(conversationId)` method that:
+   - Loads the full message history for the conversation
+   - If message count ≤ threshold (100), returns early (no-op)
+   - Calls Claude Haiku (`claude-haiku-4-5-20251001`, `max_tokens: 1024`) with a summarisation prompt
+   - The prompt must instruct Haiku to preserve: pending actions, recent balances, beneficiary names used, any in-progress flows (onboarding state, loan application status)
+   - Stores the summary in the `conversations` table (`summary` column — add if not present)
+   - Trims the messages table: keep the summary + last 20 messages, archive or delete older ones
+
+2. **Background trigger:** After the agent loop completes and the response is streamed, queue the summarisation check as a fire-and-forget background job (not blocking the response). Use `setImmediate()` or a simple in-process queue for POC — no external job runner needed.
+
+3. **History loading:** Update the conversation loading logic (referenced in Task 4 API scaffolding) to check for an existing summary. If present, prepend it as a system message before the recent messages when building the Claude API request.
+
+4. **Summarisation prompt:** Store in a constant alongside the other system prompt blocks (system-architecture.md §3.2). The prompt should be ~200 tokens and produce a ~500-token summary.
+
+Reference: tech-decisions.md ADR-05 (Timing section), system-architecture.md §3.2, cost-analysis.md §2.
+
+---
 
 ### Task 7: CI/CD
 
