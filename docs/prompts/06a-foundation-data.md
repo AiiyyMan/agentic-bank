@@ -43,7 +43,7 @@ node -v && npm -v
 # 2. Dependencies installed
 npm install
 
-# 3. Supabase credentials are in apps/api/.env (already configured)
+# 3. Supabase credentials are in apps/api/.env (configured in Phase F0)
 grep SUPABASE_URL apps/api/.env        # Should show the project URL
 grep SUPABASE_SERVICE_ROLE_KEY apps/api/.env  # Needed for seed script admin API
 

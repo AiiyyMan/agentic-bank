@@ -224,7 +224,8 @@ Each phase reads the previous phase's outputs and writes its own. Phases are run
 | 3 | CPTO | All previous phases | Reviewed plan, squad assignments, roadmap | `03-cpto-review-prompt.md` | Sequential |
 | 4 | Squad agents (x3) | Phase 3 assignments | PRDs, designs, impl plans, test plans, summaries | `04-squad-planning-prompt.md` | 3 squads in parallel |
 | 5 | CPTO | Squad summaries | Validated delivery plan + merge strategy | `05-final-plan-prompt.md` | Sequential |
-| F1a | Foundation Engineer | Phase 5 plan | CLAUDE.md, migrations, seed data, test constants | `06a-foundation-data.md` | Sequential |
+| F0 | DevOps Engineer | Phase 5 plan | Configured .env files, verified service connections | `06-foundation-setup.md` | Sequential (interactive) |
+| F1a | Foundation Engineer | F0 complete | CLAUDE.md, migrations, seed data, test constants | `06a-foundation-data.md` | Sequential |
 | F1b | Foundation Engineer | F1a complete | Shared types, API scaffolding, tool routing, CI/CD | `06b-foundation-code.md` | Sequential (after F1a) |
 | F2 | Foundation Engineer | F1b complete | MockBankingAdapter, test fixtures, agent harness, mobile scaffolding | `06c-foundation-testing.md` | Sequential (after F1b) |
 | 7 | Squad engineers (x3) | Plans + foundation | Code implementation | `07-implementation-prompt.md` | 3 squads in parallel |
@@ -239,11 +240,12 @@ Each phase reads the previous phase's outputs and writes its own. Phases are run
 5. **Phase 3 (CPTO Review):** Single conversation. **REVIEW GATE — read the output carefully. Verify squad assignments and risk register before proceeding.**
 6. **Phase 4 (Squad Planning):** 3 conversations **in parallel**. Start each by telling Claude which squad to run. **REVIEW GATE — skim the 3 squad summaries (150 lines total). Catch cross-squad conflicts before the final plan.**
 7. **Phase 5 (Final Plan):** Single conversation. Lightweight validation + release plan. **REVIEW GATE — last checkpoint before code. Verify merge strategy.**
-8. **Phase F1a (Foundation — Data):** Single conversation. CLAUDE.md, migrations, seed data, test constants. **REVIEW GATE — verify CLAUDE.md accuracy, spot-check seed data. A bug here cascades to ALL squads.**
-9. **Phase F1b (Foundation — Code):** Single conversation. Shared types, API scaffolding, tool routing, CI/CD.
-10. **Phase F2 (Foundation — Testing):** Single conversation. MockBankingAdapter, test fixtures, agent harness, mobile scaffolding. Writes Foundation retrospective.
-11. **Phase 7 (Implementation):** 3 conversations **in parallel** via worktrees. Run per squad, per phase from the release plan. Writes Phase 1 merge retrospective after first merge.
-12. **Phase 8 (Regression):** 4 conversations — 3 squad QA **in parallel** + 1 cross-squad. Writes QA retrospective.
+8. **Phase F0 (Foundation — Setup):** Interactive session. Set up Supabase, Anthropic, and optionally Griffin sandbox. Configure `.env` files and verify connections. ~35 minutes of human time.
+9. **Phase F1a (Foundation — Data):** Single conversation. CLAUDE.md, migrations, seed data, test constants. **REVIEW GATE — verify CLAUDE.md accuracy, spot-check seed data. A bug here cascades to ALL squads.**
+10. **Phase F1b (Foundation — Code):** Single conversation. Shared types, API scaffolding, tool routing, CI/CD.
+11. **Phase F2 (Foundation — Testing):** Single conversation. MockBankingAdapter, test fixtures, agent harness, mobile scaffolding. Writes Foundation retrospective.
+12. **Phase 7 (Implementation):** 3 conversations **in parallel** via worktrees. Run per squad, per phase from the release plan. Writes Phase 1 merge retrospective after first merge.
+13. **Phase 8 (Regression):** 4 conversations — 3 squad QA **in parallel** + 1 cross-squad. Writes QA retrospective.
 
 ## Review Gates Summary
 
@@ -312,15 +314,19 @@ Before starting the pipeline, ensure the following are in place:
 - **Git** — the repo must be initialised (`git init`) before Phase 7 (worktrees require a git repo)
 - **Expo CLI** — `npx expo --version` (installed as project dependency, no global install needed)
 
-### Services (Already Configured)
-The following are already set up in `apps/api/.env`:
-- **Supabase** — project URL, anon key, and service role key
-- **Anthropic** — API key for AI chat
-- **Griffin** — sandbox API key and org URLs
-- **Supabase CLI** — installed (`npx supabase`, v2.76+)
-- **Figma Console MCP** — configured for design token extraction and component reference (see Design System section above)
+### Services
+External services are configured during **Phase F0 (Foundation — Setup)** before Foundation begins. See `docs/prompts/06-foundation-setup.md` for the full interactive setup guide.
 
-If `USE_MOCK_BANKING` is not yet set, Foundation Phase F1a should add `USE_MOCK_BANKING=true` to `.env` (recommended for development/demo — avoids Griffin dependency).
+**Required for Foundation:**
+- **Supabase** — project URL, anon key, and service role key (in `apps/api/.env` and `apps/mobile/.env`)
+- **Anthropic** — API key for AI chat (in `apps/api/.env`)
+- **Supabase CLI** — installed (`npx supabase`, v2.76+)
+
+**Optional:**
+- **Griffin** — sandbox API key and org URLs. Mock adapter (`USE_MOCK_BANKING=true`) is recommended for development; Griffin sandbox only needed for integration testing.
+- **Figma Console MCP** — configured for design token extraction and component reference (see Design System section above). Only needed during Phase 1e.
+
+**Note:** Phases 1–5 (research, product, architecture, review, planning) are pure document generation — they require no services or API keys. Only Foundation (F0+) and beyond need the infrastructure.
 
 ### What Claude Handles Automatically
 During Foundation (Phase F1a), Claude will:
@@ -329,11 +335,7 @@ During Foundation (Phase F1a), Claude will:
 3. Run the seed script (`npm run seed`) to populate demo data
 4. Verify connectivity and data integrity
 
-No manual Supabase setup is required. The existing project and credentials are sufficient.
-
-**Optional but recommended:** If you have the Supabase database connection string (Settings → Database → Connection string in the Supabase dashboard), add it to `apps/api/.env` as `DATABASE_URL=postgresql://...`. This enables `npx supabase db push` for faster migration application. Without it, Claude will apply migrations via alternative methods.
-
-**Note:** Phases 1–5 (research, product, architecture, review, planning) are pure document generation — they require no services or API keys. Only Foundation (F1a+) and beyond need the infrastructure.
+**Optional but recommended:** If you have the Supabase database connection string (Settings → Database → Connection string in the Supabase dashboard), add it to `apps/api/.env` as `DATABASE_URL=postgresql://...`. This enables `npx supabase db push` for faster migration application.
 
 ## Constraints
 
