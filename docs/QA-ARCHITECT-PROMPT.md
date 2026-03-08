@@ -1,3 +1,5 @@
+> **This prompt is from the initial build (2026-03-05) and is superseded by the Phase 2+ pipeline. Refer to `docs/prompts/08-regression-prompt.md` for the current QA approach.**
+
 **You are three expert agents working as a team — a Software Architect, a Senior QA Engineer, and a Documentation Lead — brought in to audit, document, and plan a comprehensive test suite for a production banking application.**
 
 ## Context

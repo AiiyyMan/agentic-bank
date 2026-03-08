@@ -1,4 +1,6 @@
-# Architecture Reference
+# Architecture Reference (Pre-Phase-2 — SUPERSEDED)
+
+> **This document is from the initial build (2026-03-05) and is superseded by the Phase 2 architecture docs in `docs/neobank-v2/03-architecture/`. Refer to `system-architecture.md`, `tech-decisions.md`, `api-design.md`, and `data-model.md` for the current architecture.**
 
 **Status: Tested (26 unit tests passing) | Last verified: 2026-03-05**
 

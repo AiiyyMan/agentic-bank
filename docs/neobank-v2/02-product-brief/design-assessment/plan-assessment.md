@@ -103,7 +103,7 @@ The card component catalogue in `ai-chat.md` is comprehensive: 28+ card specific
 
 **Critical gap: Tool registry vs. implementation.** The journey map defines 9 Experience squad tools (`respond_to_user`, `get_spending_insights`, `get_spending_by_category`, `get_weekly_summary`, `search_transactions`, `get_upcoming_bills`, `get_proactive_cards`, `get_payment_history`, `get_value_prop_info`), but the current codebase (`apps/api/src/tools/definitions.ts`) only implements 9 tools total -- and most are Core Banking tools. The spending and insight tools do not exist yet. This is expected at this stage, but it means the Experience squad has the largest tool development backlog.
 
-**50-message cap concern:** Each tool-using turn generates 3 messages: user message, assistant message with tool_use, tool_result, then assistant response. A single "send 50 to James" flow consumes 4-5 messages (user, tool_use for get_beneficiaries, tool_result, tool_use for send_payment/respond_to_user, tool_result). The morning greeting with 3 insight cards could consume 8-10 messages just for the opening. After the greeting and 3-4 actions, Alex hits the 50-message cap. This needs a summarisation strategy or a higher cap for the demo.
+**~~50-message cap concern~~** **RESOLVED (ADR-05):** Each tool-using turn generates 3 messages: user message, assistant message with tool_use, tool_result. The original 50-message cap gave only ~8-10 meaningful interactions. ADR-05 increases the cap to 100 messages with summarisation at 80 (oldest 60 compressed, last 20 kept verbatim), giving ~25 multi-tool interactions per conversation.
 
 ---
 
@@ -306,10 +306,7 @@ A morning greeting that calls `get_proactive_cards` (1 tool call, 3 messages) fo
 
 **At 50 messages, Alex gets roughly 8-10 meaningful interactions before hitting the cap.**
 
-For a demo, this might be fine if "New conversation" is hit periodically. For real use, it is too low. Consider:
-- Increasing to 100 messages for the demo
-- Implementing conversation summarisation: when history exceeds 40 messages, summarise the first 30 into a single system message and keep the last 10 verbatim
-- Optimising tool call patterns: the `respond_to_user` tool adds an extra round trip. If the AI can return text + UI components as a stop_reason instead, save 2 messages per interaction
+> **RESOLVED (ADR-05):** Cap increased to 100 messages. At 80 messages, a post-response background job (Haiku) summarises the oldest 60 into a single system message, keeping the last 20 verbatim. This gives Alex ~25 multi-tool interactions per conversation — sufficient for demo and early use.
 
 ### 5.3 Proactive Insight Engine Performance
 
@@ -398,7 +395,7 @@ Dependencies: #108 (payday detection), #7 (deposit to pot), #25 (confirmation ca
 ### 6.2 Demo Anti-Patterns to Avoid
 
 1. **Do not demo lending as the first flow.** It is all P1 and the slider card is the hardest component. If it has bugs, it undermines confidence.
-2. **Do not let the demo hit the 50-message cap.** Script the demo to hit "New conversation" between major flows.
+2. **Script "New conversation" between major demo flows.** The 100-message cap with summarisation (ADR-05) is generous, but fresh context gives Claude better tool selection accuracy.
 3. **Do not show an empty chat on launch.** The proactive greeting must be fast and reliable. If the insight engine is slow, pre-compute the greeting for the demo user.
 4. **Do not skip the confirmation card.** The two-phase flow IS the trust story. Rushing past it defeats the purpose.
 
@@ -431,7 +428,7 @@ At 50 messages, Alex runs out of context after 8-10 interactions. For the demo, 
 | R2 | ~~NativeWind v5 preview instability.~~ **RESOLVED.** Downgraded to NativeWind v4.2.2 (stable). Pinned in `package.json`. | LOW | LOW | No action needed. |
 | R3 | **Proactive insight engine misses the <1s target.** Six sequential database queries on Supabase free tier under cold-start conditions exceed the budget. | MEDIUM | HIGH | Pre-compute daily aggregates. Use `Promise.all` for parallel queries. Cache user insights. If still slow, degrade gracefully: show greeting with balance only, load insights asynchronously. |
 | R4 | **Two-phase confirmation flow takes longer than estimated.** It touches pending_actions table, timeout logic, re-rendering on app reopen, and is a dependency for EVERY write operation across ALL squads. | MEDIUM | HIGH | Build this first in the Experience squad's sprint. No write tool can be demo'd without it. Allocate 3-4 days, not the 1-2 that "L complexity" suggests. |
-| R5 | **50-message cap creates poor demo experience.** A scripted demo with 5 flows could exhaust context, causing the AI to lose track of earlier information or error out. | HIGH | MEDIUM | Increase to 100 messages. Add "New conversation" prompts between demo sections. Implement summarisation as a P0 infrastructure feature. |
+| R5 | ~~**50-message cap creates poor demo experience.**~~ **RESOLVED (ADR-05).** Cap increased to 100 messages with summarisation at 80. ~25 multi-tool interactions per conversation. | LOW | LOW | No action needed. Summarisation implemented as Foundation Task 5 (06b-foundation-code.md). |
 
 ---
 
@@ -444,6 +441,6 @@ The remaining issues to resolve before architecture:
 1. ~~**Documentation-to-code alignment:** Stack decision made, downgraded to NativeWind v4.2 (stable).~~ **DONE (2026-03-07).**
 2. ~~**Design system blockers:** CSS var nesting, dark mode selector, missing deps, shadows, hardcoded colours.~~ **DONE (2026-03-07).** All blockers resolved: flattened CSS vars, `@media (prefers-color-scheme)` dark mode, Inter fonts, Phosphor icons, react-native-svg, runtime tokens, splash screen gate.
 3. ~~**Experience squad load:** 73% of P0 features in one squad.~~ **RESOLVED (2026-03-07).** Approach 4 (Hybrid): 8 design system features marked DONE, categorisation moved to CB, remaining 34 EX P0 features split into 4 parallel agent streams (EX-Infra → EX-Cards / EX-Onboarding / EX-Insights). See §4.1.
-4. **Technical validation:** SSE streaming on React Native and the 50-message cap must be addressed in foundation, not discovered mid-sprint.
+4. **Technical validation:** SSE streaming on React Native must be validated in foundation (Task 2b in 06b-foundation-code.md), not discovered mid-sprint. ~~50-message cap~~ resolved by ADR-05 (100 messages + summarisation).
 
-Item 4 remains. The project is ready for architecture.
+Item 4 partially remains (SSE validation). The project is ready for architecture.

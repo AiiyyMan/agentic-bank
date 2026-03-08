@@ -903,6 +903,8 @@ const bankingPort: BankingPort = config.useMockBanking
 
 Domain services sit between tool handlers / REST routes and `BankingPort`. They encapsulate validation, authorization, and audit logging for write operations. Read operations may bypass services and call `BankingPort` directly.
 
+> **Domain vs infrastructure services:** ADR-17's 5 domain services (`PaymentService`, `AccountService`, `PotService`, `LendingService`, `OnboardingService`) own business logic for writes. `AgentService` (agent loop orchestrator — Claude API calls, tool dispatch, streaming) and `InsightService` (proactive engine — pre-computation, spending analysis) are infrastructure services that sit alongside but outside the domain service pattern.
+
 ```
 Write path:     ToolHandler ──►  PaymentService  ──► BankingPort ──► Adapter
                 RESTRoute   ──►  PaymentService  ──► BankingPort ──► Adapter
