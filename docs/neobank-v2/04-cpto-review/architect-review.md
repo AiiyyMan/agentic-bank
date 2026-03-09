@@ -124,7 +124,7 @@ data-model.md uses `last_used_at`. api-design.md response uses `last_used`. Stan
 `LOAN_INELIGIBLE`, `FLEX_INELIGIBLE` missing from canonical error list.
 
 ### I13: server.ts merge conflict hotspot
-4 squads all add imports to server.ts. Consider auto-discovery pattern.
+4 squads all add imports to server.ts. **Decision: use auto-discovery pattern** for routes and tools. Each squad drops files in `routes/` and `tools/` — no edits to server.ts needed.
 
 ### I14: EX-Infra Day 5 overloaded
 4 tasks on Day 5 including EXI-09 (most complex task). Move EXI-12 to Day 4.

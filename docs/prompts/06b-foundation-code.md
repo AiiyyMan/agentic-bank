@@ -109,7 +109,7 @@ Squads can add to this enum but should not duplicate or rename existing types.
 ### Task 4: API Scaffolding
 
 Set up the API route structure:
-- Route registration pattern (so squads just add route files)
+- **Route auto-discovery:** Use glob-based auto-discovery for route plugins (see system-architecture.md §2.1). Squads drop files in `routes/` — no edits to `server.ts` needed. Same pattern for tool registration in `tools/`. This eliminates merge conflicts across 4+ squads.
 - Shared middleware (auth, validation, error handling)
 - Health check updates
 - Logging patterns

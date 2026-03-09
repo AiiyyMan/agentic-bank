@@ -136,7 +136,7 @@ apps/api/src/
     └── rate-limit.ts        # Per-user rate limiting
 ```
 
-**Route plugin auto-discovery (recommended):** To avoid merge conflicts when 4+ squads add route imports to `server.ts`, consider using a glob-based auto-discovery pattern:
+**Route and tool plugin auto-discovery:** To eliminate merge conflicts when 4+ squads add route imports to `server.ts`, use glob-based auto-discovery for both routes and tools:
 
 ```typescript
 // server.ts — auto-discover route plugins
