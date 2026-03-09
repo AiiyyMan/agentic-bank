@@ -206,6 +206,8 @@ interface BalanceCardProps {
 
 **Interaction:** Entire card is pressable. Press state: `scale(0.98) + opacity(0.9)` for 100ms. Navigates to Account Detail screen.
 
+> **tabular-nums fallback:** If `tabular-nums` doesn't render correctly in NativeWind v4, apply `fontVariant: ['tabular-nums']` via style prop (React Native supports this natively). Validate in EXC-01 (BalanceCard).
+
 ### 3.2 TransactionListCard
 
 **Props:**
@@ -397,6 +399,8 @@ No props. Pure animation component.
 **Spec:** 3 dots, `w-2 h-2 rounded-full bg-text-tertiary`, staggered opacity 0.3->1.0 with 300ms offset. Container: `bg-background-secondary rounded-2xl rounded-bl-sm px-4 py-3 max-w-[25%] self-start`.
 
 ### 3.12 Text Bubbles
+
+> **Note:** `bg-ai-bubble-assistant`, `bg-ai-bubble-user`, and `bg-ai-avatar-bg` are custom semantic tokens that must be defined in `global.css` during EX-Infra setup (EXI-03).
 
 **AI Bubble:**
 ```
@@ -681,7 +685,7 @@ App Root (_layout.tsx)
   │   └── login.tsx     — Sign-in form
   │
   └── (tabs)/           — Authenticated routes
-      ├── _layout.tsx   — Tab bar (Chat, Activity, Savings, Settings)
+      ├── _layout.tsx   — Tab bar (Chat, Accounts, Cards, Settings)
       ├── index.tsx     — Chat home (primary screen)
       ├── transactions.tsx — Activity/transaction drill-down
       ├── savings.tsx   — Savings pots drill-down (CB builds)

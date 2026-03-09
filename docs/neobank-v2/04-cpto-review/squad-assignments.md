@@ -13,6 +13,7 @@
 **Features (from feature-matrix.md):**
 - P0: #1-7 (accounts, balance, pots), #8-11 (transactions), #12-14 (beneficiaries), #18-21 (send/receive payments), #22 (transaction categorisation)
 - P1: #15-17 (auto-save rules), #23-24 (payment scheduling), #35-36 (standing orders), #40-43 (international transfers)
+  - **Note:** auto_save_rule creation (#14) is P1, deferred to Phase 2. PotService.createAutoSaveRule() method is built in Phase 1 services for interface completeness but the tool handler is Phase 2.
 - P2: #37-39 (standing order edit/cancel/execute), #44-45 (direct debits)
 
 **API Endpoints:**
@@ -55,6 +56,8 @@ Tasks ordered by dependency. Each is Medium complexity (1-3 hours).
 | CB-2 | **Transaction listing** — Implement `get_transactions` tool with date range, category, and merchant filters. | Foundation | Returns Alex's 90+ day history. Filters work correctly. TransactionListCard compatible output | Unit test: filter combinations return expected subsets |
 | CB-3 | **Transaction categorisation** — Implement rule-based categoriser for top 50 UK merchants. Map merchant_name → category + category_icon. | CB-2 | 50+ merchant rules. "Tesco" → "Groceries", "Uber" → "Transport", etc. Uncategorised fallback to "Other" | Unit test: 50 known merchants categorised correctly |
 | CB-4 | **Beneficiary management** — Implement `get_beneficiaries`, `add_beneficiary`, `delete_beneficiary`. AddBeneficiary goes through PaymentService (write path). | Foundation | CRUD operations work. Fuzzy name matching for chat resolution ("James" → "James Wilson") | Unit test: add, list, delete. Fuzzy match returns correct beneficiary for partial names |
+
+> **Beneficiary fuzzy matching ownership split:** CB owns `get_beneficiaries` (data retrieval tool). EX-Insights owns `beneficiary_name_match` (AI-layer fuzzy resolution that calls CB's get_beneficiaries and filters by similarity). CB provides the data; EX provides the intelligence layer.
 | CB-5 | **PaymentService** — Domain service for send_payment validation: beneficiary ownership check, amount > 0, balance sufficiency, daily limit check. | CB-1, CB-4 | Service validates and rejects invalid payments. Writes audit_log entry. Returns ServiceResult with mutations | Unit test: valid payment succeeds, insufficient funds rejected, wrong beneficiary rejected |
 | CB-6 | **Send payment tool** — Implement `send_payment` tool. Creates pending_action via PaymentService. Returns ConfirmationCard data. | CB-5, EX-Infra | Full payment flow: tool_use → pending_action → ConfirmationCard. Confirm → execute → SuccessCard | Integration test: end-to-end payment flow with mock adapter |
 | CB-7 | **Payment history** — Implement `get_payment_history` tool. Returns recent payments with status, amounts, beneficiary names. | CB-6 | Returns Alex's payment history sorted by date. PaymentHistoryCard compatible output | Unit test: history returns expected payments |
@@ -161,6 +164,7 @@ Since Lending has no P0 features, Phase 1 is preparation work so P1 features can
 **Features (from feature-matrix.md):**
 - P0: #5, #12, #19, #25, #26 (card components), #31, #32 (beneficiary AI), #67-77, #80, #81 (onboarding), #89-100 (AI chat core), #101-107 (spending insights), #115 (sign out), #119, #123 (infrastructure). 8 DONE: ~~#126-132, #135~~ (design system)
 - P1: #33, #41, #45, #47, #51, #54, #55, #58, #60, #62, #63, #65, #78, #79, #82, #83, #84, #86, #87, #108-111, #114, #124, #133, #134, #139, #140 (advanced chat, notifications, preferences, lending cards)
+  - **#54 (Loan payment reminder) and #55 (Loan payoff celebration):** EX owns the proactive insight cards (EX-Insights stream, P1). Depends on LE reporting loan payment schedules and status changes. LE provides the data triggers; EX renders and delivers the cards.
 - P2: #112, #113, #118, #141, #142, #143 (charts, natural language search, deep linking, offline, rate limiting)
 
 **API Endpoints:**
@@ -192,7 +196,7 @@ Since Lending has no P0 features, Phase 1 is preparation work so P1 features can
 
 ### 3.3 Phase 1 Task Lists (4 Parallel Streams)
 
-#### EX-Infra Stream (8 features, Days 1-5) — CRITICAL PATH
+#### EX-Infra Stream (12 tasks decomposed from 8 features, Days 1-5) — CRITICAL PATH
 
 | # | Task | Depends On | Acceptance Criteria | Test |
 |---|------|-----------|--------------------|----|

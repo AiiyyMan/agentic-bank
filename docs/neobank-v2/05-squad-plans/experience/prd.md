@@ -88,7 +88,7 @@ EX-Infra is the critical path. All other streams depend on it. It builds the cha
 
 **AI Chat Integration:** Core streaming infrastructure for all chat interactions.
 
-**Priority:** P0 | **Complexity:** M | **POC Approach:** `fetch` + `ReadableStream` (validated in Foundation V1)
+**Priority:** P0 | **Complexity:** M | **POC Approach:** `fetch` + `ReadableStream` (validated in Foundation Task 2b — SSE Streaming Validation)
 
 ---
 
@@ -178,7 +178,7 @@ EX-Infra is the critical path. All other streams depend on it. It builds the cha
 
 **Edge Cases:**
 - Corrupt content_blocks: fall back to `content` text field
-- Message cap (100): background summarisation of oldest 60 into system message, keep last 20 verbatim (ADR-05)
+- Summarisation triggers at 80 messages (ADR-05). When triggered, oldest 60 messages are summarised into a single system message, keeping the most recent 20 verbatim. The conversation cap is 100 messages total.
 - App crash mid-save: messages have created_at for ordering, partial saves recoverable
 
 **AI Chat Integration:** Enables multi-turn conversations with tool context preservation.

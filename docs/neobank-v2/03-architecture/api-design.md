@@ -108,6 +108,27 @@ Confirm a pending write action.
 
 **Error codes:** `ACTION_NOT_FOUND`, `ACTION_EXPIRED`, `ACTION_ALREADY_EXECUTED`, `EXECUTION_FAILED`
 
+#### Action Type Dispatcher
+
+The confirm route uses a dispatcher registry to map `action_type` to the correct domain service. Each squad registers their action types during startup:
+
+```typescript
+// Dispatcher registry pattern
+const actionDispatcher = new Map<string, (action: PendingAction, port: BankingPort, supabase: SupabaseClient) => Promise<ServiceResult<any>>>();
+
+// CB registers:
+actionDispatcher.set('send_payment', (action, port, sb) => paymentService.executePayment(action));
+actionDispatcher.set('add_beneficiary', (action, port, sb) => paymentService.executeAddBeneficiary(action));
+actionDispatcher.set('create_pot', (action, port, sb) => potService.executeCreatePot(action));
+actionDispatcher.set('transfer_to_pot', (action, port, sb) => potService.executeTransfer(action));
+
+// LE registers:
+actionDispatcher.set('apply_loan', (action, port, sb) => lendingService.executeLoanApplication(action));
+actionDispatcher.set('activate_flex_plan', (action, port, sb) => lendingService.executeFlexPlan(action));
+```
+
+This decouples the confirm route from individual domain services. When a squad adds a new action type, they register it in their own file — no changes to the confirm route needed.
+
 #### PATCH /api/confirm/:actionId
 Amend a pending action's parameters (mid-conversation amendment).
 
@@ -191,6 +212,7 @@ Get balance for a specific account.
     account_id: string;
     balance: number;
     available_balance: number;
+    sort_code: string;           // Formatted: XX-XX-XX (main account)
     currency: 'GBP';
     updated_at: string;         // ISO 8601
   }
@@ -638,8 +660,8 @@ Pay off a flex plan early.
     score: number;              // 300-999
     rating: 'poor' | 'fair' | 'good' | 'excellent';
     factors: {
-      positive: string[];
-      improve: string[];
+      positive: Array<{ icon: string; label: string }>;  // Each factor includes a Phosphor icon name for card rendering
+      improve: Array<{ icon: string; label: string }>;   // Each factor includes a Phosphor icon name for card rendering
     };
     last_updated: string;
   }
@@ -1109,6 +1131,8 @@ interface ConfirmationCard {
 | `VERIFICATION_COMPLETE` → `ACCOUNT_PROVISIONED` | Above + `verify_identity`, `provision_account`, `get_accounts` |
 | `FUNDING_OFFERED` | Above + `check_balance` (to verify funding) |
 | `ONBOARDING_COMPLETE` | **All tools** (full banking mode) |
+
+> **Implementation safety:** The tool registry must only register tools that have implemented handlers. Unimplemented P1/P2 tools must NOT appear in the system prompt or tool list sent to Claude. This prevents Claude from calling tools that don't exist.
 
 The tool registry implements this gating:
 

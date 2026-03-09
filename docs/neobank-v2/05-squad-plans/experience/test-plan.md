@@ -202,6 +202,8 @@ test('CB payment pending_action has required display fields', () => {
 
 Tests that InsightService output matches what AgentService expects to inject into system prompt.
 
+> **AgentService / InsightService dependency resolution:** AgentService receives InsightService via constructor injection. No circular dependency: InsightService registers tools in the ToolRegistry (a separate object), and AgentService consumes the ToolRegistry. The dependency graph is: AgentService -> ToolRegistry <- InsightService (both depend on registry, not on each other).
+
 ```typescript
 test('proactive cards have required fields', () => {
   const cards = await insightService.getProactiveCards(ALEX_USER.id);
@@ -389,7 +391,7 @@ After all 4 streams merged:
 
 | Metric | Target | Test Method |
 |--------|--------|-------------|
-| TTFT (thinking event) | < 100ms from request | Timestamp in SSE consumer |
+| TTFT (thinking event) | < 100ms from request | Timestamp in SSE consumer. Note: TTFT here measures server-side emission latency of the first thinking/streaming event (< 100ms target). The PRD's < 500ms target measures end-to-end TTFT including network round trip. Both are valid — this test measures the server component. |
 | Tool execution (reads) | < 2s | Timer in agent test harness |
 | Proactive card computation | < 1s | Timer in InsightService test |
 | Insight cache read | < 100ms | Timer in InsightService test |

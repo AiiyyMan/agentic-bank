@@ -187,6 +187,16 @@ CB tests depend on Foundation seed data:
 
 ---
 
+### Reject/Cancel Path Tests
+
+| Test | Assertion |
+|------|-----------|
+| Pending action rejection: user says "cancel" during confirmation | pending_action status set to `rejected`, audit_log entry written with action='pending_action.rejected' |
+| Expired action handling: action past `expires_at` | Returns error "This action has expired", no state change, pending_action status remains `expired` |
+| Payment to deleted beneficiary: beneficiary deleted between tool call and confirm | Specific error "This beneficiary no longer exists" (QA U2), no payment created, no balance change |
+
+---
+
 ## 3. Integration Tests
 
 ### 3.1 Happy Path Flows

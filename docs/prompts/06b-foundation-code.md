@@ -21,7 +21,7 @@ Read:
 
 Also review:
 - `supabase/migrations/` — migration files (created in Phase F1a, for table shapes)
-- `packages/shared/src/test-constants.ts` — test constants (created in Phase F1a)
+- `packages/shared/src/test-constants.ts` — test constants (created in Phase F1a). Ensure test-constants.ts covers all data needed by all 3 squad test plans: Alex's accounts (balance £1,247.50), 3 pots (Holiday Fund, Emergency Fund, House Deposit), beneficiaries (James Wilson, Sarah Chen, TechCorp Ltd), credit score (742), transaction history with categories and category_icons, and Emma's separate test user data.
 - `apps/api/src/` — current API structure
 - `docs/neobank-v2/04-cpto-review/qa-architecture-review.md` — QA review findings. Items tagged with `(QA C1-C6, U1-U6, T1-T7)` in this prompt reference specific findings from this review.
 
@@ -74,6 +74,8 @@ Reference: system-architecture.md §11.5 V1, plan-assessment.md §5.1.
 ---
 
 ### Task 3: Shared TypeScript Types
+
+> **IMPORTANT: Breaking rewrite required.** The current `packages/shared/src/types/api.ts` is massively out of sync with the architecture. It has only 6 UIComponent types (needs 22+), `UserProfile` is missing `onboarding_step`, `ChatRequest` is missing the `context` field, `balance` is typed as `string` (should be `number`), and `pendingActionId` uses camelCase (should be `action_id` snake_case). This task is a full rewrite of the shared types package, not an incremental update. Cross-reference api-design.md for all type definitions.
 
 Update or create the shared types package (`packages/shared/`):
 - API request/response types (from api-design.md)

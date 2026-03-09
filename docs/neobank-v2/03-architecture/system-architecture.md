@@ -136,6 +136,22 @@ apps/api/src/
     └── rate-limit.ts        # Per-user rate limiting
 ```
 
+**Route plugin auto-discovery (recommended):** To avoid merge conflicts when 4+ squads add route imports to `server.ts`, consider using a glob-based auto-discovery pattern:
+
+```typescript
+// server.ts — auto-discover route plugins
+import { join } from 'path';
+import { readdirSync } from 'fs';
+
+const routeDir = join(__dirname, 'routes');
+for (const file of readdirSync(routeDir).filter(f => f.endsWith('.ts') && !f.startsWith('_'))) {
+  const plugin = await import(join(routeDir, file));
+  server.register(plugin.default);
+}
+```
+
+Each squad creates their own route file (e.g., `routes/core-banking.ts`, `routes/lending.ts`). No edits to `server.ts` needed for new routes. Same pattern can apply to tool registration.
+
 ### 2.2 Mobile App
 
 #### Client-Side Data Persistence & Offline Strategy
