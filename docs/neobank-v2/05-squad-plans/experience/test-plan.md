@@ -88,7 +88,7 @@ All values sourced from `packages/shared/src/test-constants.ts`.
 | KYC mock returns success | `__tests__/services/onboarding.test.ts` | verify_identity resolves with verified=true |
 | Account provisioning | `__tests__/services/onboarding.test.ts` | Account created, details returned |
 | Checklist tracking | `__tests__/services/onboarding.test.ts` | Items update, progress fraction correct |
-| Tool gating during onboarding | `__tests__/services/onboarding.test.ts` | Only 7 tools available before COMPLETE |
+| Tool gating during onboarding | `__tests__/services/onboarding.test.ts` | Only 8 tools available before COMPLETE (includes get_value_prop_info) |
 | Tool gating after completion | `__tests__/services/onboarding.test.ts` | Full 44 tools available after COMPLETE |
 | Under-18 rejection | `__tests__/services/onboarding.test.ts` | DOB validation rejects minors |
 
@@ -414,6 +414,7 @@ These are specific QA findings from `qa-architecture-review.md` that must be ver
 | U5 | Confirm button disable on tap (double-send prevention) | EXI-06, EXC-04 |
 | U4 | Claude calls unknown tool (log warning) | EXI-07 |
 | U6 | Conversation cap summarisation (replace hard cut) | EXI-11 |
+| U6a | Summarisation triggers at 80 messages — verify that when message count reaches 80, summarisation is queued and oldest 60 messages are summarised into a system message, keeping most recent 20 verbatim | EXI-11 |
 | T1 | Multi-turn conversation persistence test | Integration test 5.1 |
 | T2 | >1 tool call per iteration test | Integration test 3.1 |
 | T3 | SSE streaming tests | Integration test 3.1 |

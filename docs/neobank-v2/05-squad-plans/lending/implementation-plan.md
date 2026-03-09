@@ -66,7 +66,7 @@
   - Alex's UUID → 742 (hardcode override for demo user from test-constants)
 - Rating thresholds: 300-499 poor, 500-649 fair, 650-799 good, 800-999 excellent
 - Factor config per rating:
-  - Good (Alex): positive = ["Consistent salary deposits (36 months)", "No missed payments", "Low credit utilisation (23%)", "Stable address (2+ years)"]; improve = ["Limited credit history length", "Only 1 active credit account"]
+  - Good (Alex): positive = [{icon: "CurrencyGbp", label: "Consistent salary deposits (36 months)"}, {icon: "CheckCircle", label: "No missed payments"}, {icon: "ChartLineDown", label: "Low credit utilisation (23%)"}, {icon: "House", label: "Stable address (2+ years)"}]; improve = [{icon: "Clock", label: "Limited credit history length"}, {icon: "CreditCard", label: "Only 1 active credit account"}]
 - Upsert result to `credit_scores` table for consistency
 
 **Acceptance Criteria:**
@@ -106,7 +106,7 @@
 - Implement `checkEligibility(userId: string, requestedAmount?: number)` in LendingService
 - Logic:
   1. Get credit score (LE-02)
-  2. Check score threshold (>500 for any loan)
+  2. Check score threshold (>= 500 for any loan)
   3. Get account balance via `bankingPort.getBalance()` for affordability
   4. Estimate monthly income: `balance * 0.3`
   5. Check existing active loans (max 1 for POC)
@@ -149,6 +149,7 @@
   5. Update loan_applications status to 'disbursed'
   6. Write `audit_log` entry
   7. Return success data with loan details
+- **Note:** The `loans` table includes `product_id UUID REFERENCES loan_products(id)` to track which product was chosen. Alternatively, `product_name` can be derived by joining through `loan_applications.product_id → loan_products.name`.
 - Calculate `payoff_date` from `next_payment_date + term_months`
 - Set `payments_made = 0`
 
@@ -347,6 +348,7 @@
   - `POST /api/loans/apply` → `LendingService.applyForLoan(userId, body.amount, body.term_months, body.purpose)`
   - `GET /api/loans/:id/schedule` → `LendingService.getLoanSchedule(loanId, userId)`
   - `GET /api/flex/plans` → `LendingService.getFlexPlans(userId)`
+  - `POST /api/flex/plans/:id/payoff` → `LendingService.payOffFlex(userId, planId)`
   - `GET /api/credit-score` → `LendingService.checkCreditScore(userId)`
 - All routes behind auth middleware
 - Write operations (apply, pay, flex) handled through chat → pending_actions → `/api/confirm/:id`

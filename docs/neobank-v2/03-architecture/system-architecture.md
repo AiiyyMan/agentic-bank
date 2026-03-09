@@ -453,6 +453,11 @@ interface ToolContext {
   bankingPort: BankingPort;       // Injected adapter (Griffin or Mock)
   supabase: SupabaseClient;
   conversationId: string;
+  accountService: AccountService;
+  paymentService: PaymentService;
+  potService: PotService;
+  lendingService: LendingService;
+  onboardingService: OnboardingService;
 }
 
 interface ToolResult {
@@ -962,6 +967,8 @@ class PaymentService {
   }
 }
 ```
+
+> **Note:** In the two-phase confirmation pattern, `sendPayment()` creates a `pending_action` and returns `ServiceResult<PendingAction>`. The actual bank transfer executes via `executePayment(actionId)` when the user confirms. The example above shows the execute phase.
 
 Services return `ServiceResult<T>` so tool handlers and route handlers can emit `data_changed` SSE events with the correct invalidation keys:
 

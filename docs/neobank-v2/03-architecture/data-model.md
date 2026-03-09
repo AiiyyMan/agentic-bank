@@ -378,6 +378,7 @@ CREATE TABLE loans (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   application_id UUID REFERENCES loan_applications(id),
+  product_id UUID REFERENCES loan_products(id),
   principal NUMERIC(12,2) NOT NULL,
   balance_remaining NUMERIC(12,2) NOT NULL,
   interest_rate NUMERIC(5,2) NOT NULL,

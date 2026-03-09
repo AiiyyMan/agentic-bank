@@ -25,7 +25,7 @@
 |------|----------|-------------|---------|-------------|
 | ALEX_USER | Happy path — eligible borrower | 742 (Good) | £1,247.50 | 0 or 1 |
 | POOR_CREDIT_USER | Low credit score | 420 (Poor) | £500.00 | 0 |
-| MAXED_OUT_USER | At exposure cap | 680 (Good) | £2,000.00 | 1 (£28,000 remaining) |
+| MAXED_OUT_USER | At exposure cap | 680 (Good) | £15,000.00 | 1 (£28,000 remaining) |
 | LOW_BALANCE_USER | Can't afford repayments | 700 (Good) | £50.00 | 0 |
 | NO_ACCOUNT_USER | Pre-onboarding | N/A | N/A | N/A |
 
@@ -62,6 +62,8 @@
 | Alex eligible with requested amount | £3,000 | eligible: true, monthly_payment > 0 | `eligibility.test.ts` |
 | Over max amount → alternative | £20,000 | eligible: false, max_amount < 20000 | `eligibility.test.ts` |
 | Poor credit → declined | POOR_CREDIT_USER | eligible: false, reason: credit score | `eligibility.test.ts` |
+| Boundary: score=500 → eligible | User with score exactly 500 | eligible: true (>= 500 threshold) | `eligibility.test.ts` |
+| Boundary: score=499 → declined | User with score 499 | eligible: false, reason: credit score | `eligibility.test.ts` |
 | Existing loan → declined | User with active loan | eligible: false, reason: active loan | `eligibility.test.ts` |
 | Exposure cap → declined | MAXED_OUT_USER, £5,000 | eligible: false, reason: exposure | `eligibility.test.ts` |
 | Low balance → low max | LOW_BALANCE_USER | eligible: true, very low max_amount | `eligibility.test.ts` |

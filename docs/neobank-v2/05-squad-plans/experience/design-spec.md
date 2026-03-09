@@ -216,11 +216,13 @@ interface TransactionListCardProps {
   transactions: Array<{
     id: string;
     merchant: string;
-    category: string;
+    primary_category: string;  // PFCv2 enum (e.g. 'FOOD_AND_DRINK')
+    detailed_category?: string; // e.g. 'Groceries'
     category_icon: string;     // Phosphor icon name
     amount: number;            // Negative = debit, positive = credit
     posted_at: string;         // ISO 8601
     status?: 'completed' | 'pending';
+    is_recurring?: boolean;
   }>;
   show_more_link?: boolean;    // "See all" link
   onShowMore?: () => void;     // Navigate to Activity tab

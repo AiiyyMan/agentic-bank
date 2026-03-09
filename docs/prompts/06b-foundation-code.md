@@ -170,15 +170,15 @@ Set up the API route structure:
 
 Implement tool namespacing to support 30+ tools without degrading Claude's selection accuracy:
 
-1. **Naming convention:** All tools prefixed with domain: `accounts_check_balance`, `accounts_get_pots`, `payments_send_payment`, `payments_list_beneficiaries`, `lending_apply_loan`, etc.
-2. **Tool registry:** Create a tool registry that groups tools by domain. Each squad registers their tools in a domain-specific file (e.g., `tools/core-banking.ts`, `tools/lending.ts`, `tools/experience.ts`).
-3. **System prompt guidance:** Update the system prompt template to include a tool index:
+1. **Naming convention:** Tool names are **unprefixed** — e.g. `check_balance`, `get_pots`, `send_payment`, `list_beneficiaries`, `apply_for_loan`. No domain prefix. Short, clear names that Claude can select accurately.
+2. **Tool registry:** Create a tool registry that groups tools by domain. Each squad registers their tools in a domain-specific file (e.g., `tools/core-banking.ts`, `tools/lending.ts`, `tools/experience.ts`). The grouping is purely organisational — tool names themselves remain unprefixed.
+3. **System prompt guidance:** Update the system prompt template to include a tool index that describes tools by domain but uses unprefixed names:
    ```
-   Available tool domains:
-   - accounts_* : Balance, account details, savings pots
-   - payments_* : Send money, beneficiaries, standing orders
-   - lending_* : Loan applications, repayments
-   - chat_* : Respond to user, spending insights
+   Available tools by domain:
+   - Accounts: check_balance, get_accounts, get_pots
+   - Payments: send_payment, get_beneficiaries, add_beneficiary, list_beneficiaries
+   - Lending: apply_for_loan, check_eligibility, check_credit_score
+   - Chat: respond_to_user, get_spending_insights
    ```
 4. **Consider dynamic loading (optional for POC):** If the architecture doc recommends it, implement a pattern where only tools relevant to the detected intent are loaded. Otherwise, flat list with namespacing is sufficient for ~30 tools.
 

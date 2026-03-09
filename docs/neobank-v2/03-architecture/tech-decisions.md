@@ -290,7 +290,7 @@ Each squad file exports a `registerXTools(registry: ToolRegistry)` function. The
 
 **Decision:** `MockBankingAdapter` implements `BankingPort` using Supabase tables prefixed with `mock_`. It simulates realistic banking behavior:
 
-- **Accounts:** Pre-seeded with Alex's main account (£1,247.50) + 2 pots
+- **Accounts:** Pre-seeded with Alex's main account (£1,247.50) + 3 pots
 - **Transactions:** 60 days of realistic UK spending (seeded from test-constants)
 - **Payments:** Instant success (no Griffin poll delays)
 - **Beneficiaries:** 5 pre-seeded (James, Sarah, Landlord, Mum, Netflix)

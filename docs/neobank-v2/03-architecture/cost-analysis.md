@@ -197,7 +197,7 @@ When summarisation triggers, the Haiku call ingests the oldest 60 messages (~20K
 
 ### HR-5: No circuit breaker on the agent loop
 
-The 5-iteration hard limit caps the worst case at 5 API calls per turn (6 including the final respond_to_user call). But there's no cost budget per turn. If Claude calls expensive tools that return large results (e.g., `get_transactions` returning 100 items × 50 tokens = 5,000 tokens), the 5th iteration could be sending 30K+ history.
+The 8-iteration hard limit caps the worst case at 8 API calls per turn (9 including the final respond_to_user call). But there's no cost budget per turn. If Claude calls expensive tools that return large results (e.g., `get_transactions` returning 100 items × 50 tokens = 5,000 tokens), the 5th iteration could be sending 30K+ history.
 
 ---
 
@@ -252,7 +252,7 @@ Routing to Haiku for simple queries saves money but adds complexity and latency 
 
 | Safeguard | Status | Assessment |
 |-----------|--------|------------|
-| MAX_TOOL_ITERATIONS = 5 | Documented | Good — caps worst case at 6 API calls per turn |
+| MAX_TOOL_ITERATIONS = 8 | Documented | Good — caps worst case at 9 API calls per turn |
 | `max_tokens` | **Not set** | Must fix — unbounded output is a cost risk |
 | Tool result size limits | **Not documented** | Should add — large results inflate all subsequent calls |
 

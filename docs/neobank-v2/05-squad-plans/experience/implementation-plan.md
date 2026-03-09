@@ -112,7 +112,7 @@ Starts after EXI-01 (ChatView) and EXI-09 (AgentService) are usable. Builds the 
 | ID | Task | Size | Depends On | Features |
 |----|------|------|-----------|----------|
 | EXO-01 | **Onboarding state machine** — `profiles.onboarding_step` transitions. Validate step transitions. OnboardingService class with constructor injection. | M | Foundation (profiles table) | #81 |
-| EXO-02 | **Welcome flow** — First app open detection (no auth session). Display WelcomeCard. "Let's go" triggers onboarding mode. "Sign in" navigates to login. | M | EXI-09, EXC-08 | #69, #67 |
+| EXO-02 | **Welcome flow** — First app open detection (no auth session). Display WelcomeCard. "Let's go" triggers onboarding mode. "Sign in" navigates to login. Uses stub WelcomeCard until EXC-08 ships (Days 8-9). Wire up real component when available. | M | EXI-09, EXC-08 | #69, #67 |
 | EXO-03 | **"Tell me more" + value prop tools** — `get_value_prop_info` tool returns topic content. Quick reply menu on "Tell me more". Cross-linking between topics. | S | EXO-02, EXC-09 | #69, #68 |
 | EXO-04 | **Name collection** — AI asks name conversationally. Parse from natural language. Save to profiles.display_name. Transition to NAME_COLLECTED. | S | EXO-01, EXI-09 | #70 |
 | EXO-05 | **Email + password registration** — InputCard with email + password fields. Strength indicator. `supabase.auth.signUp()`. Handle errors (duplicate email, weak password). Transition to EMAIL_REGISTERED. | M | EXO-04, EXC-input (from EXI-04) | #71 |
@@ -482,7 +482,8 @@ These cards are needed when Lending features ship (all P1):
 | EXC-17 | FlexOptionsCard | Flex plan options (extend term, reduce payment) | LE tool output |
 | EXC-18 | FlexPlanCard | Active flex plan details | LE tool output |
 | EXC-19 | PaymentHistoryCard | Loan repayment history list | LE tool output |
-| EXC-20 | StandingOrderCard | Recurring payment details | CB standing order tools |
+| EXC-20 | LoanStatusCard | Active loan summary: balance remaining, next payment, progress bar, payoff date | LE tool output |
+| EXC-24 | StandingOrderCard | Recurring payment details | CB standing order tools |
 | EXC-21 | QuoteCard | International transfer quote | CB quote tools |
 | EXC-22 | SpendingBreakdownCard | Chart-based spending visualization (P2) | Victory Native XL |
 | EXC-23 | AutoSaveRuleCard | Auto-save rule configuration display | CB auto-save tools |

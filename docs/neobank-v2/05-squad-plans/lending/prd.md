@@ -41,7 +41,7 @@ Alex is a 28-year-old London professional earning £55-75k. Her lending-related 
 **Acceptance Criteria:**
 - Soft check — no credit score impact (mock: deterministic, no side effects)
 - Returns: eligible (bool), max_amount, APR, decline_reason (if ineligible)
-- Checks: credit score threshold (>500), existing loan count (<2), affordability ratio (<40%)
+- Checks: credit score threshold (>= 500), existing loan count (<2), affordability ratio (<40%)
 - If requested amount exceeds max, suggest the max amount as alternative
 
 **Edge Cases:**

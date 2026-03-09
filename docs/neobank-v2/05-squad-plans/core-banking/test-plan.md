@@ -99,9 +99,9 @@ CB tests depend on Foundation seed data:
 
 | Test | Assertion |
 |------|-----------|
-| Top 50 merchants categorised correctly | "Tesco" → Groceries, "Uber" → Transport, "Netflix" → Entertainment, etc. |
-| Merchant name normalisation | "Tesco Express" → Groceries (prefix match) |
-| Unknown merchant → "Other" | "Random Shop XYZ" → { category: 'Other', category_icon: 'ShoppingBag' } |
+| Top 50 merchants categorised correctly | "Tesco" → { primary_category: 'FOOD_AND_DRINK', detailed_category: 'Groceries' }, "Uber" → Transport, "Netflix" → Entertainment, etc. |
+| Merchant name normalisation | "Tesco Express" → { primary_category: 'FOOD_AND_DRINK', detailed_category: 'Groceries' } (prefix match) |
+| Unknown merchant → "Other" | "Random Shop XYZ" → { primary_category: 'GENERAL_MERCHANDISE', detailed_category: 'Other', category_icon: 'ShoppingBag' } |
 | Empty merchant name → "Other" | fallback works |
 | Case insensitive matching | "TESCO" matches "Tesco" |
 | Each category has valid Phosphor icon name | all icons are valid Phosphor identifiers |
@@ -111,7 +111,7 @@ CB tests depend on Foundation seed data:
 | Test | Assertion |
 |------|-----------|
 | Returns all non-closed pots | 3 pots for Alex |
-| Computes progress_pct correctly | £1200/£2000 = 60, £3500/£5000 = 70, £8200/£10000 = 82 |
+| Computes progress_pct correctly | £1200/£2000 = 60, £3500/£5000 = 70, £3200/£25000 = 12.8 |
 | Caps progress_pct at 100 | pot with balance > goal → 100 |
 | Null goal → null progress_pct | pot without goal has no percentage |
 | Output compatible with PotStatusCard | has name, balance, goal, progress_pct, emoji fields |
@@ -238,7 +238,7 @@ apps/api/src/__tests__/contracts/cb-tool-outputs.test.ts
 |----------|------|
 | check_balance → BalanceCard | Tool output has: account_name (string), balance (number), currency ('GBP'), sort_code (string), account_number_masked (string matching /\*\*\*\*\d{4}/) |
 | get_pots → PotStatusCard | Each pot has: name (string), balance (number >= 0), goal (number or null), progress_pct (number 0-100 or null), emoji (string or null) |
-| get_transactions → TransactionListCard | Each transaction has: id (UUID), merchant (string), category (string), category_icon (string), amount (number), posted_at (ISO 8601 string) |
+| get_transactions → TransactionListCard | Each transaction has: id (UUID), merchant (string), primary_category (PFCv2 enum string), detailed_category (string), category_icon (string), amount (number), posted_at (ISO 8601 string), is_recurring (boolean) |
 | send_payment → ConfirmationCard | Pending action display has: title (string), details (array of {label, value}), balance_after (number), action_id (UUID), expires_at (ISO 8601) |
 | Payment confirm → SuccessCard | Result has: payment_id (UUID), status ('completed'), balance_after (number) |
 | get_payment_history → PaymentHistoryCard | Each payment has: beneficiary_name (string), amount (number), reference (string or null), status (string), created_at (ISO 8601). Summary has: total_this_month (number), total_last_month (number) |
@@ -252,7 +252,7 @@ apps/api/src/__tests__/contracts/cb-consumes.test.ts
 | Contract | Test |
 |----------|------|
 | BankingPort methods exist | MockBankingAdapter implements all required methods: getBalance, getAccounts, getPots, createPot, transferToPot, transferFromPot, sendPayment, getBeneficiaries, addBeneficiary |
-| ToolResult shape | ServiceResult has success, data, mutations fields |
+| ToolResult shape | ServiceResult has data, mutations fields |
 | Pending action shape | pending_actions table has expected columns: id, user_id, action_type, params, display, status, expires_at |
 | Error types available | InsufficientFundsError, ValidationError, etc. are importable from shared errors |
 

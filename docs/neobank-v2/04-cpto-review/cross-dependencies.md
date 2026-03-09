@@ -143,7 +143,7 @@ interface ToolResultWithUI {
       balance: 2345.67,
       currency: "GBP",
       sort_code: "04-00-04",
-      account_number: "12345678"
+      account_number_masked: "****5678"
     }
   }]
 }
@@ -186,11 +186,11 @@ interface PendingAction {
 ```typescript
 // Contract: proactive cards returned by InsightService
 interface ProactiveCard {
-  type: "spending_spike" | "bill_reminder" | "savings_milestone" | "weekly_summary" | "payday" | "greeting";
+  type: "bill_reminder" | "spending_spike" | "savings_milestone" | "payday" | "pattern" | "weekly_summary" | "celebration";
   priority: number;              // 1 = highest (time-sensitive), 3 = lowest (informational)
                                  // Note: Internal priority is numeric (1-3). REST endpoint maps to string ('high'|'medium'|'low').
   title: string;
-  description: string;
+  body: string;
   data: Record<string, unknown>; // Card-specific data
   action?: {                     // Optional action button
     label: string;
@@ -214,7 +214,9 @@ interface CategorisedTransaction {
   amount: number;
   currency: string;
   merchant_name: string;
-  category: string;              // "groceries", "dining", "transport", etc.
+  primary_category: string;      // PFCv2: "FOOD_AND_DRINK", "ENTERTAINMENT", "TRANSPORTATION", etc.
+  detailed_category: string;     // PFCv2 subcategory
+  is_recurring: boolean;         // Subscription/recurring flag
   category_icon: string;         // Phosphor icon name
   created_at: string;
 }

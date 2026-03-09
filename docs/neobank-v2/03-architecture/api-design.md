@@ -119,13 +119,16 @@ const actionDispatcher = new Map<string, (action: PendingAction, port: BankingPo
 // CB registers:
 actionDispatcher.set('send_payment', (action, port, sb) => paymentService.executePayment(action));
 actionDispatcher.set('add_beneficiary', (action, port, sb) => paymentService.executeAddBeneficiary(action));
+actionDispatcher.set('delete_beneficiary', (action, port, sb) => paymentService.executeDeleteBeneficiary(action));
 actionDispatcher.set('create_pot', (action, port, sb) => potService.executeCreatePot(action));
-actionDispatcher.set('transfer_to_pot', (action, port, sb) => potService.executeTransfer(action));
+actionDispatcher.set('transfer_to_pot', (action, port, sb) => potService.executeTransferToPot(action));
 actionDispatcher.set('transfer_from_pot', (action, port, sb) => potService.executeTransferFromPot(action));
 
 // LE registers:
 actionDispatcher.set('apply_for_loan', (action, port, sb) => lendingService.executeLoanApplication(action));
 actionDispatcher.set('flex_purchase', (action, port, sb) => lendingService.executeFlexPlan(action));
+actionDispatcher.set('make_loan_payment', (action, port, sb) => lendingService.executeLoanPayment(action));
+actionDispatcher.set('pay_off_flex', (action, port, sb) => lendingService.executeFlexPayoff(action));
 ```
 
 This decouples the confirm route from individual domain services. When a squad adds a new action type, they register it in their own file — no changes to the confirm route needed.
@@ -345,7 +348,9 @@ offset?: number               // Pagination
     transactions: Array<{
       id: string;
       merchant: string;
-      category: string;
+      primary_category: string; // PFCv2 primary category
+      detailed_category: string; // PFCv2 subcategory
+      is_recurring: boolean;    // Subscription/recurring flag
       amount: number;           // Negative = debit, positive = credit
       category_icon: string;    // Phosphor icon name for the transaction category
       reference?: string;
@@ -573,6 +578,7 @@ Check loan eligibility (soft check).
     eligible: boolean;
     max_amount: number;
     apr: number;
+    monthly_payment_estimate: number;
     decline_reason?: string;
   }
 }
@@ -830,7 +836,7 @@ Returns any unexpired pending actions for the authenticated user. Used by the mo
   "pending_actions": [
     {
       "action_id": "uuid",
-      "action_type": "send_payment | add_beneficiary | create_pot | transfer_to_pot | transfer_from_pot | apply_for_loan | flex_purchase",
+      "action_type": "send_payment | add_beneficiary | delete_beneficiary | create_pot | transfer_to_pot | transfer_from_pot | apply_for_loan | flex_purchase",
       "display": {
         "title": "string",
         "details": [{ "label": "string", "value": "string" }],
@@ -1180,7 +1186,10 @@ const ONBOARDING_TOOLS = [
   'provision_account',
   'get_accounts',
   'check_balance',
-  'complete_onboarding',
+  'get_onboarding_checklist',
+  'update_checklist_item',
+  'update_pending_action',
+  'complete_onboarding', // Note: validates user is at FUNDING_OFFERED state before executing
 ];
 ```
 
@@ -1219,7 +1228,7 @@ const ONBOARDING_TOOLS = [
 | `ACTION_ALREADY_EXECUTED` | 409 | Action has already been confirmed |
 | `EXECUTION_FAILED` | 500 | Action execution failed |
 | `LOAN_INELIGIBLE` | 422 | User does not meet lending criteria |
-| `FLEX_INELIGIBLE` | 422 | Loan not eligible for flex plan |
+| `FLEX_INELIGIBLE` | 422 | Transaction not eligible for flex plan |
 | `LOAN_NOT_FOUND` | 404 | Loan ID not found |
 | `INTERNAL_ERROR` | 500 | Unhandled server error |
 

@@ -175,7 +175,7 @@ AI: [calls get_pots]
 AI: "Here are your savings pots:"
 [PotStatusCard: Holiday Fund | £1,200 / £2,000 | 60%]
 [PotStatusCard: Emergency Fund | £3,500 / £5,000 | 70%]
-[PotStatusCard: House Deposit | £8,200 / £10,000 | 82%]
+[PotStatusCard: House Deposit | £3,200 / £25,000 | 12.8%]
 [QuickReplyGroup: "Move money to a pot" | "Create new pot"]
 ```
 
