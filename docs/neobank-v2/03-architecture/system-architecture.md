@@ -198,11 +198,11 @@ apps/mobile/
 │   │   ├── _layout.tsx      # Auth stack
 │   │   └── welcome.tsx      # Entry: onboarding starts in chat
 │   └── (tabs)/
-│       ├── _layout.tsx      # Tab bar: Chat, Accounts, Cards, Settings
+│       ├── _layout.tsx      # Tab bar: Chat, Activity, Savings, Profile
 │       ├── index.tsx        # Chat (home screen = AI chat)
-│       ├── accounts.tsx     # Account list + pots (drill-down)
-│       ├── cards.tsx        # Card management (P1: freeze/limits)
-│       └── settings.tsx     # Profile, sign out
+│       ├── transactions.tsx # Activity (transaction drill-down)
+│       ├── savings.tsx      # Savings (pots drill-down)
+│       └── profile.tsx      # Profile (account details + settings + sign out)
 ├── components/
 │   ├── chat/
 │   │   ├── ChatView.tsx         # Custom FlatList-based chat (replaces gifted-chat)

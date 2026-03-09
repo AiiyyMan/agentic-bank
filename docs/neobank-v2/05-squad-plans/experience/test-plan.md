@@ -102,9 +102,9 @@ All values sourced from `packages/shared/src/test-constants.ts`.
 | Weekly summary accuracy | `__tests__/services/insight.test.ts` | Weekly totals match, comparison correct |
 | Proactive card ranking | `__tests__/services/insight.test.ts` | Time-sensitive > actionable > informational |
 | Proactive card max 3 | `__tests__/services/insight.test.ts` | Only top 3 returned even with 5 relevant |
-| Beneficiary fuzzy match exact | `__tests__/services/insight.test.ts` | "James Mitchell" -> exact match |
-| Beneficiary fuzzy match partial | `__tests__/services/insight.test.ts` | "James" -> all James matches |
-| Beneficiary no match | `__tests__/services/insight.test.ts` | "Bob" -> empty result |
+| Beneficiary resolution eval: ambiguous | `__tests__/evals/beneficiary-resolution.test.ts` | "Send £50 to James" with 2 James beneficiaries → Claude calls get_beneficiaries, identifies ambiguity, presents disambiguation quick reply pills with name + masked account number |
+| Beneficiary resolution eval: exact | `__tests__/evals/beneficiary-resolution.test.ts` | "Send £50 to James Mitchell" with 1 exact match → Claude calls get_beneficiaries, proceeds with send_payment |
+| Beneficiary resolution eval: no match | `__tests__/evals/beneficiary-resolution.test.ts` | "Send £50 to Bob" with 0 matches → Claude calls get_beneficiaries, asks if user wants to add new beneficiary |
 | Insight cache read performance | `__tests__/services/insight.test.ts` | Cache read < 100ms |
 | New user no spike detection | `__tests__/services/insight.test.ts` | < 30 days data -> no spikes |
 
@@ -373,7 +373,7 @@ Every task must pass before marking complete:
 - [ ] Weekly summary matches transaction sums
 - [ ] Proactive cards: max 3, ranked by priority
 - [ ] Morning greeting includes balance + insights
-- [ ] Beneficiary fuzzy match: exact, partial, disambiguation
+- [ ] Beneficiary resolution eval: exact match, ambiguous (2+ matches), no match
 - [ ] Insight cache read < 100ms
 
 ### 6.3 Cross-Stream Integration Checkpoint (Day 12)

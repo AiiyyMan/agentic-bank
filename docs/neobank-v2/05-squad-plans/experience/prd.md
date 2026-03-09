@@ -896,22 +896,21 @@ Insight tools make Agentic Bank proactive. They compute spending patterns, detec
 
 ---
 
-#### Feature #31 — Beneficiary Name Resolution (Fuzzy Match)
+#### Feature #31 — Beneficiary Name Resolution (Claude NLP)
 
 **User Story:** As Alex, I want to say "Send money to James" and have the AI figure out which James I mean.
 
 **Acceptance Criteria:**
-- In-memory fuzzy matching against beneficiary list
-- Exact match: proceed directly
-- Single fuzzy match: "Did you mean James Mitchell?" with confirm
-- Multiple matches: "I found 2 matches: James Mitchell and James Wilson. Which one?"
-- No match: "I don't have a saved payee called James. Want to add them?"
+- No dedicated `beneficiary_name_match` tool — Claude uses `get_beneficiaries` + system prompt instruction (`BENEFICIARY RESOLUTION` block in api-design.md §3.4.1)
+- 1 match: proceed directly with send_payment using that beneficiary_id
+- 2+ matches: present disambiguation options via quick reply pills showing name + masked account number. Wait for user selection.
+- 0 matches: ask if user wants to add a new beneficiary
 
 **Edge Cases:**
 - Empty beneficiary list: "You don't have any saved payees yet. Want to add one?"
-- Very similar names: present all matches
+- Very similar names: present all matches via quick reply pills
 
-**Priority:** P0 | **Complexity:** M | **POC Approach:** In-memory ILIKE matching
+**Priority:** P0 | **Complexity:** S | **POC Approach:** Claude NLP via system prompt instruction + get_beneficiaries tool
 
 ---
 
@@ -920,15 +919,16 @@ Insight tools make Agentic Bank proactive. They compute spending patterns, detec
 **User Story:** As Alex, I want the AI to ask me to clarify when there are multiple matches, not guess.
 
 **Acceptance Criteria:**
-- Quick reply pills for each matching beneficiary
-- Each pill shows name + masked account number for clarity
+- Claude follows the `BENEFICIARY RESOLUTION` system prompt instruction (api-design.md §3.4.1)
+- Quick reply pills for each matching beneficiary (name + masked account number)
 - Selection proceeds with payment flow
 - "None of these" option to add new beneficiary
+- Validated via eval test in EXN-07: "Send £50 to James" with 2 James beneficiaries
 
 **Edge Cases:**
 - > 5 matches: show top 5 by last_used_at, "Show more" option
 
-**Priority:** P0 | **Complexity:** S | **POC Approach:** AI conversation logic
+**Priority:** P0 | **Complexity:** S | **POC Approach:** Claude NLP — system prompt instruction, no dedicated tool
 
 ---
 

@@ -16,7 +16,7 @@
 | Chat Home | `(tabs)/index` or `(tabs)/chat` | The home screen. Full-screen chat with AI. | EX-Infra |
 | Welcome | `(auth)/welcome` | First launch for unauthenticated users. Shows WelcomeCard. | EX-Onboarding |
 | Login | `(auth)/login` | Email + password sign-in. | EX-Onboarding |
-| Settings | `(tabs)/settings` | Sign out + profile link. | EX-Cards |
+| Profile | `(tabs)/profile` | Account details + settings + sign out. | EX-Cards |
 
 ### 1.2 Chat-Embedded Screens (Cards, not routes)
 
@@ -158,13 +158,13 @@ SafeAreaView    bg-background-primary flex-1 px-4
     "Create account" Ghost text link, mt-2
 ```
 
-### 2.4 Settings Screen
+### 2.4 Profile Screen
 
-Minimal for POC. Primarily sign-out.
+Minimal for POC. Account details + settings + sign-out.
 
 ```
 SafeAreaView    bg-background-primary flex-1
-  Header        "Settings" title
+  Header        "Profile" title
   Content       ScrollView px-4 pt-4
     Profile section:
       Avatar circle  w-16 h-16 bg-brand-subtle rounded-full, initials
@@ -687,11 +687,11 @@ App Root (_layout.tsx)
   │   └── login.tsx     — Sign-in form
   │
   └── (tabs)/           — Authenticated routes
-      ├── _layout.tsx   — Tab bar (Chat, Accounts, Cards, Settings)
+      ├── _layout.tsx   — Tab bar (Chat, Activity, Savings, Profile)
       ├── index.tsx     — Chat home (primary screen)
-      ├── transactions.tsx — Activity/transaction drill-down
-      ├── savings.tsx   — Savings pots drill-down (CB builds)
-      └── settings.tsx  — Profile + sign out
+      ├── transactions.tsx — Activity (transaction drill-down)
+      ├── savings.tsx   — Savings (pots drill-down, CB builds)
+      └── profile.tsx   — Profile (account details + settings + sign out)
 ```
 
 **Routing logic:** Auth state (Supabase session) determines which group renders. No manual navigation between auth and tabs — Expo Router handles it via `(auth)` and `(tabs)` groups with a redirect in `_layout.tsx`.

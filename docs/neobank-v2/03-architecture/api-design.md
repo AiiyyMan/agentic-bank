@@ -1090,6 +1090,19 @@ CARD USAGE POLICY:
 
 > **POC note:** Card usage thresholds will be refined through user testing. Log card attachment rates per message type to identify over-use patterns. Target: cards on ~40-60% of messages (banking-heavy conversations will be higher, general chat lower).
 
+**Beneficiary resolution rules for the system prompt (`BENEFICIARY_RESOLUTION` block):**
+
+```
+BENEFICIARY RESOLUTION:
+When a user mentions a payee by name, ALWAYS call get_beneficiaries first.
+- 1 match: proceed with send_payment using that beneficiary_id.
+- 2+ matches: present options via quick reply pills showing name + masked account number. Wait for user selection.
+- 0 matches: ask if they want to add a new beneficiary.
+Never guess which beneficiary the user means when there are multiple matches.
+```
+
+> **Implementation note:** No dedicated `beneficiary_name_match` tool is needed. Claude's NLP capability combined with `get_beneficiaries` data and this system prompt instruction handles exact match, fuzzy match, and disambiguation natively. EXN-07 adds this prompt block + an eval test validating correct behaviour.
+
 #### 3.4.2 UIComponent Union
 
 The `respond_to_user` tool's `ui_components` array uses a discriminated union. Each component has a `type` field:

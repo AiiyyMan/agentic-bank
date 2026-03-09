@@ -155,7 +155,7 @@ Starts after EXI-07 (tool registry) ships. Depends on CB-3 (transaction categori
 | EXN-04 | **Spending spike detection** — Detect `primary_category` > 1.5x 30-day average. Generate InsightCard data. Quick reply: "Set budget" or "Show transactions". | M | EXN-01 | #102 |
 | EXN-05 | **Proactive card engine** — `get_proactive_cards` evaluates 8+ trigger rules. Rank by priority (1=time-sensitive, 2=actionable, 3=informational). Max 3 cards per session. < 1s target. | M | EXN-04, EXN-03 | #106 |
 | EXN-06 | **Morning greeting flow** — `__app_open__` -> InsightService -> proactive cards -> inject into system prompt -> Claude generates unified greeting. Balance card + insight cards + quick replies. | M | EXN-05, EXI-09 | #107 |
-| EXN-07 | **Beneficiary resolution tools** — `beneficiary_name_match` fuzzy matching: exact -> prefix -> contains. Disambiguation via QuickReplyGroup with masked account numbers. | M | EXI-07, CB-4 (beneficiaries) | #31, #32 |
+| EXN-07 | **Beneficiary resolution prompt + eval** — (a) Add a `BENEFICIARY RESOLUTION` instruction block to the system prompt template (see api-design.md §3.4.1). Claude uses `get_beneficiaries` + its own reasoning for name matching — no dedicated tool. (b) Write an eval test: "Send £50 to James" with 2 James beneficiaries → verify Claude calls `get_beneficiaries`, identifies ambiguity, presents disambiguation options via quick reply pills showing name + masked account number. | S | EXI-07, CB-4 (beneficiaries) | #31, #32 |
 | EXN-08 | **Insight caching + REST endpoints** — Pre-compute category averages, store in `user_insights_cache`. GET /api/insights/spending, GET /api/insights/proactive. Cache read < 100ms. | M | EXN-01 | #106 |
 
 ### Sequencing
@@ -294,7 +294,7 @@ apps/mobile/
       index.tsx              — Chat home (primary screen)
       transactions.tsx       — Activity drill-down (CB)
       savings.tsx            — Savings drill-down (CB)
-      settings.tsx           — Settings + sign out
+      profile.tsx            — Profile (account details + settings + sign out)
   src/
     components/
       chat/

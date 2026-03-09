@@ -341,15 +341,17 @@ Each squad file exports a `registerXTools(registry: ToolRegistry)` function. The
 | Tab | Screen | Purpose |
 |-----|--------|---------|
 | Chat (Home) | AI chat interface | Primary interaction surface. Proactive cards on open. |
-| Accounts | Account list + pots | Drill-down for balance details, pot management |
-| Cards | Card management | P1: freeze/unfreeze, spending limits |
-| Settings | Profile + preferences | Sign out, notification prefs, biometric toggle |
+| Activity | Transaction history | Drill-down for transaction browsing, filtering |
+| Savings | Savings pots | Drill-down for pot management, progress tracking |
+| Profile | Account details + settings | Profile info, preferences, sign out |
 
 The Chat tab is the default/home tab. It's the leftmost tab and the one shown on app launch.
 
+**Rationale:** Cards has no P0 features; Activity and Savings are higher-frequency browse targets. Profile consolidates account details + settings into a single tab. Cards tab will be added when P1 card management features ship.
+
 **Alternatives:**
 - **5 tabs** (add Payments) — Too many tabs. Payments are initiated via chat; a dedicated tab adds no value.
-- **3 tabs** (no Cards) — Cards tab is P1 but having the slot from day 1 avoids a navigation restructure later.
+- **Chat, Accounts, Cards, Settings** — Cards tab is P1 with no P0 features. Activity (transactions) and Savings (pots) are higher-frequency browse targets than a placeholder Cards tab.
 - **No tabs** (full-screen chat) — Loses the drill-down escape hatch. Users need to check balances without typing.
 
 ---

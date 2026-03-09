@@ -93,8 +93,8 @@ squad-assignments.md uses 4 states; data-model.md uses 10. Implementation plan u
 ### I2: Agent loop iterations — 5 vs 8
 squad-assignments.md says 5; EX implementation plan says 8; QA review says 8. Standardize on 8.
 
-### I3: Beneficiary fuzzy matching — dual ownership
-CB owns `get_beneficiaries` data tool. EX-Insights owns `beneficiary_name_match` AI resolution. Document this split.
+### I3: ~~Beneficiary fuzzy matching — dual ownership~~ RESOLVED
+No dedicated `beneficiary_name_match` tool. Claude uses `get_beneficiaries` + system prompt instruction for disambiguation. EXN-07 adds prompt instruction + eval test.
 
 ### I4: `category_icon` missing from GET /api/transactions response
 data-model.md has the column. CB tools return it. api-design.md REST response omits it. Add to api-design.md.
@@ -150,7 +150,7 @@ M4: TTFT targets — 500ms (PRD) vs 100ms (test plan) measure different things
 M5: AgentService → InsightService circular dependency concern
 M6: EX summary understates task count (8 features vs 12 tasks)
 M7: Summarisation threshold — 100 vs 50 messages, 80 at trigger
-M8: Navigation tabs — "Chat, Activity, Savings, Settings" vs "Chat, Accounts, Cards, Settings"
+M8: ~~Navigation tabs~~ RESOLVED — Decision: "Chat, Activity, Savings, Profile". Cards has no P0 features; Activity and Savings are higher-frequency browse targets. Profile consolidates account details + settings.
 M9: tabular-nums fallback not specified for monetary amounts
 M10: animate-pulse validation not assigned to any early task
 M11: DatePickerCard/AddressInputCard bypass card renderer — undocumented

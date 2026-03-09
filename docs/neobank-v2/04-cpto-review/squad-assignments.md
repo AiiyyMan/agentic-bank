@@ -57,7 +57,7 @@ Tasks ordered by dependency. Each is Medium complexity (1-3 hours).
 | CB-3 | **Transaction categorisation** — Implement rule-based categoriser for top 50 UK merchants. Map merchant_name → category + category_icon. | CB-2 | 50+ merchant rules. "Tesco" → "Groceries", "Uber" → "Transport", etc. Uncategorised fallback to "Other" | Unit test: 50 known merchants categorised correctly |
 | CB-4 | **Beneficiary management** — Implement `get_beneficiaries`, `add_beneficiary`, `delete_beneficiary`. AddBeneficiary goes through PaymentService (write path). | Foundation | CRUD operations work. Fuzzy name matching for chat resolution ("James" → "James Wilson") | Unit test: add, list, delete. Fuzzy match returns correct beneficiary for partial names |
 
-> **Beneficiary fuzzy matching ownership split:** CB owns `get_beneficiaries` (data retrieval tool). EX-Insights owns `beneficiary_name_match` (AI-layer fuzzy resolution that calls CB's get_beneficiaries and filters by similarity). CB provides the data; EX provides the intelligence layer.
+> **Beneficiary resolution:** CB owns `get_beneficiaries` (data retrieval tool). No dedicated `beneficiary_name_match` tool — Claude uses `get_beneficiaries` + a system prompt instruction (`BENEFICIARY RESOLUTION` block) for disambiguation. EX-Insights (EXN-07) adds the system prompt instruction + an eval test.
 | CB-5 | **PaymentService** — Domain service for send_payment validation: beneficiary ownership check, amount > 0, balance sufficiency, daily limit check. | CB-1, CB-4 | Service validates and rejects invalid payments. Writes audit_log entry. Returns ServiceResult with mutations | Unit test: valid payment succeeds, insufficient funds rejected, wrong beneficiary rejected |
 | CB-6 | **Send payment tool** — Implement `send_payment` tool. Creates pending_action via PaymentService. Returns ConfirmationCard data. | CB-5, EX-Infra | Full payment flow: tool_use → pending_action → ConfirmationCard. Confirm → execute → SuccessCard | Integration test: end-to-end payment flow with mock adapter |
 | CB-7 | **Payment history** — Implement `get_payment_history` tool. Returns recent payments with status, amounts, beneficiary names. | CB-6 | Returns Alex's payment history sorted by date. PaymentHistoryCard compatible output | Unit test: history returns expected payments |
@@ -177,7 +177,7 @@ Since Lending has no P0 features, Phase 1 is preparation work so P1 features can
 
 **Infrastructure Services:** `AgentService` (agent loop), `InsightService` (proactive engine)
 
-**Tools (14 P0; `search_transactions` deferred to Phase 2):** respond_to_user, get_spending_by_category, get_spending_insights, get_weekly_summary, ~~search_transactions~~, get_upcoming_bills, get_proactive_cards, get_onboarding_checklist, update_checklist_item, get_value_prop_info, get_onboarding_status, verify_identity, provision_account, complete_onboarding, update_pending_action
+**Tools (13 P0; `search_transactions` deferred to Phase 2, `beneficiary_name_match` removed — Claude uses `get_beneficiaries` + system prompt):** respond_to_user, get_spending_by_category, get_spending_insights, get_weekly_summary, ~~search_transactions~~, get_upcoming_bills, get_proactive_cards, get_onboarding_checklist, update_checklist_item, get_value_prop_info, get_onboarding_status, verify_identity, provision_account, complete_onboarding, update_pending_action
 
 ### 3.2 Interfaces
 
