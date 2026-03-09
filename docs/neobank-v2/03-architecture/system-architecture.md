@@ -73,7 +73,7 @@
 
 1. **Hexagonal (Ports & Adapters).** Business logic depends on port interfaces, not concrete providers. Swapping Griffin for a mock (or a different BaaS) requires only a new adapter — no service or tool handler changes.
 
-2. **AI-first, screens-second.** The chat interface is the primary interaction surface. Native screens are drill-downs from chat cards. Architecture reflects this: the agent service is the central orchestrator, not a sidecar.
+2. **AI-first, screens-second.** The AI assistant is omnipresent via the Chat FAB, accessible from any screen. The Home tab provides a dashboard view of accounts, savings pots, and proactive insights. Native screens (Payments, Activity, Profile) support direct access to key data, while the chat modal handles conversational flows. Architecture reflects this: the agent service is the central orchestrator, not a sidecar.
 
 3. **Tool-based agent loop.** Claude's tool_use capability drives all banking actions. The tool registry is the contract between squads: each squad registers tool definitions; the agent service routes tool calls to the correct handler.
 
@@ -584,7 +584,7 @@ event: heartbeat
 data: {"ts": 1709900000}
 ```
 
-The server emits a `heartbeat` event every **10 seconds** during idle periods (when no other events are being sent). This keeps the connection alive and allows the client to detect dead connections.
+The server emits a `heartbeat` event every **15 seconds** during idle periods (when no other events are being sent). This keeps the connection alive and allows the client to detect dead connections.
 
 **Client-side timeout detection:**
 
@@ -641,7 +641,7 @@ type ConnectionStatus = 'connected' | 'reconnecting' | 'offline';
 | Event | Data | Purpose |
 |-------|------|---------|
 | `thinking` | `{}` | Emitted immediately on POST receipt, before any async work. Shows typing indicator. |
-| `heartbeat` | `{ ts: number }` | Keep-alive every 10s during idle. Client uses for timeout detection. |
+| `heartbeat` | `{ ts: number }` | Keep-alive every 15s during idle. Client uses for timeout detection. |
 | `token` | `{ text: string }` | Streamed text token |
 | `tool_start` | `{ tool: string }` | Tool execution began (show tool-specific indicator) |
 | `tool_result` | `{ data, ui_components? }` | Tool completed (render cards) |
@@ -1520,7 +1520,7 @@ See **`notification-system.md`** for the complete specification (workflows, temp
 | Spending insight | P2 | In-app only | After spike detection |
 | Weekly summary | P2 | In-app only | Sunday evening (cron) |
 
-**User preferences:** Managed by Knock's PreferenceSet API. Users control push/in-app toggles per notification category (transactional, reminders, milestones, insights) via the Settings screen. Transactional in-app notifications cannot be disabled (UK regulatory requirement).
+**User preferences:** Managed by Knock's PreferenceSet API. Users control push/in-app toggles per notification category (transactional, reminders, milestones, insights) via the Profile tab. Transactional in-app notifications cannot be disabled (UK regulatory requirement).
 
 **Mobile integration:** `@knocklabs/expo` SDK provides `KnockProvider`, `KnockExpoPushNotificationProvider`, and `KnockFeedProvider`. The notification feed is a custom NativeWind UI built on Knock's `useKnockFeed` hook, accessed via a bell icon in the chat header.
 

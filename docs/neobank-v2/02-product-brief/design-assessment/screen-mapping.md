@@ -14,7 +14,7 @@ SwiftBank is a traditional banking UI kit with dashboard-first navigation and sc
 
 SwiftBank references are **NOT** authoritative for:
 
-- **Information architecture:** Our home screen is a chat feed, not a dashboard. Do not replicate SwiftBank's navigation or screen hierarchy.
+- **Information architecture:** Our home screen is a dashboard showing balance, savings pots, and proactive insight cards. The AI chat is accessible from any screen via a floating action button (FAB). Do not replicate SwiftBank's navigation or screen hierarchy.
 - **Interaction model:** Our flows are conversational (message -> AI response -> card -> confirmation). Do not build multi-screen form wizards.
 - **Card design:** Our card catalogue in `ai-chat.md` defines exactly what each card contains and how it behaves. SwiftBank screens are visual hints for styling, not functional specifications.
 - **Feature scope:** If SwiftBank has a feature we haven't planned, that's noted for interest but does not change our roadmap.
@@ -55,7 +55,7 @@ The SwiftBank UI Kit organises its 300+ screens across Figma pages. Below is the
 
 | # | SwiftBank Frame | Description | Journey Map | Relevance | Notes |
 |---|----------------|-------------|-------------|-----------|-------|
-| H-1 | `Home / Dashboard` | Main dashboard with balance, quick actions, recent transactions | Accounts, AI Chat | **Adapt** | Our home screen is the chat feed, not a dashboard. Use balance card styling and quick action layout as reference for Balance Card and Quick Replies. |
+| H-1 | `Home / Dashboard` | Main dashboard with balance, quick actions, recent transactions | Accounts, AI Chat | **Use** | Our home screen is a dashboard showing balance, savings pots, and proactive insight cards. Use balance card styling, quick action layout, and overall dashboard composition as direct reference. |
 | H-2 | `Home / Dashboard - Multiple Accounts` | Multi-account overview with total balance | Accounts | **Adapt** | Reference for "Show me all my accounts" card layout. Adapt cards-in-list pattern. |
 | H-3 | `Home / Dashboard - Dark Mode` | Dark variant of dashboard | All | **Use** | Reference for dark mode token application across all components. |
 | H-4 | `Home / Notifications` | Notification centre / list | AI Chat | **Adapt** | Our proactive insights replace traditional notifications. Use list item styling. |
@@ -68,7 +68,7 @@ The SwiftBank UI Kit organises its 300+ screens across Figma pages. Below is the
 | A-1 | `Accounts / Account Detail` | Full account view with balance, sort code, account number, recent transactions | Accounts | **Use** | Direct reference for Account Detail drill-down screen. |
 | A-2 | `Accounts / Account Detail - Actions` | Quick actions bar (Send, Request, Details) | Accounts | **Adapt** | Adapt for drill-down screen action buttons. |
 | A-3 | `Accounts / Account Number - Copy` | Account details with copy-to-clipboard affordances | Accounts, Onboarding | **Use** | Direct reference for Account Details Card (sort code, account number, copy buttons). |
-| A-4 | `Accounts / Multiple Accounts List` | List of all accounts and sub-accounts | Accounts | **Use** | Reference for multi-account listing via chat and Savings tab. |
+| A-4 | `Accounts / Multiple Accounts List` | List of all accounts and sub-accounts | Accounts | **Use** | Reference for multi-account listing via chat and savings/pots section on Home tab. |
 | A-5 | `Accounts / Account Statement` | Statement view / PDF export | Accounts | **Skip** | P2 feature. Not in POC scope. |
 
 ### 1.4 Transaction Screens
@@ -86,7 +86,7 @@ The SwiftBank UI Kit organises its 300+ screens across Figma pages. Below is the
 
 | # | SwiftBank Frame | Description | Journey Map | Relevance | Notes |
 |---|----------------|-------------|-------------|-----------|-------|
-| S-1 | `Savings / Pots Overview` | All pots listed with balances and progress bars | Accounts | **Use** | Direct reference for Savings tab screen. |
+| S-1 | `Savings / Pots Overview` | All pots listed with balances and progress bars | Accounts | **Use** | Direct reference for savings/pots section on Home tab. |
 | S-2 | `Savings / Pot Detail` | Single pot with goal, progress, history | Accounts | **Use** | Reference for Pot Status Card and pot drill-down. |
 | S-3 | `Savings / Create Pot` | Create pot form (name, goal, emoji, initial deposit) | Accounts | **Adapt** | We create pots conversationally. Use form field styling for any native UI fallback. |
 | S-4 | `Savings / Pot Deposit` | Add money to pot (amount input, source account) | Accounts | **Adapt** | Reference for Confirmation Card (Transfer to Pot). Amount input styling. |
@@ -394,7 +394,7 @@ Implementation agents building the onboarding flow should reference these frames
 | 2. Account drill-down | Account Detail screen | `A-1: Account Detail`, `A-2: Actions` | Full-screen layout: balance header, account info, recent transactions list, action bar |
 | 3. All accounts | Account list in chat | `A-4: Multiple Accounts List`, `H-2: Dashboard - Multiple Accounts` | Card-in-list spacing, total balance header, individual account card sizing |
 | 4. Transaction list | Transaction List Card + Activity drill-down | `T-1: Transaction List`, `T-2: Transaction Detail` | Date grouping headers, transaction row (merchant icon, name, amount, date), credit (green) vs debit colour, tap-to-expand detail |
-| 5. Savings tab | Full-screen pots list | `S-1: Pots Overview` | Total savings header, pot card list layout, "Create Pot" button placement |
+| 5. Savings/pots section on Home tab | Pots overview below balance | `S-1: Pots Overview` | Total savings header, pot card list layout, "Create Pot" button placement |
 | 6. Pot creation | Conversational + Confirmation Card | `S-3: Create Pot` | Name field, goal amount input, emoji picker, initial deposit field |
 | 7. Pot deposit | Confirmation Card (Transfer to Pot) | `S-4: Pot Deposit`, `P-2: Confirm Payment` | Amount input styling, "From" account display, "Balance after" calculation display |
 | 8. Pot withdrawal | Confirmation Card (Withdraw from Pot) | `S-5: Pot Withdraw`, `P-2: Confirm Payment` | Same as deposit with reversed direction |
@@ -445,7 +445,7 @@ Implementation agents building the onboarding flow should reference these frames
 
 | Step | What to Build | SwiftBank Reference(s) | Key Things to Extract |
 |------|--------------|----------------------|----------------------|
-| 1. Chat feed (home) | Full-screen conversation interface | `AI-1: Conversation` | AI bubble (left-aligned, with avatar) vs user bubble (right-aligned) sizing, padding, border radius, background colours, avatar placement and sizing |
+| 1. Chat (full-screen modal via FAB) | Full-screen conversation interface | `AI-1: Conversation` | AI bubble (left-aligned, with avatar) vs user bubble (right-aligned) sizing, padding, border radius, background colours, avatar placement and sizing |
 | 2. Rich card rendering | Cards inline with messages | `AI-2: Rich Cards` | Card width relative to chat width, card top/bottom margin, shadow/elevation, border radius, how cards connect visually to the preceding AI message |
 | 3. Quick replies | Pill buttons below AI message | `AI-3: Quick Replies` | Pill height, padding, border radius, font size, spacing between pills, scrollable row if >4 pills, pressed/selected state, disappear animation after selection |
 | 4. Text input bar | Bottom input with send button | `AI-4: Text Input` | Input field height, placeholder text styling, send button icon and colour, multi-line expansion behaviour, keyboard-aware positioning |

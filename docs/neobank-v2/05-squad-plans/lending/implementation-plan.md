@@ -397,7 +397,7 @@
 **Size:** M (2-3 hours) | **Depends on:** LE-06, EX-Infra (navigation)
 
 **Scope:**
-- Create `apps/mobile/src/app/(tabs)/loans/schedule.tsx`
+- Create `apps/mobile/src/app/loan-schedule/[id].tsx` (drill-down route, accessed from chat or lending section — no dedicated loans tab)
 - Fetch schedule via `GET /api/loans/:id/schedule`
 - Render table with paid/current/future row styling
 - Summary section at bottom
@@ -547,7 +547,7 @@ Phase 2:
 | `apps/api/src/tools/lending.ts` | Tool definitions + handlers (NEW) |
 | `apps/api/src/routes/lending.ts` | REST endpoints (NEW) |
 | `packages/shared/src/types/lending.ts` | Shared types (EXTEND) |
-| `apps/mobile/src/app/(tabs)/loans/schedule.tsx` | Amortisation screen (NEW, Phase 2) |
+| `apps/mobile/src/app/loan-schedule/[id].tsx` | Amortisation screen (NEW, Phase 2) — drill-down route, no loans tab |
 | `apps/api/src/__tests__/lending-service.test.ts` | Service unit tests (NEW) |
 | `apps/api/src/__tests__/tools/lending.test.ts` | Tool handler tests (NEW) |
 | `apps/api/src/__tests__/routes/lending.test.ts` | REST endpoint tests (NEW) |

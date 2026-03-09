@@ -196,7 +196,7 @@ Since Lending has no P0 features, Phase 1 is preparation work so P1 features can
 
 ### 3.3 Phase 1 Task Lists (4 Parallel Streams)
 
-#### EX-Infra Stream (12 tasks decomposed from 8 features, Days 1-5) — CRITICAL PATH
+#### EX-Infra Stream (15 tasks decomposed from 8 features, Days 1-5) — CRITICAL PATH
 
 | # | Task | Depends On | Acceptance Criteria | Test |
 |---|------|-----------|--------------------|----|
@@ -212,6 +212,9 @@ Since Lending has no P0 features, Phase 1 is preparation work so P1 features can
 | EXI-10 | **Error handling** — Stream error recovery: timeout detection (15s), retry (max 3), error card display. Handle 429 (rate limit), 529 (overloaded), network loss. | EXI-2, EXI-3 | Network drop shows "Reconnecting...". 429 shows "Please wait". 529 retries with backoff. Error card renders | Unit test: simulate each error type, verify UI response |
 | EXI-11 | **Message input** — Text input with send button. Disable during streaming. Multi-line support. | EXI-1, EXI-3 | Input enables/disables based on chat state. Send triggers API call. Multi-line works | Visual test: type, send, verify disable during stream |
 | EXI-12 | **Message persistence** — Save messages to Supabase. Load history on app open. Handle content_blocks JSONB format. | EXI-8 | Messages persist across app restarts. History loads correctly. Tool results visible in history | Integration test: send message, kill app, reopen, verify history |
+| EXI-13 | **Tab layout + ChatFAB** — Build `(tabs)/_layout.tsx` with 4 tabs (Home, Payments, Activity, Profile). Build `ChatFAB.tsx` floating action button visible on all tabs. Tapping opens `app/chat.tsx` as full-screen modal. Badge for unread proactive insights. | Foundation mobile scaffold | 4 tabs render. FAB visible on all tabs. Tap opens chat modal. Badge shows count | Visual test: navigate tabs, verify FAB, tap opens modal |
+| EXI-14 | **Home screen** — Build `(tabs)/index.tsx`. Balance card + pots overview + proactive insight cards. Default landing screen. | EXI-13, EXC-1 | Home shows balance, pots, and insight cards. Is the default tab on app open | Visual test: app opens to Home, balance and pots visible |
+| EXI-15 | **Payments screen** — Build `(tabs)/payments.tsx`. Beneficiary list + recent payments. Uses TanStack Query for data. | EXI-13 | Beneficiaries listed. Recent payments shown. Pull-to-refresh works | Visual test: beneficiaries and payments render correctly |
 
 #### EX-Cards Stream (14 features, Days 4-10)
 
@@ -289,4 +292,4 @@ Since Lending has no P0 features, Phase 1 is preparation work so P1 features can
 |-------|-------------|-------------|-------|
 | **Core Banking** | HIGH (20 P0) | MEDIUM (P1 features) | Steady workload. No blockers on other squads |
 | **Lending** | LOW (0 P0, prep only) | HIGH (all P1 features) | Available to assist CB/EX in Phase 1 |
-| **Experience** | VERY HIGH (47 P0 tasks, 4 streams) | MEDIUM (integration, polish) | Critical path. EX-Infra is the #1 dependency |
+| **Experience** | VERY HIGH (50 P0 tasks, 4 streams) | MEDIUM (integration, polish) | Critical path. EX-Infra is the #1 dependency |

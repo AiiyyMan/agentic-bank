@@ -21,7 +21,7 @@ Core Banking combines Accounts + Payments into a single squad. We own all data a
 - International transfers (Wise — P1)
 - Direct debits (P2)
 
-We build **tool handlers** (AI chat integration), **domain services** (business logic), **REST endpoints** (drill-down screens), and **drill-down screens** (Account Detail, Savings Tab). We do NOT build card components — those are owned by the Experience squad.
+We build **tool handlers** (AI chat integration), **domain services** (business logic), **REST endpoints** (drill-down screens), and **drill-down screens** (Account Detail) plus the **Savings/Pots section** on the Home tab. We do NOT build card components — those are owned by the Experience squad.
 
 ### 1.2 User Problems for Alex
 
@@ -250,18 +250,18 @@ AI: "Here's your savings overview — you have £7,900 across 3 pots."
 
 ---
 
-### F10: Savings Tab Screen (#11)
+### F10: Savings/Pots Section on Home Tab (#11)
 
-**User story:** As Alex, I want a dedicated savings tab with at-a-glance amounts and progress.
+**User story:** As Alex, I want a savings/pots section on the Home tab with at-a-glance amounts and progress, so I can see my balance and savings together.
 
 **Acceptance criteria:**
-- Total savings header (sum of all pot balances)
+- Total savings header (sum of all pot balances), displayed below the balance card on the Home tab
 - Vertical list of pot cards (not carousel — 3+ pots expected)
 - Each card: name, balance, goal, progress bar, emoji
-- "Create Pot" button (FAB or list item)
+- "Create Pot" button (inline CTA or list item)
 - Empty state: "No savings pots yet. Create one to start saving!"
 
-**Priority:** P0 | **POC approach:** Mobile screen backed by GET /api/pots (or GET /api/accounts filtered to type=pot)
+**Priority:** P0 | **POC approach:** Section component within Home tab, backed by GET /api/pots (or GET /api/accounts filtered to type=pot)
 
 ---
 

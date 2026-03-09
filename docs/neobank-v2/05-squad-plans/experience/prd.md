@@ -512,7 +512,7 @@ All cards follow `agent-design-instructions.md` for design tokens, typography, s
 **User Story:** As Alex, I want to sign out securely, so that my account is safe on shared devices.
 
 **Acceptance Criteria:**
-- Sign out accessible from settings/profile
+- Sign out accessible from Profile tab
 - Calls `supabase.auth.signOut()`
 - Clears local state (Zustand, TanStack Query cache)
 - Navigates to welcome/login screen

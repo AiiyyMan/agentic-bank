@@ -10,9 +10,9 @@ Core Banking owns 4 drill-down screens and contributes data to chat-rendered car
 
 | Screen | Type | Entry Point | Priority |
 |--------|------|-------------|----------|
-| Account Detail | Drill-down | Tap BalanceCard in chat | P0 |
-| Savings Tab | Full screen (tab) | Bottom tab navigation | P0 |
-| Transaction List | Drill-down | Tap "See all" on Account Detail, or TransactionListCard | P0 |
+| Account Detail | Drill-down | Tap BalanceCard in chat or balance card on Home tab | P0 |
+| Savings/Pots Section | Section (Home tab) | Home tab — scrolls to pots section below balance | P0 |
+| Transaction List | Activity tab | Bottom tab navigation (Activity icon), or "See all" from Account Detail | P0 |
 | Beneficiary List | Drill-down | Tap "Manage payees" or via settings | P0 |
 | Standing Orders | Drill-down | Tap "Standing orders" in account menu | P1 |
 
@@ -22,9 +22,9 @@ Core Banking owns 4 drill-down screens and contributes data to chat-rendered car
 
 ### 2.1 Account Detail Screen
 
-**Route:** `/(tabs)/accounts/[id]`
+**Route:** `/account-detail/[id]` (drill-down from Home tab balance card or chat BalanceCard)
 
-**Entry:** Tap BalanceCard in chat, or tap account row in accounts list.
+**Entry:** Tap BalanceCard in chat, or tap balance card on Home tab.
 
 **Components:**
 - **Header:** Account name (e.g., "Main Account"), account type badge
@@ -42,8 +42,8 @@ Core Banking owns 4 drill-down screens and contributes data to chat-rendered car
 - **Success:** Full data rendered
 
 **Navigation:**
-- Back: returns to previous screen (chat or accounts tab)
-- "See all" transactions: push to Transaction List screen
+- Back: returns to previous screen (chat or Home tab)
+- "See all" transactions: navigates to Activity tab `/(tabs)/activity`
 - Quick actions: "Send Money" opens chat with pre-filled prompt; "Add Money" shows account details card
 
 **Design tokens:**
@@ -55,11 +55,11 @@ Core Banking owns 4 drill-down screens and contributes data to chat-rendered car
 
 ---
 
-### 2.2 Savings Tab Screen
+### 2.2 Savings/Pots Section (Home Tab)
 
-**Route:** `/(tabs)/savings`
+**Route:** Part of `/(tabs)/index` (Home tab) — rendered as a scrollable section below the balance card.
 
-**Entry:** Bottom tab navigation (Savings icon).
+**Entry:** Home tab — scrolls to pots section below balance.
 
 **Components:**
 - **Total savings header:** "Total savings" label + sum of all pot balances (£12,900.00)
@@ -92,9 +92,9 @@ Core Banking owns 4 drill-down screens and contributes data to chat-rendered car
 
 ### 2.3 Transaction List Screen
 
-**Route:** `/(tabs)/accounts/[id]/transactions`
+**Route:** `/(tabs)/activity` (Activity tab) with optional account filter query param.
 
-**Entry:** "See all" from Account Detail, or tap TransactionListCard in chat.
+**Entry:** Bottom tab navigation (Activity icon), "See all" from Account Detail, or tap TransactionListCard in chat.
 
 **Components:**
 - **Filter bar:** Category pills (horizontal scroll), date range picker, search icon
@@ -272,10 +272,10 @@ Core Banking provides data for these card types (built by EX):
 | Component | New/Reuse | Notes |
 |-----------|-----------|-------|
 | AccountDetailScreen | New | Full-screen drill-down |
-| SavingsTabScreen | New | Tab screen with pot list |
+| HomePots (section component) | New | Pots section rendered within Home tab |
 | TransactionListScreen | New | Full-screen with filters |
 | BeneficiaryListScreen | New | Full-screen with search |
-| PotCard (list item) | New | Used in Savings Tab |
+| PotCard (list item) | New | Used in Home tab pots section |
 | TransactionRow | New | Used in Transaction List and Account Detail |
 | BeneficiaryRow | New | Used in Beneficiary List |
 | CopyButton | New (shared) | Reusable copy-to-clipboard with toast |

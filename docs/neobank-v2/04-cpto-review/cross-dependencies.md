@@ -251,7 +251,7 @@ Contract tests run as part of CI (GitHub Actions on PR). If a squad changes a sh
 | `packages/shared/src/types.ts` | All squads (type additions) | MEDIUM | Additive only. Squads add types, never modify existing ones. Merge conflicts are union — accept both |
 | `supabase/migrations/` | Foundation only (F1a) | LOW | Squads don't create migrations. If they need schema changes, Foundation creates the migration |
 | `apps/mobile/src/components/cards/` | EX-Cards, CB, LE | LOW | Each card is a separate file. No shared card files. Card renderer dispatches by type |
-| `apps/mobile/src/app/` | EX-Onboarding, EX-Infra | MEDIUM | Onboarding screens in `(auth)/`. Chat in `(tabs)/`. Different directories |
+| `apps/mobile/src/app/` | EX-Onboarding, EX-Infra | MEDIUM | Onboarding screens in `(auth)/`. Chat is `app/chat.tsx` (modal route outside tabs). Tab screens in `(tabs)/`. Different directories |
 | `CLAUDE.md` | Foundation (initial), all squads (may update) | LOW | Only Foundation writes. Squads read only. Propose changes via PR comments |
 
 ### 4.2 Merge Order
