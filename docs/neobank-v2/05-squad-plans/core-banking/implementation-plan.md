@@ -24,7 +24,7 @@ Tasks are ordered by dependency. Each task is Small (S, < 1 hour) or Medium (M, 
 | CB-10 | **send_payment tool** | Implement `send_payment` tool handler. Receives beneficiary_id + amount + reference. Routes through PaymentService.sendPayment(). Returns ConfirmationCard data with recipient name, masked account, balance_after. On confirm: PaymentService.executePayment() runs. | `apps/api/src/tools/core-banking.ts` (add handler) | CB-09, Foundation (confirmation flow) | M | Integration test: full payment flow — tool_use → pending_action → confirm → payment record + transaction + audit_log |
 | CB-11 | **get_payment_history tool** | Implement `get_payment_history` tool. Queries payments table with optional beneficiary_id filter, date range. Returns payments with beneficiary_name (joined), amounts, references, status. Includes summary: total_this_month, total_last_month, payment_count. | `apps/api/src/tools/core-banking.ts` (add handler) | CB-09, Foundation (payments table) | S | Unit test: history returns seeded payments; filter by beneficiary works |
 
-**Deferred to Phase 2:** `update_pot`, `close_pot`, `delete_beneficiary` tool handlers. PaymentService.deleteBeneficiary() and PotService.updatePot()/closePot() are built in Phase 1 services but tool handlers are deferred.
+**Deferred to Phase 2:** `update_pot`, `close_pot`, `delete_beneficiary` tool handlers and their corresponding domain service methods.
 
 ### Phase 2: REST Endpoints & Screens (Days 6-12)
 
@@ -54,7 +54,7 @@ Constructor: (supabase: SupabaseClient, bankingPort: BankingPort)
 Methods:
   getBalance(userId: string) → Promise<Balance>
     - Calls bankingPort.getBalance(userId)
-    - Returns { balance, available_balance, currency, updated_at }
+    - Returns { account_id, account_name, balance, available_balance, sort_code, currency, updated_at }
 
   getAccounts(userId: string) → Promise<{ accounts: Account[], total_balance: number }>
     - Calls bankingPort.getAccounts(userId)
@@ -216,6 +216,7 @@ All tools registered under the `core-banking` domain in the tool registry.
 - `get_transactions` — optional: account_id, category, start_date, end_date, merchant, limit, offset
 - `get_payment_history` — optional: beneficiary_id, start_date, end_date, limit
 - `categorise_transaction` — input: merchant_name → output: { category, category_icon }
+  > **Note:** This is a server-side internal function, NOT a Claude tool. It runs automatically when transactions are synced from BankingPort. It is not registered in the tool registry and does not appear in Claude's tool list.
 
 **Write tools (create pending_action → ConfirmationCard):**
 - `create_pot` — input: name (required), goal, emoji, initial_deposit

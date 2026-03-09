@@ -17,7 +17,7 @@ Zero P0 features — Phase 1 is prep work; Phase 2 delivers user-facing flows.
 - **Extra payment** — with balance check, payoff detection, months-saved calculation
 - **FlexService** — eligible transaction detection (>= £30, <= 14 days), plan creation (3/6/12 months), early payoff
 - **9 tool schemas** registered with tool registry, thin handlers calling LendingService
-- **6 REST endpoints** for read operations (writes go through chat confirmation flow)
+- **7 REST endpoints** for read operations (writes go through chat confirmation flow)
 - **Shared types** extended with Flex, CreditScore, Schedule interfaces
 
 ## Phase 2 Deliverables (UI — 4 tasks, ~7 hours)

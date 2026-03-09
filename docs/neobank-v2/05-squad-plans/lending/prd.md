@@ -361,7 +361,7 @@ AI: "Done! Currys flex plan cleared."
 **Acceptance Criteria:**
 - Returns: score (300-999), rating (poor/fair/good/excellent), positive factors, improvement factors
 - Deterministic from user ID — Alex always gets 742 ("Good")
-- Rating thresholds: 0-499 poor, 500-649 fair, 650-799 good, 800-999 excellent
+- Rating thresholds: 300-499 poor, 500-649 fair, 650-799 good, 800-999 excellent
 - CreditScoreCard compatible output
 
 **Edge Cases:**

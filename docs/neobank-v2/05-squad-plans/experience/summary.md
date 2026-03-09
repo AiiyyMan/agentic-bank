@@ -1,6 +1,6 @@
 # Experience Squad — Executive Summary
 
-**42 P0 features | 4 parallel streams | 12-day delivery**
+**47 P0 tasks | 4 parallel streams | 12-day delivery**
 
 ---
 
@@ -12,7 +12,7 @@ The Experience squad builds the AI-first conversational interface that defines A
 
 - **EX-Infra** (12 tasks, Days 1-5): Chat interface, SSE streaming, card renderer, confirmation flow, tool registry, agent loop, system prompt, error handling, message persistence, auth. CRITICAL PATH — all streams blocked until this ships.
 - **EX-Cards** (14 tasks, Days 4-10): BalanceCard, TransactionListCard, PotStatusCard, ConfirmationCard, SuccessCard, ErrorCard, InsightCard, WelcomeCard, ValuePropInfoCards, QuickReplyGroup, TypingIndicator, ChecklistCard, AccountDetailsCard, SkeletonCard.
-- **EX-Onboarding** (12 tasks, Days 4-10): Welcome flow, name/email/DOB/address collection, KYC mock, account provisioning, funding options, getting started checklist, onboarding state machine, tool gating transition.
+- **EX-Onboarding** (13 tasks, Days 4-10): Welcome flow, name/email/DOB/address collection, KYC mock, account provisioning, funding options, getting started checklist, onboarding state machine, tool gating transition, login screen.
 - **EX-Insights** (8 tasks, Days 5-12): Spending by category, spike detection, weekly summary, proactive card engine, morning greeting, beneficiary fuzzy matching, insight caching.
 
 ## Critical Fixes
@@ -30,7 +30,7 @@ The Experience squad builds the AI-first conversational interface that defines A
 
 ## Test Strategy
 
-- 46 unit tests (streaming, state machine, tool registry, services, onboarding, insights)
+- 47 unit tests (streaming, state machine, tool registry, services, onboarding, insights)
 - 14 card snapshot tests (all card types with multiple variants)
 - 15 integration tests (chat flow, confirmation flow, onboarding flow, insights)
 - 4 contract test suites (CB tools -> cards, pending actions -> confirmation, proactive cards -> agent, transactions -> insights)
@@ -40,7 +40,7 @@ The Experience squad builds the AI-first conversational interface that defines A
 ## Risks
 
 1. **SSE on React Native** (CRITICAL) — mitigated by Foundation V1 validation
-2. **42 features in 12 days** (HIGH) — mitigated by parallel streams and strict M sizing
+2. **47 tasks in 12 days** (HIGH) — mitigated by parallel streams and strict M sizing
 3. **Proactive engine performance** (MEDIUM) — mitigated by pre-computation and caching
 
 ## Success Criteria

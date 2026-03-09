@@ -97,11 +97,11 @@ Tasks ordered by dependency. Each is Medium complexity (1-3 hours).
 - P2: None
 
 **API Endpoints:**
-- GET /api/loans, POST /api/loans/eligibility, POST /api/loans/apply, GET /api/loans/:id, GET /api/loans/:id/schedule
+- GET /api/loans, POST /api/loans/eligibility, POST /api/loans/apply, GET /api/loans/:id/schedule
 - GET/POST /api/flex/plans, POST /api/flex/plans/:id/payoff
 - GET /api/credit-score
 
-**Database Tables:** `loan_products`, `loan_applications`, `loans`, `loan_payments`, `flex_plans`, `credit_scores`
+**Database Tables:** `loan_products`, `loan_applications`, `loans`, `loan_payments`, `flex_plans`, `flex_payments`, `credit_scores`
 
 **Domain Services:** `LendingService`
 
@@ -177,7 +177,7 @@ Since Lending has no P0 features, Phase 1 is preparation work so P1 features can
 
 **Infrastructure Services:** `AgentService` (agent loop), `InsightService` (proactive engine)
 
-**Tools (15):** respond_to_user, get_spending_by_category, get_spending_insights, get_weekly_summary, search_transactions, get_upcoming_bills, get_proactive_cards, get_onboarding_checklist, update_checklist_item, get_value_prop_info, get_onboarding_status, verify_identity, provision_account, complete_onboarding, update_pending_action
+**Tools (14 P0; `search_transactions` deferred to Phase 2):** respond_to_user, get_spending_by_category, get_spending_insights, get_weekly_summary, ~~search_transactions~~, get_upcoming_bills, get_proactive_cards, get_onboarding_checklist, update_checklist_item, get_value_prop_info, get_onboarding_status, verify_identity, provision_account, complete_onboarding, update_pending_action
 
 ### 3.2 Interfaces
 
@@ -242,7 +242,7 @@ Since Lending has no P0 features, Phase 1 is preparation work so P1 features can
 | EXO-7 | **Onboarding checklist** — get_onboarding_checklist + update_checklist_item tools. Track: verify identity, fund account, add beneficiary, set up pot, first payment. | EXO-1 | Checklist returns correct completion status. Items update on action completion | Unit test: checklist state after each onboarding step |
 | EXO-8 | **First action prompt** — After onboarding complete, suggest first actions ("Check your balance", "Add a beneficiary"). QuickReplyGroup. | EXO-7, EXC-8 | Suggestions appear after checklist complete. Tapping triggers appropriate flow | Integration test: complete onboarding, verify suggestions |
 | EXO-9 | **Onboarding REST endpoints** — POST /api/onboarding/start, POST /api/onboarding/verify, GET /api/onboarding/checklist. Route through OnboardingService. | EXO-1 | REST endpoints work alongside chat-driven flow | API test: all endpoints return expected data |
-| EXO-10 | **Tool gating transition** — When onboarding completes, switch from ONBOARDING_TOOLS (7 tools) to full tool set (44 tools). Seamless in-conversation transition. | EXO-1, EXI-6 | After completion, Claude can access all tools. No app restart needed | Integration test: complete onboarding, immediately ask balance |
+| EXO-10 | **Tool gating transition** — When onboarding completes, switch from ONBOARDING_TOOLS (8 tools) to full tool set (44 tools). Seamless in-conversation transition. | EXO-1, EXI-6 | After completion, Claude can access all tools. No app restart needed | Integration test: complete onboarding, immediately ask balance |
 
 #### EX-Insights Stream (8 features, Days 5-12)
 
@@ -289,4 +289,4 @@ Since Lending has no P0 features, Phase 1 is preparation work so P1 features can
 |-------|-------------|-------------|-------|
 | **Core Banking** | HIGH (20 P0) | MEDIUM (P1 features) | Steady workload. No blockers on other squads |
 | **Lending** | LOW (0 P0, prep only) | HIGH (all P1 features) | Available to assist CB/EX in Phase 1 |
-| **Experience** | VERY HIGH (42 P0, 4 streams) | MEDIUM (integration, polish) | Critical path. EX-Infra is the #1 dependency |
+| **Experience** | VERY HIGH (47 P0 tasks, 4 streams) | MEDIUM (integration, polish) | Critical path. EX-Infra is the #1 dependency |

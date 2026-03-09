@@ -9,7 +9,7 @@ REST endpoints, and 4 drill-down screens. Card components are EX-owned.
 
 ## Task Count & Effort
 - **21 implementation tasks** (CB-01 through CB-21)
-- **17 Medium (M)** tasks, **4 Small (S)** tasks
+- **16 Medium (M)** tasks, **5 Small (S)** tasks
 - Estimated: **10-12 working days** for a single agent stream
 - Phase 1 (tools + services): Days 1-8 | Phase 2 (REST + screens): Days 6-12
 

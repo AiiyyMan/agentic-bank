@@ -168,6 +168,7 @@ interface PendingAction {
     details: Array<{ label: string; value: string }>;
     amount?: number;
     currency?: string;
+    balance_after?: number;
   };
   status: "pending" | "confirmed" | "rejected" | "expired";
   idempotency_key: string;

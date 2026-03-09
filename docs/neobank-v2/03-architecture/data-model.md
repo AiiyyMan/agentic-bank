@@ -151,7 +151,7 @@ CREATE TABLE pending_actions (
   conversation_id UUID REFERENCES conversations(id),
   action_type TEXT NOT NULL,       -- e.g., "send_payment", "transfer_to_pot", "apply_for_loan"
   params JSONB NOT NULL,
-  display JSONB NOT NULL,          -- ConfirmationCard rendering data: { title, items, amount?, currency? }
+  display JSONB NOT NULL,          -- ConfirmationCard rendering data: { title, details, amount?, currency? }
   status TEXT NOT NULL DEFAULT 'pending'
     CHECK (status IN ('pending', 'confirmed', 'rejected', 'expired')),
   result JSONB,                  -- Populated after execution

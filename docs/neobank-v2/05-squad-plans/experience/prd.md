@@ -2,7 +2,7 @@
 
 > **Phase 4 Output** | Experience Squad | March 2026
 >
-> Covers 42 remaining P0 features across 4 streams: EX-Infra (8), EX-Cards (14), EX-Onboarding (12), EX-Insights (8).
+> Covers 47 P0 tasks across 4 streams: EX-Infra (12), EX-Cards (14), EX-Onboarding (13), EX-Insights (8).
 
 ---
 

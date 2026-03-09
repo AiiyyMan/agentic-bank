@@ -121,10 +121,11 @@ actionDispatcher.set('send_payment', (action, port, sb) => paymentService.execut
 actionDispatcher.set('add_beneficiary', (action, port, sb) => paymentService.executeAddBeneficiary(action));
 actionDispatcher.set('create_pot', (action, port, sb) => potService.executeCreatePot(action));
 actionDispatcher.set('transfer_to_pot', (action, port, sb) => potService.executeTransfer(action));
+actionDispatcher.set('transfer_from_pot', (action, port, sb) => potService.executeTransferFromPot(action));
 
 // LE registers:
-actionDispatcher.set('apply_loan', (action, port, sb) => lendingService.executeLoanApplication(action));
-actionDispatcher.set('activate_flex_plan', (action, port, sb) => lendingService.executeFlexPlan(action));
+actionDispatcher.set('apply_for_loan', (action, port, sb) => lendingService.executeLoanApplication(action));
+actionDispatcher.set('flex_purchase', (action, port, sb) => lendingService.executeFlexPlan(action));
 ```
 
 This decouples the confirm route from individual domain services. When a squad adds a new action type, they register it in their own file — no changes to the confirm route needed.
@@ -222,6 +223,28 @@ Get balance for a specific account.
 ---
 
 ### 2.4 Banking — Pots
+
+#### GET /api/pots
+
+Returns all savings pots for the authenticated user.
+
+**Response 200:**
+```json
+{
+  "pots": [
+    {
+      "id": "uuid",
+      "name": "string",
+      "balance": "number",
+      "goal": "number | null",
+      "progress_pct": "number | null",
+      "emoji": "string",
+      "locked_until": "ISO 8601 | null",
+      "created_at": "ISO 8601"
+    }
+  ]
+}
+```
 
 #### POST /api/pots
 Create a new savings pot.
@@ -527,7 +550,7 @@ List user's active loans.
       payments_made: number;
       next_payment_date: string;
       payoff_date: string;
-      status: 'active' | 'repaid' | 'defaulted';
+      status: 'active' | 'paid_off' | 'defaulted';
     }>;
   }
 }
@@ -596,7 +619,7 @@ Amortisation schedule for a loan.
       principal: number;
       interest: number;
       remaining_balance: number;
-      status: 'paid' | 'pending' | 'overdue';
+      status: 'paid' | 'pending' | 'overdue' | 'scheduled';
     }>;
   }
 }
@@ -807,7 +830,7 @@ Returns any unexpired pending actions for the authenticated user. Used by the mo
   "pending_actions": [
     {
       "action_id": "uuid",
-      "action_type": "send_payment | add_beneficiary | create_pot | transfer_to_pot | apply_loan | activate_flex_plan",
+      "action_type": "send_payment | add_beneficiary | create_pot | transfer_to_pot | transfer_from_pot | apply_for_loan | flex_purchase",
       "display": {
         "title": "string",
         "details": [{ "label": "string", "value": "string" }],
@@ -1191,6 +1214,10 @@ const ONBOARDING_TOOLS = [
 | `BENEFICIARY_NOT_FOUND` | 422 | Beneficiary ID doesn't match any saved payee |
 | `PROVIDER_UNAVAILABLE` | 502 | Griffin/Wise API unreachable |
 | `AI_OVERLOADED` | 529 | Anthropic API overloaded. Retry with exponential backoff (2s, 4s, 8s + jitter). Max 3 retries. See system-architecture.md §9.1 for mid-stream timeout handling. | `{ error: "ai_overloaded", message: "Our AI is temporarily busy. Please try again in a moment.", retry_after: 5 }` |
+| `POT_LOCKED` | 422 | Pot is locked and cannot be withdrawn from |
+| `ACTION_NOT_FOUND` | 404 | Pending action not found |
+| `ACTION_ALREADY_EXECUTED` | 409 | Action has already been confirmed |
+| `EXECUTION_FAILED` | 500 | Action execution failed |
 | `LOAN_INELIGIBLE` | 422 | User does not meet lending criteria |
 | `FLEX_INELIGIBLE` | 422 | Loan not eligible for flex plan |
 | `LOAN_NOT_FOUND` | 404 | Loan ID not found |

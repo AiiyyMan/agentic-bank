@@ -17,7 +17,7 @@ All fixtures import from `packages/shared/src/test-constants.ts`. No inline valu
 | `fixtures/beneficiaries.ts` | ALEX_BENEFICIARIES (5: James Mitchell, Sarah Chen, Tom Wilson, Mum, Netflix) with sort_codes and account_numbers | Foundation |
 | `fixtures/transactions.ts` | ALEX_RECENT_TRANSACTIONS (20 entries across 10 categories), ALEX_MONTHLY_SPENDING (aggregated) | Foundation |
 | `fixtures/payments.ts` | ALEX_PAYMENT_HISTORY (10 recent payments), PENDING_PAYMENT_ACTION (pending_action fixture) | CB squad |
-| `fixtures/pots.ts` | ALEX_POTS_DETAILED (3 pots: Holiday Fund £1200/£2000, Emergency Fund £3500/£5000, House Deposit £8200/£10000) | Foundation |
+| `fixtures/pots.ts` | ALEX_POTS_DETAILED (3 pots: Holiday Fund £1200/£2000, Emergency Fund £3500/£5000, House Deposit £3200/£25000) | Foundation |
 
 ### 1.2 Factory Functions
 
@@ -56,7 +56,7 @@ CB tests depend on Foundation seed data:
 - Alex's main account with balance £1,247.50
 - 3 savings pots with goals
 - 5 beneficiaries
-- 90+ days of categorised transactions
+- 60 days (~120 entries) of categorised transactions
 - 1 active standing order
 
 ---

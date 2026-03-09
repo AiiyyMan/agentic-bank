@@ -324,7 +324,7 @@ packages/shared/src/
                           │ blocks in one  │
                           │ user message   │
                           │                │
-                          │ Call Claude    │◄──── Loop (max 5 iterations)
+                          │ Call Claude    │◄──── Loop (max 8 iterations)
                           │ again          │
                           └────────────────┘
 ```
@@ -1272,7 +1272,7 @@ export const features = {
   enableWise: env('ENABLE_WISE', 'false'),
   enableBiometric: env('ENABLE_BIOMETRIC', 'false'),
   maxConversationMessages: envInt('MAX_CONVERSATION_MESSAGES', 100),
-  maxToolIterations: envInt('MAX_TOOL_ITERATIONS', 5),
+  maxToolIterations: envInt('MAX_TOOL_ITERATIONS', 8),
   insightCacheTtlMinutes: envInt('INSIGHT_CACHE_TTL_MINUTES', 60),
 };
 

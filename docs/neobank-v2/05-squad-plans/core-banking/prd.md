@@ -240,10 +240,10 @@ AI: "Done! Moved £500 to Holiday Fund. You're now at £700 — 35% of your goal
 ```
 Alex: "How are my savings looking?"
 AI calls get_pots → returns 3 pots
-AI: "Here's your savings overview — you have £12,900 across 3 pots."
+AI: "Here's your savings overview — you have £7,900 across 3 pots."
 [PotStatusCard: Holiday Fund | £1,200 / £2,000 | 60%]
 [PotStatusCard: Emergency Fund | £3,500 / £5,000 | 70%]
-[PotStatusCard: House Deposit | £8,200 / £10,000 | 82%]
+[PotStatusCard: House Deposit | £3,200 / £25,000 | 13%]
 ```
 
 **Priority:** P0 | **POC approach:** BankingPort.getPots()

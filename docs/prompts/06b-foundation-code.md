@@ -89,19 +89,26 @@ type UIComponentType =
   | 'balance_card'
   | 'transaction_list'
   | 'confirmation_card'
+  | 'success_card'
+  | 'error_card'
+  | 'pot_status_card'
+  | 'insight_card'
+  | 'spending_breakdown_card'
+  | 'quick_reply_group'
+  | 'welcome_card'
+  | 'checklist_card'
+  | 'input_card'
+  | 'quote_card'
+  | 'standing_order_card'
+  | 'flex_options_card'
+  | 'auto_save_rule_card'
   | 'loan_offer_card'
   | 'loan_status_card'
-  | 'error_card'
-  | 'pot_summary_card'
-  | 'pot_detail_card'
-  | 'spending_insight_card'
-  | 'spending_breakdown_card'
-  | 'beneficiary_list'
-  | 'payment_success_card'
-  | 'standing_order_list'
-  | 'direct_debit_list'
-  | 'onboarding_progress_card'
-  | 'profile_card';
+  | 'flex_plan_card'
+  | 'credit_score_card'
+  | 'payment_history_card'
+  | 'date_picker_card'
+  | 'address_input_card';
 ```
 
 Squads can add to this enum but should not duplicate or rename existing types.
@@ -155,7 +162,7 @@ Implement tool namespacing to support 30+ tools without degrading Claude's selec
 
 ### Task 5: Conversation Summarisation
 
-When conversations exceed the configured message limit (`maxConversationMessages: 100` in feature flags), older messages must be summarised to keep the context window manageable. This is a background job that runs after each response (see api-design.md §2.1 step 9 and tech-decisions.md ADR-05).
+When conversations exceed the configured message limit (`maxConversationMessages: 100` in feature flags), older messages must be summarised to keep the context window manageable. The conversation cap is 100 messages. Summarisation triggers at 80 messages (ADR-05): summarise the oldest 60 into a single system message, keep the most recent 20 verbatim. This is a background job that runs after each response (see api-design.md §2.1 step 9 and tech-decisions.md ADR-05).
 
 1. **Summarisation service:** Create `services/summarisation.ts` with a `summariseConversation(conversationId)` method that:
    - Loads the full message history for the conversation

@@ -2,7 +2,7 @@
 
 > **Phase 4 Output** | Experience Squad | March 2026
 >
-> Task breakdown for 42 P0 features across 4 streams. Max complexity: M (1-3 hours).
+> Task breakdown for 47 P0 tasks across 4 streams. Max complexity: M (1-3 hours).
 
 ---
 
@@ -46,9 +46,8 @@ Everything depends on this stream. It builds the chat infrastructure that all ot
 Day 1: EXI-01 (ChatView) + EXI-02 (SSE) in parallel
 Day 2: EXI-03 (State machine) + EXI-04 (Card renderer)
 Day 3: EXI-05 (Input) + EXI-06 (Confirmation flow)
-Day 4: EXI-07 (Tool registry) + EXI-08 (System prompt)
-Day 5: EXI-09 (Agent loop) + EXI-10 (Error handling) + EXI-11 (Persistence) + EXI-12 (Auth)
-Note: Consider moving EXI-12 (auth token refresh) to Day 4 to reduce Day 5 load.
+Day 4: EXI-07 (Tool registry) + EXI-08 (System prompt) + EXI-12 (Auth)
+Day 5: EXI-09 (Agent loop) + EXI-10 (Error handling) + EXI-11 (Persistence)
 ```
 
 ### Critical Fixes in EXI-09
@@ -104,7 +103,7 @@ Day 10:  EXC-13 (AccountDetails), EXC-14 (Skeletons)
 
 ---
 
-## 4. EX-Onboarding Stream (Days 4-10)
+## 4. EX-Onboarding Stream (Days 4-10, cards from Day 6)
 
 Starts after EXI-01 (ChatView) and EXI-09 (AgentService) are usable. Builds the conversational sign-up flow.
 
@@ -123,18 +122,19 @@ Starts after EXI-01 (ChatView) and EXI-09 (AgentService) are usable. Builds the 
 | EXO-09 | **Account provisioning** — `provision_account` tool creates account via BankingPort. AccountDetailsCard shows details. Profile updated with account URLs. Transition to ACCOUNT_PROVISIONED. | M | EXO-08 | #75 |
 | EXO-10 | **Funding options** — FundingOptionsCard: "Bank transfer" (shows details) or "I'll do this later". Compact account details if skipped. Transition to FUNDING_OFFERED. | M | EXO-09, EXC-13 | #76 |
 | EXO-11 | **Getting started checklist** — `get_onboarding_checklist` + `update_checklist_item` tools. ChecklistCard integration. First action prompts via QuickReplyGroup. `complete_onboarding` tool marks ONBOARDING_COMPLETE. | M | EXO-10, EXC-12 | #80, #81 |
-| EXO-12 | **Onboarding REST endpoints + tool gating transition** — POST /api/onboarding/start, /verify, GET /checklist. When onboarding completes, tool set expands from 7 to full (44 tools). Seamless in-conversation. | M | EXO-01, EXI-07 | #119, #81 |
+| EXO-12 | **Onboarding REST endpoints + tool gating transition** — POST /api/onboarding/start, /verify, GET /checklist. When onboarding completes, tool set expands from 8 to full (44 tools). Seamless in-conversation. | M | EXO-01, EXI-07 | #119, #81 |
 | EXO-13 | **Login Screen** — Build `(auth)/login.tsx` form screen with email/password fields, sign-in button, and 'Forgot password' link. | S | Foundation auth | #119 |
 
 ### Sequencing
 
 ```
-Day 4: EXO-01 (State machine) + EXO-02 (Welcome flow)
-Day 5: EXO-03 (Value props) + EXO-04 (Name) + EXO-05 (Email/password)
-Day 6: EXO-06 (DOB) + EXO-07 (Address)
-Day 7: EXO-08 (KYC) + EXO-09 (Provisioning)
-Day 8: EXO-10 (Funding) + EXO-11 (Checklist)
-Day 9-10: EXO-12 (REST + tool gating) + EXO-13 (Login) + integration testing
+Day 4: EXO-01 (State machine) + EXO-13 (Login)
+Day 5: EXO-04 (Name) + EXO-05 (Email/password)
+Day 6: EXO-02 (Welcome flow) + EXO-03 (Value props)
+Day 7: EXO-06 (DOB) + EXO-07 (Address)
+Day 8: EXO-08 (KYC) + EXO-09 (Provisioning)
+Day 9: EXO-10 (Funding) + EXO-11 (Checklist)
+Day 10: EXO-12 (REST + tool gating) + integration testing
 ```
 
 > **Note:** DatePickerCard and AddressInputCard are rendered directly by onboarding tool handlers, NOT dispatched through CardRenderer. They bypass the UIComponentType switch. This is intentional — these are interactive input components, not display cards from Claude's respond_to_user.
@@ -466,7 +466,7 @@ registry.register('core-banking', [
 | NativeWind animate-pulse broken | LOW — cosmetic | Reanimated opacity loop fallback |
 | tabular-nums not supported | LOW — cosmetic | Monospace font or fixed-width formatting |
 | Proactive engine > 1s | MEDIUM — slow greeting | Pre-compute aggressively, cache in user_insights_cache |
-| 42 features in 12 days | HIGH — scope | Strict M sizing, parallel streams, prioritise infra |
+| 47 tasks in 12 days | HIGH — scope | Strict M sizing, parallel streams, prioritise infra |
 | Card renderer dispatch too many types | LOW — maintenance | Type-safe switch, exhaustive check, fallback for unknown |
 
 ---

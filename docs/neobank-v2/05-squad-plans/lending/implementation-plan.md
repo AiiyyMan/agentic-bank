@@ -64,7 +64,7 @@
 - Implement `checkCreditScore(userId: string)` in LendingService
 - Deterministic scoring: hash userId → score in 300-999 range
   - Alex's UUID → 742 (hardcode override for demo user from test-constants)
-- Rating thresholds: 0-499 poor, 500-649 fair, 650-799 good, 800-999 excellent
+- Rating thresholds: 300-499 poor, 500-649 fair, 650-799 good, 800-999 excellent
 - Factor config per rating:
   - Good (Alex): positive = ["Consistent salary deposits (36 months)", "No missed payments", "Low credit utilisation (23%)", "Stable address (2+ years)"]; improve = ["Limited credit history length", "Only 1 active credit account"]
 - Upsert result to `credit_scores` table for consistency
