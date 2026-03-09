@@ -32,7 +32,7 @@ Everything depends on this stream. It builds the chat infrastructure that all ot
 | EXI-03 | **Chat state machine (Zustand)** — States: `idle` -> `thinking` -> `streaming` -> `tool_executing` -> `idle`. Manages: current message buffer, tool status, error state, pending quick replies. Error resets on new message. `stores/chat.ts`. | M | EXI-02 | #94, #98 |
 | EXI-04 | **Card renderer** — `CardRenderer.tsx`: switch on `UIComponentType`, render appropriate card component. Unknown types -> fallback text card. Placeholder components for unbuilt cards. Entry point for all EX-Cards work. | M | EXI-01 | #90 |
 | EXI-05 | **Message input + send** — Text input with send button. Disable during streaming. Multi-line support. Keyboard avoidance. Send triggers `POST /api/chat` via SSE consumer. Auto-focus management. | S | EXI-01, EXI-03 | #89 |
-| EXI-06 | **ConfirmationCard + confirmation flow** — Render ConfirmationCard with countdown timer. Confirm button disables on tap (QA U5). Calls `POST /api/confirm/:id`. Cancel calls reject. Success -> SuccessCard. Expired state. Pending action resurfacing on app reopen (QA U3). | M | EXI-04, Foundation pending_actions | #92 |
+| EXI-06 | **ConfirmationCard + confirmation flow** — Render ConfirmationCard with countdown timer. Confirm button disables on tap (QA U5). Calls `POST /api/confirm/:id`. Cancel calls reject. Success -> SuccessCard. Expired state. Pending action resurfacing on app reopen (QA U3). Also implements `update_pending_action` tool handler for amending pending actions before confirmation. | M | EXI-04, Foundation pending_actions | #92 |
 | EXI-07 | **Tool registry + tool gating** — Central registry: `register(domain, tools)`. `getAvailableTools(onboardingStep)` for system prompt. Tool gating per onboarding state (api-design.md 3.5). Log unknown tool names (QA U4). | M | Foundation tool registry scaffold | #95 |
 | EXI-08 | **System prompt assembly** — Static blocks: persona, safety, card usage policy (api-design.md 3.4.1). Dynamic blocks: user profile, tool list, conversation summary, proactive context. `cache_control` markers on static blocks (ADR-16). Onboarding vs banking mode. | M | EXI-07 | #100 |
 | EXI-09 | **AgentService (agent loop)** — Orchestrate: message -> prompt build -> Claude API -> stream response -> execute tools -> persist. Handle multi-tool responses (Promise.all). Max 8 iterations. respond_to_user synthetic tool interception + synthetic tool_result persistence (QA C1 FIX). | M | EXI-02, EXI-07, EXI-08 | #89, #96, #98 |
@@ -48,6 +48,7 @@ Day 2: EXI-03 (State machine) + EXI-04 (Card renderer)
 Day 3: EXI-05 (Input) + EXI-06 (Confirmation flow)
 Day 4: EXI-07 (Tool registry) + EXI-08 (System prompt)
 Day 5: EXI-09 (Agent loop) + EXI-10 (Error handling) + EXI-11 (Persistence) + EXI-12 (Auth)
+Note: Consider moving EXI-12 (auth token refresh) to Day 4 to reduce Day 5 load.
 ```
 
 ### Critical Fixes in EXI-09

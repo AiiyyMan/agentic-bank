@@ -302,6 +302,7 @@ offset?: number               // Pagination
       merchant: string;
       category: string;
       amount: number;           // Negative = debit, positive = credit
+      category_icon: string;    // Phosphor icon name for the transaction category
       reference?: string;
       posted_at: string;        // ISO 8601
       account_id: string;
@@ -328,7 +329,7 @@ List saved beneficiaries.
       name: string;
       sort_code: string;        // Formatted: XX-XX-XX
       account_number_masked: string;  // ****1234
-      last_used?: string;       // ISO 8601
+      last_used_at?: string;    // ISO 8601
     }>;
   }
 }
@@ -532,6 +533,33 @@ Check loan eligibility (soft check).
 }
 ```
 
+#### POST /api/loans/apply
+Apply for a personal loan.
+
+> **Implementation:** Route through `LendingService` per ADR-17.
+
+**Request:**
+```typescript
+{
+  amount: number;               // GBP, £100 - £25,000
+  term_months: number;          // 3 - 60
+  purpose: string;              // e.g. "home improvement", "debt consolidation"
+}
+```
+
+**Response:**
+```typescript
+{
+  data: {
+    loan_id: string;
+    monthly_payment: number;
+    total_interest: number;
+    disbursement_date: string;   // ISO 8601
+    status: 'approved' | 'pending_review';
+  }
+}
+```
+
 #### GET /api/loans/:id/schedule
 Amortisation schedule for a loan.
 
@@ -666,7 +694,7 @@ Proactive cards for app open.
     cards: Array<{
       type: 'bill_reminder' | 'spending_spike' | 'savings_milestone'
             | 'payday' | 'pattern' | 'weekly_summary' | 'celebration';
-      priority: 'high' | 'medium' | 'low';  // Maps from internal numeric priority (1=high, 2=medium, 3=low)
+      priority: 'high' | 'medium' | 'low';  // Maps from internal numeric priority (1=high, 2=medium, 3=low). See note below.
       title: string;
       body: string;
       quick_replies?: string[];
@@ -675,6 +703,8 @@ Proactive cards for app open.
   }
 }
 ```
+
+> **Proactive card priority mapping:** Internal `InsightService` uses numeric priority (1=high, 2=medium, 3=low). The REST endpoint maps to string values. Contract tests should verify the REST response uses string priorities.
 
 ---
 
@@ -738,6 +768,34 @@ Get getting-started checklist status.
     }>;
     progress: string;           // "2 of 6"
   }
+}
+```
+
+---
+
+### 2.13a Pending Actions
+
+#### GET /api/pending-actions
+
+Returns any unexpired pending actions for the authenticated user. Used by the mobile app on mount to resurface unconfirmed actions (QA U3).
+
+**Response 200:**
+```json
+{
+  "pending_actions": [
+    {
+      "action_id": "uuid",
+      "action_type": "send_payment | add_beneficiary | create_pot | transfer_to_pot | apply_loan | activate_flex_plan",
+      "display": {
+        "title": "string",
+        "details": [{ "label": "string", "value": "string" }],
+        "amount": "number (optional)",
+        "balance_after": "number (optional)"
+      },
+      "expires_at": "ISO 8601",
+      "created_at": "ISO 8601"
+    }
+  ]
 }
 ```
 
@@ -873,7 +931,7 @@ Notification preference and feed routes are managed by Knock. See `notification-
 | `get_spending_by_category` | Read | Get spending breakdown by category for a period. Returns total spent, per-category amounts with percentages, and comparison to the previous period. |
 | `get_spending_insights` | Read | Get spending insights and anomalies. Returns spending spikes, patterns, and actionable suggestions. |
 | `get_weekly_summary` | Read | Get a weekly spending summary. Returns total spent, top categories, comparison to previous week, and largest transaction. |
-| `search_transactions` | Read | Search transactions by merchant name, amount range, or natural language query. Returns matching transactions with a total. |
+| `search_transactions` | Read | Search transactions by merchant name, amount range, or natural language query. Returns matching transactions with a total. **(Deferred to Phase 2 — use `get_transactions` with merchant filter for P0)** |
 | `get_upcoming_bills` | Read | Get bills and scheduled payments due in the next 48 hours. Returns bill name, amount, and due date. |
 | `get_proactive_cards` | Read | Get prioritised proactive insight cards for the current session. Returns max 3 cards ranked by urgency (time-sensitive > actionable > informational). |
 | `get_onboarding_checklist` | Read | Get the getting-started checklist with completion status for each item. |
@@ -883,7 +941,7 @@ Notification preference and feed routes are managed by Knock. See `notification-
 | `verify_identity` | Write | Submit KYC verification (mocked for POC -- instant approval). Returns verification status. |
 | `provision_account` | Write | Provision a bank account after KYC verification. Creates Griffin/mock account, returns sort code and account number. Route through AccountService per ADR-17. |
 | `complete_onboarding` | Write | Mark onboarding as complete. Transitions system prompt from onboarding mode to full banking mode. Unlocks all banking tools. |
-| `update_pending_action` | Write | Amend a pending confirmation action. Requires action_id and a params object with fields to update (e.g., `{ amount: 75 }`). Only works on pending (not expired/confirmed) actions. Resets the 5-minute expiry. Returns updated params and a new ConfirmationCard. Use when the user says things like "actually make it £75" or "change the reference". |
+| `update_pending_action` | Write | Amend a pending confirmation action. Requires action_id and a params object with fields to update (e.g., `{ amount: 75 }`). Only works on pending (not expired/confirmed) actions. Resets the 5-minute expiry. Returns updated params and a new ConfirmationCard. Use when the user says things like "actually make it £75" or "change the reference". **(EX-Infra owns the tool handler — see EXI-06)** |
 
 #### 3.3.1 `respond_to_user` — Synthetic Tool Specification
 
@@ -1005,7 +1063,11 @@ type UIComponent =
   | StandingOrderCard
   | FlexOptionsCard
   | AutoSaveRuleCard
-  | ChecklistCard;
+  | ChecklistCard
+  | LoanStatusCard
+  | FlexPlanCard
+  | DatePickerCard           // Onboarding date collection
+  | AddressInputCard;        // Onboarding address collection
 
 // Quick reply pills — core interaction pattern for guided follow-ups
 interface QuickReplyGroup {
@@ -1066,6 +1128,7 @@ function getAvailableTools(onboardingStep: string): ToolDefinition[] {
 const ONBOARDING_TOOLS = [
   'respond_to_user',
   'get_onboarding_status',
+  'get_value_prop_info',
   'verify_identity',
   'provision_account',
   'get_accounts',
@@ -1104,6 +1167,9 @@ const ONBOARDING_TOOLS = [
 | `BENEFICIARY_NOT_FOUND` | 422 | Beneficiary ID doesn't match any saved payee |
 | `PROVIDER_UNAVAILABLE` | 502 | Griffin/Wise API unreachable |
 | `AI_OVERLOADED` | 529 | Anthropic API overloaded. Retry with exponential backoff (2s, 4s, 8s + jitter). Max 3 retries. See system-architecture.md §9.1 for mid-stream timeout handling. | `{ error: "ai_overloaded", message: "Our AI is temporarily busy. Please try again in a moment.", retry_after: 5 }` |
+| `LOAN_INELIGIBLE` | 422 | User does not meet lending criteria |
+| `FLEX_INELIGIBLE` | 422 | Loan not eligible for flex plan |
+| `LOAN_NOT_FOUND` | 404 | Loan ID not found |
 | `INTERNAL_ERROR` | 500 | Unhandled server error |
 
 ### 4.3 Domain Service Errors (ADR-17)

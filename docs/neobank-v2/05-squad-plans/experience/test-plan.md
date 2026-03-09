@@ -20,7 +20,7 @@ All values sourced from `packages/shared/src/test-constants.ts`.
 
 **EX-Cards:**
 - Alex balance: £1,247.50
-- Alex pots: Holiday Fund (£1,200/£2,000), Emergency Fund (£3,500/£5,000)
+- Alex pots: Holiday Fund (£1,200/£2,000), Emergency Fund (£3,500/£5,000), Rainy Day (£500, no goal)
 - 10 recent transactions across 5 categories with credits and debits
 - 1 pending transaction
 - Sample insight data: spending spike (dining +40%), bill reminder (phone £45 tomorrow)
@@ -190,9 +190,9 @@ test('CB payment pending_action has required display fields', () => {
   const action = mockPaymentPendingAction();
   expect(action.display).toHaveProperty('title');
   expect(action.display).toHaveProperty('items');
-  expect(action.display.items).toBeInstanceOf(Array);
-  expect(action.display.items[0]).toHaveProperty('label');
-  expect(action.display.items[0]).toHaveProperty('value');
+  expect(action.display.details).toBeInstanceOf(Array);
+  expect(action.display.details[0]).toHaveProperty('label');
+  expect(action.display.details[0]).toHaveProperty('value');
 });
 ```
 

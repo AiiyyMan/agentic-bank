@@ -165,7 +165,7 @@ interface PendingAction {
   params: Record<string, unknown>; // Action-specific parameters
   display: {                     // For ConfirmationCard rendering
     title: string;
-    items: Array<{ label: string; value: string }>;
+    details: Array<{ label: string; value: string }>;
     amount?: number;
     currency?: string;
   };
@@ -187,6 +187,7 @@ interface PendingAction {
 interface ProactiveCard {
   type: "spending_spike" | "bill_reminder" | "savings_milestone" | "weekly_summary" | "payday" | "greeting";
   priority: number;              // 1 = highest (time-sensitive), 3 = lowest (informational)
+                                 // Note: Internal priority is numeric (1-3). REST endpoint maps to string ('high'|'medium'|'low').
   title: string;
   description: string;
   data: Record<string, unknown>; // Card-specific data

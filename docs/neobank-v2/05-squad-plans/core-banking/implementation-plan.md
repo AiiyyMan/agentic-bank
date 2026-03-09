@@ -24,6 +24,8 @@ Tasks are ordered by dependency. Each task is Small (S, < 1 hour) or Medium (M, 
 | CB-10 | **send_payment tool** | Implement `send_payment` tool handler. Receives beneficiary_id + amount + reference. Routes through PaymentService.sendPayment(). Returns ConfirmationCard data with recipient name, masked account, balance_after. On confirm: PaymentService.executePayment() runs. | `apps/api/src/tools/core-banking.ts` (add handler) | CB-09, Foundation (confirmation flow) | M | Integration test: full payment flow — tool_use → pending_action → confirm → payment record + transaction + audit_log |
 | CB-11 | **get_payment_history tool** | Implement `get_payment_history` tool. Queries payments table with optional beneficiary_id filter, date range. Returns payments with beneficiary_name (joined), amounts, references, status. Includes summary: total_this_month, total_last_month, payment_count. | `apps/api/src/tools/core-banking.ts` (add handler) | CB-09, Foundation (payments table) | S | Unit test: history returns seeded payments; filter by beneficiary works |
 
+**Deferred to Phase 2:** `update_pot`, `close_pot`, `delete_beneficiary` tool handlers. PaymentService.deleteBeneficiary() and PotService.updatePot()/closePot() are built in Phase 1 services but tool handlers are deferred.
+
 ### Phase 2: REST Endpoints & Screens (Days 6-12)
 
 | ID | Title | Description | Files to Create/Modify | Dependencies | Size | QA Checkpoint |

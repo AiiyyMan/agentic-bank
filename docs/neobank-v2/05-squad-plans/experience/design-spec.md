@@ -194,7 +194,7 @@ interface BalanceCardProps {
   balance: number;             // 1247.50
   currency: string;            // "GBP"
   sort_code?: string;          // "04-00-75"
-  account_number?: string;     // "12345678" (masked in display: ****5678)
+  account_number_masked?: string; // "****5678" (masked to match CB output)
   onPress?: () => void;        // Navigate to account detail
 }
 ```
@@ -267,7 +267,7 @@ interface ConfirmationCardProps {
 ```typescript
 interface SuccessCardProps {
   title: string;               // "Payment Sent"
-  message: string;             // "£50.00 sent to James Mitchell"
+  message?: string;            // "£50.00 sent to James Mitchell"
   details?: Array<{ label: string; value: string }>;
   action_label?: string;       // "View receipt"
   onAction?: () => void;

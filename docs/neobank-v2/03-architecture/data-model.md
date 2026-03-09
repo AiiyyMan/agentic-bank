@@ -352,7 +352,7 @@ CREATE TABLE loans (
   next_payment_date DATE NOT NULL,
   payoff_date DATE NOT NULL,
   status TEXT NOT NULL DEFAULT 'active'
-    CHECK (status IN ('active', 'repaid', 'defaulted')),
+    CHECK (status IN ('active', 'paid_off', 'defaulted')),
   disbursed_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -373,7 +373,7 @@ CREATE TABLE loan_payments (
   due_date DATE NOT NULL,
   paid_date DATE,
   status TEXT NOT NULL DEFAULT 'pending'
-    CHECK (status IN ('pending', 'paid', 'overdue')),
+    CHECK (status IN ('pending', 'paid', 'overdue', 'scheduled')),
   is_extra BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -674,7 +674,7 @@ Seed script (`supabase/seed.sql` or `apps/api/src/seed.ts`) creates:
 
 **Alex's demo account:**
 - 1 main account: £1,247.50 balance, sort code 04-00-75
-- 2 pots: Holiday Fund (£1,200 / £2,000 goal), Emergency Fund (£3,500 / £5,000 goal)
+- 3 pots: Holiday Fund (£1,200 / £2,000 goal), Emergency Fund (£3,500 / £5,000 goal), House Deposit (£3,200 / £25,000 goal, 🏠)
 - 5 beneficiaries: James Mitchell, Sarah Chen, Tom Wilson (landlord), Mum, Netflix
 - 60 days of transactions (~120 entries) covering all 10 categories
 - 1 active standing order: £800 to Tom Wilson (rent, monthly on 1st)

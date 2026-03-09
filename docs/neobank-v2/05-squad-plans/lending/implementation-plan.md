@@ -207,7 +207,7 @@
 - Implement execution:
   1. Update `loans.balance_remaining`
   2. Insert `loan_payments` row (is_extra = true)
-  3. If balance reaches 0 → set status = 'repaid', emit celebration data
+  3. If balance reaches 0 → set status = 'paid_off', emit celebration data
   4. Update `payments_made` count
   5. Recalculate `payoff_date`
   6. Write `audit_log` entry
@@ -215,13 +215,13 @@
 **Acceptance Criteria:**
 - Payment capped at remaining balance
 - Insufficient main account balance → InsufficientFundsError
-- Full payoff triggers 'repaid' status
+- Full payoff triggers 'paid_off' status
 - Audit log written
 - New payoff date calculated
 
 **Test:**
 - Unit test: partial payment updates balance
-- Unit test: full payoff changes status to 'repaid'
+- Unit test: full payoff changes status to 'paid_off'
 - Unit test: insufficient funds rejected
 - Unit test: payment amount capped at remaining balance
 
@@ -344,6 +344,7 @@
   - `GET /api/loans/products` → `LendingService.getLoanProducts()`
   - `GET /api/loans` → `LendingService.getUserLoans(userId)`
   - `POST /api/loans/eligibility` → `LendingService.checkEligibility(userId, body.requested_amount)`
+  - `POST /api/loans/apply` → `LendingService.applyForLoan(userId, body.amount, body.term_months, body.purpose)`
   - `GET /api/loans/:id/schedule` → `LendingService.getLoanSchedule(loanId, userId)`
   - `GET /api/flex/plans` → `LendingService.getFlexPlans(userId)`
   - `GET /api/credit-score` → `LendingService.checkCreditScore(userId)`

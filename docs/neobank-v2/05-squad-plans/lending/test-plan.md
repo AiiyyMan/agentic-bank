@@ -97,7 +97,7 @@
 |------|-------|----------|------|
 | Partial payment | £500 on £2,145 balance | New balance: £1,645.30 | `extra-payment.test.ts` |
 | Payment exceeds balance → capped | £5,000 on £2,145 balance | Payment capped to £2,145.30 | `extra-payment.test.ts` |
-| Full payoff | Payment = remaining balance | status: 'repaid' | `extra-payment.test.ts` |
+| Full payoff | Payment = remaining balance | status: 'paid_off' | `extra-payment.test.ts` |
 | Insufficient main balance | £500 payment, £100 in account | InsufficientFundsError | `extra-payment.test.ts` |
 | No active loan | Random loan_id | LoanNotFoundError | `extra-payment.test.ts` |
 | Zero amount | £0 | Validation error | `extra-payment.test.ts` |
@@ -233,11 +233,11 @@ describe('Loan payment with full payoff', () => {
     const paymentResult = await lendingService.makeLoanPayment(ALEX_USER.id, loanId, 500);
     // Execute pending action...
     expect(executedResult.balance_remaining).toBe(0);
-    expect(executedResult.status).toBe('repaid');
+    expect(executedResult.status).toBe('paid_off');
 
     // Verify loan status changed
     const loan = await getLoan(loanId);
-    expect(loan.status).toBe('repaid');
+    expect(loan.status).toBe('paid_off');
   });
 });
 ```
@@ -306,7 +306,7 @@ describe('Lending pending_action contracts', () => {
     expect(action.params).toHaveProperty('amount');
     expect(action.params).toHaveProperty('term_months');
     expect(action.display).toHaveProperty('title');
-    expect(action.display.items).toEqual(
+    expect(action.display.details).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ label: 'Amount', value: expect.any(String) }),
         expect.objectContaining({ label: 'APR', value: expect.any(String) }),
