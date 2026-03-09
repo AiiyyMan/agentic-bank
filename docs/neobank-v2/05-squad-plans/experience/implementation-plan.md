@@ -149,10 +149,10 @@ Starts after EXI-07 (tool registry) ships. Depends on CB-3 (transaction categori
 
 | ID | Task | Size | Depends On | Features |
 |----|------|------|-----------|----------|
-| EXN-01 | **InsightService foundation** — Service class with pre-computation strategy. Category averages from 30-day rolling window. Weekly totals. Month-over-month comparisons. Reads from local `transactions` table (not BankingPort). | M | Foundation, CB-3 (categorisation) | #101, #102, #103 |
-| EXN-02 | **get_spending_by_category tool** — Returns spending breakdown by category for date range. Total, per-category, comparison to previous period. Registers in tool registry. | M | EXN-01, EXI-07 | #101 |
+| EXN-01 | **InsightService foundation** — Service class with pre-computation strategy. Groups spending by `primary_category` (PFCv2 taxonomy, 16 primary categories). 30-day rolling averages per `primary_category`. Weekly totals. Month-over-month comparisons. Can filter by `is_recurring` for subscription insights. Reads from local `transactions` table (not BankingPort). | M | Foundation, CB-3 (categorisation) | #101, #102, #103 |
+| EXN-02 | **get_spending_by_category tool** — Returns spending breakdown by `primary_category` for date range. Total, per-category, comparison to previous period. Registers in tool registry. | M | EXN-01, EXI-07 | #101 |
 | EXN-03 | **get_weekly_summary + comparison tools** — Weekly total, top categories, previous week comparison. get_spending_insights returns anomalies. Spending comparison (current vs previous month). | M | EXN-01 | #103, #104 |
-| EXN-04 | **Spending spike detection** — Detect category > 1.5x 30-day average. Generate InsightCard data. Quick reply: "Set budget" or "Show transactions". | M | EXN-01 | #102 |
+| EXN-04 | **Spending spike detection** — Detect `primary_category` > 1.5x 30-day average. Generate InsightCard data. Quick reply: "Set budget" or "Show transactions". | M | EXN-01 | #102 |
 | EXN-05 | **Proactive card engine** — `get_proactive_cards` evaluates 8+ trigger rules. Rank by priority (1=time-sensitive, 2=actionable, 3=informational). Max 3 cards per session. < 1s target. | M | EXN-04, EXN-03 | #106 |
 | EXN-06 | **Morning greeting flow** — `__app_open__` -> InsightService -> proactive cards -> inject into system prompt -> Claude generates unified greeting. Balance card + insight cards + quick replies. | M | EXN-05, EXI-09 | #107 |
 | EXN-07 | **Beneficiary resolution tools** — `beneficiary_name_match` fuzzy matching: exact -> prefix -> contains. Disambiguation via QuickReplyGroup with masked account numbers. | M | EXI-07, CB-4 (beneficiaries) | #31, #32 |
@@ -411,7 +411,7 @@ registry.register('core-banking', [
 | `check_balance` tool output shape | EXC-01 (BalanceCard) | Mock data from test-constants |
 | `get_transactions` output shape | EXC-02 (TransactionListCard) | Mock data |
 | `get_pots` output shape | EXC-03 (PotStatusCard) | Mock data |
-| Categorised transactions | EXN-01 (InsightService) | Uncategorised fallback (category="Other") |
+| Categorised transactions (PFCv2 `primary_category`) | EXN-01 (InsightService) | Uncategorised fallback (primary_category="GENERAL_MERCHANDISE") |
 | `get_beneficiaries` output shape | EXN-07 (Beneficiary resolution) | Mock data |
 | PaymentService pending_action creation | EXI-06 (Confirmation flow) | Mock pending_action |
 

@@ -395,12 +395,14 @@ With merchant-level caching, LLM cost is proportional to **unique merchants**, n
 
 **If the team wants maximum simplicity for POC**, pure rules (B) as specified in F13 is fine. The hybrid approach is a ~2-day incremental investment that meaningfully improves the user experience and sets up the data pipeline for future ML.
 
-### Decision needed
+### Decisions made
 
-- [ ] **Approve hybrid approach (E)** — rules + LLM fallback + merchant cache
-- [ ] **Stay with pure rules (B)** — as per PRD F13
-- [ ] **Evaluate third-party sandbox** — run Ntropy sandbox trial before deciding
-- [ ] **Approve expanded category taxonomy** — 14 categories (up from 10 in F13)
+- [x] **Approve hybrid approach (E)** — rules + LLM fallback + merchant cache
+- [x] **Adopt Plaid PFCv2 taxonomy** — 16 primary categories, 111 subcategories as the internal data model
+- [x] **Add `is_recurring` tag** — cross-cutting subscription flag across all categories (Netflix stays in ENTERTAINMENT, but tagged `is_recurring: true` for subscription management views)
+- [ ] ~~Stay with pure rules (B)~~ — superseded
+- [ ] ~~Evaluate third-party sandbox~~ — not needed for POC
+- [ ] ~~Approve expanded 14-category taxonomy~~ — superseded by PFCv2 adoption
 
 ---
 

@@ -298,21 +298,25 @@ AI: "Here's your savings overview — you have £7,900 across 3 pots."
 
 ### F13: Transaction Categorisation (#22)
 
-**User story:** As Alex, I want transactions auto-categorised so I can understand my spending patterns.
+**User story:** As Alex, I want transactions auto-categorised so I can understand my spending patterns and track subscriptions.
 
 **Acceptance criteria:**
-- Rule-based categoriser maps top 50 UK merchants to categories
-- Categories: Groceries, Dining, Transport, Entertainment, Shopping, Bills, Health, Travel, Education, Other
-- Each category has an associated Phosphor icon name
-- `categorise_transaction` internal tool: merchant_name → { category, category_icon }
-- Unrecognised merchants default to "Other" with generic icon
-- Applied during transaction creation/seeding — stored in transactions table
+- Hybrid categorisation pipeline using **Plaid PFCv2 taxonomy** (16 primary categories, 111 subcategories)
+- Rule-based map covers top 50-100 UK merchants (deterministic, zero cost)
+- `merchant_categories` cache table stores LLM-classified merchants for reuse
+- Claude Haiku fallback for unknown merchants — classifies and caches the result
+- Each transaction stores: `primary_category`, `detailed_category` (nullable subcategory), `category_icon` (Phosphor icon name)
+- `is_recurring` boolean flag on transactions — enables "show me all subscriptions" queries across categories (Netflix = ENTERTAINMENT > TV and movies with `is_recurring: true`)
+- `categorise_transaction` is server-side infrastructure: merchant_name → { primary_category, detailed_category, category_icon, is_recurring }
+- Applied during transaction creation/ingestion — stored in transactions table
+- PFCv2 primary categories: INCOME, TRANSFER_IN, TRANSFER_OUT, LOAN_PAYMENTS, BANK_FEES, ENTERTAINMENT, FOOD_AND_DRINK, GENERAL_MERCHANDISE, HOME_IMPROVEMENT, MEDICAL, PERSONAL_CARE, GENERAL_SERVICES, GOVERNMENT_AND_NON_PROFIT, TRANSPORTATION, TRAVEL, RENT_AND_UTILITIES
 
 **Edge cases:**
-- Merchant name variations ("Tesco Express" vs "Tesco Metro"): normalize by prefix matching
-- Empty merchant_name: categorise as "Other"
+- Merchant name variations ("Tesco Express" vs "Tesco Metro"): normalise by stripping suffixes (LTD, PLC), lowercasing, collapsing whitespace, then prefix matching
+- Empty merchant_name: categorise as GENERAL_MERCHANDISE / Other
+- Haiku unavailable: fall back to GENERAL_MERCHANDISE / Other (never block transaction ingestion)
 
-**Priority:** P0 | **POC approach:** Rule-based map (in-code object). AI-powered categorisation is P2.
+**Priority:** P0 | **POC approach:** Hybrid pipeline — rule-based map for known merchants, Haiku fallback for unknowns, merchant-level caching for efficiency.
 
 ---
 

@@ -49,7 +49,10 @@
        ├─►│user_insights_cache│
        │  └───────────────────┘
        │
-       └─►│   audit_log       │
+       ├─►│   audit_log       │
+       │  └───────────────────┘
+       │
+       └──│merchant_categories│  (global, no user_id)
           └───────────────────┘
 ```
 
@@ -267,8 +270,17 @@ CREATE TABLE transactions (
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   account_id UUID,               -- Main account or pot
   merchant_name TEXT NOT NULL,
-  category TEXT NOT NULL DEFAULT 'Other',
+  merchant_name_normalised TEXT,  -- Cleaned merchant name for cache lookups (lowercase, no suffixes)
+  primary_category TEXT NOT NULL DEFAULT 'GENERAL_MERCHANDISE'
+    CHECK (primary_category IN (
+      'INCOME', 'TRANSFER_IN', 'TRANSFER_OUT', 'LOAN_PAYMENTS', 'BANK_FEES',
+      'ENTERTAINMENT', 'FOOD_AND_DRINK', 'GENERAL_MERCHANDISE', 'HOME_IMPROVEMENT',
+      'MEDICAL', 'PERSONAL_CARE', 'GENERAL_SERVICES', 'GOVERNMENT_AND_NON_PROFIT',
+      'TRANSPORTATION', 'TRAVEL', 'RENT_AND_UTILITIES'
+    )),
+  detailed_category TEXT,        -- PFCv2 subcategory (e.g., 'Groceries', 'Coffee shops')
   category_icon TEXT,              -- Phosphor icon name for category display
+  is_recurring BOOLEAN DEFAULT FALSE,  -- Subscription/recurring payment flag
   amount NUMERIC(12,2) NOT NULL,  -- Negative = debit, positive = credit
   currency TEXT NOT NULL DEFAULT 'GBP',
   reference TEXT,
@@ -279,8 +291,31 @@ CREATE TABLE transactions (
 );
 
 CREATE INDEX idx_transactions_user ON transactions(user_id, posted_at DESC);
-CREATE INDEX idx_transactions_category ON transactions(user_id, category, posted_at DESC);
+CREATE INDEX idx_transactions_category ON transactions(user_id, primary_category, posted_at DESC);
 CREATE INDEX idx_transactions_merchant ON transactions(user_id, merchant_name);
+CREATE INDEX idx_transactions_recurring ON transactions(user_id, is_recurring) WHERE is_recurring = TRUE;
+```
+
+### 2.10b merchant_categories (Categorisation Cache)
+
+```sql
+-- Merchant category cache (populated by rule map or LLM on first encounter)
+CREATE TABLE merchant_categories (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  merchant_name_normalised TEXT UNIQUE NOT NULL,
+  primary_category TEXT NOT NULL
+    CHECK (primary_category IN (
+      'INCOME', 'TRANSFER_IN', 'TRANSFER_OUT', 'LOAN_PAYMENTS', 'BANK_FEES',
+      'ENTERTAINMENT', 'FOOD_AND_DRINK', 'GENERAL_MERCHANDISE', 'HOME_IMPROVEMENT',
+      'MEDICAL', 'PERSONAL_CARE', 'GENERAL_SERVICES', 'GOVERNMENT_AND_NON_PROFIT',
+      'TRANSPORTATION', 'TRAVEL', 'RENT_AND_UTILITIES'
+    )),
+  detailed_category TEXT,
+  category_icon TEXT NOT NULL,
+  source TEXT NOT NULL CHECK (source IN ('rule', 'llm', 'user_override')),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
 ```
 
 ### 2.11 auto_save_rules
@@ -652,7 +687,7 @@ Two migrations exist:
                                 # NOTE: Do NOT recreate existing RLS policies from 001
 004_pots.sql                    # CREATE pots, pot_transfers
 005_beneficiaries_payments.sql  # CREATE beneficiaries, payments
-006_transactions.sql            # CREATE transactions (local store for categorisation + insights)
+006_transactions.sql            # CREATE transactions (PFCv2 categories, is_recurring flag) + merchant_categories cache
 007_standing_orders.sql         # CREATE standing_orders
 008_auto_save_rules.sql         # CREATE auto_save_rules
 009_flex.sql                    # CREATE flex_plans, flex_payments
@@ -676,7 +711,7 @@ Seed script (`supabase/seed.sql` or `apps/api/src/seed.ts`) creates:
 - 1 main account: £1,247.50 balance, sort code 04-00-75
 - 3 pots: Holiday Fund (£1,200 / £2,000 goal), Emergency Fund (£3,500 / £5,000 goal), House Deposit (£3,200 / £25,000 goal, 🏠)
 - 5 beneficiaries: James Mitchell, Sarah Chen, Tom Wilson (landlord), Mum, Netflix
-- 60 days of transactions (~120 entries) covering all 10 categories
+- 60 days of transactions (~120 entries) covering all 16 PFCv2 primary categories, with `is_recurring: true` on subscription merchants (Netflix, Spotify, etc.)
 - 1 active standing order: £800 to Tom Wilson (rent, monthly on 1st)
 - Credit score: 742 (Good)
 
@@ -690,7 +725,7 @@ All values sourced from `packages/shared/src/test-constants.ts`.
 
 ```sql
 SELECT
-  category,
+  primary_category,
   COUNT(*) AS transaction_count,
   SUM(ABS(amount)) AS total_spent,
   MAX(ABS(amount)) AS largest_amount
@@ -699,7 +734,7 @@ WHERE user_id = $1
   AND amount < 0                 -- Debits only
   AND posted_at >= $2            -- Start of period
   AND posted_at < $3             -- End of period
-GROUP BY category
+GROUP BY primary_category
 ORDER BY total_spent DESC;
 ```
 

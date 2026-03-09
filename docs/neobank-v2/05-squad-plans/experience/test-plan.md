@@ -21,7 +21,7 @@ All values sourced from `packages/shared/src/test-constants.ts`.
 **EX-Cards:**
 - Alex balance: £1,247.50
 - Alex pots: Holiday Fund (£1,200/£2,000), Emergency Fund (£3,500/£5,000), House Deposit (£3,200, £25,000 goal)
-- 10 recent transactions across 5 categories with credits and debits
+- 10 recent transactions across 5 PFCv2 primary categories (e.g. FOOD_AND_DRINK, TRANSPORTATION, ENTERTAINMENT, RENT_AND_UTILITIES, GENERAL_MERCHANDISE) with credits and debits
 - 1 pending transaction
 - Sample insight data: spending spike (dining +40%), bill reminder (phone £45 tomorrow)
 - Onboarding checklist: 2/6 complete
@@ -36,7 +36,7 @@ All values sourced from `packages/shared/src/test-constants.ts`.
 **EX-Insights:**
 - 90+ days of categorised transactions (from seed data)
 - Category averages pre-computed in user_insights_cache
-- Spending spike: dining at 1.6x average this month
+- Spending spike: FOOD_AND_DRINK at 1.6x average this month
 - Standing order: £800 rent due tomorrow
 - Weekly spending: £340 (last week £312)
 
@@ -96,8 +96,8 @@ All values sourced from `packages/shared/src/test-constants.ts`.
 
 | Test | File | What It Verifies |
 |------|------|-----------------|
-| Category spending aggregation | `__tests__/services/insight.test.ts` | Totals match raw transaction sums |
-| Spending spike detection | `__tests__/services/insight.test.ts` | Category > 1.5x average triggers spike |
+| PFCv2 primary_category spending aggregation | `__tests__/services/insight.test.ts` | Totals match raw transaction sums grouped by primary_category |
+| Spending spike detection | `__tests__/services/insight.test.ts` | primary_category > 1.5x average triggers spike |
 | No spike for normal spending | `__tests__/services/insight.test.ts` | 1.2x average does NOT trigger |
 | Weekly summary accuracy | `__tests__/services/insight.test.ts` | Weekly totals match, comparison correct |
 | Proactive card ranking | `__tests__/services/insight.test.ts` | Time-sensitive > actionable > informational |
@@ -149,7 +149,7 @@ All values sourced from `packages/shared/src/test-constants.ts`.
 | Test | What It Verifies |
 |------|-----------------|
 | App open greeting with proactive cards | __app_open__ -> InsightService -> Claude greeting with embedded cards |
-| Spending query with category filter | get_spending_by_category returns correct breakdown |
+| Spending query with primary_category filter | get_spending_by_category returns correct breakdown by primary_category |
 | Spending spike surfaces InsightCard | Spike detected -> card data generated -> renders in chat |
 | Weekly summary accuracy | Matches raw transaction sums for the week |
 
@@ -228,10 +228,12 @@ Tests that categorised transaction rows from CB match what InsightService expect
 test('categorised transactions have required fields', () => {
   const txns = await supabase.from('transactions').select('*').eq('user_id', ALEX_USER.id);
   for (const txn of txns.data) {
-    expect(txn).toHaveProperty('category');
+    expect(txn).toHaveProperty('primary_category');
+    expect(txn).toHaveProperty('detailed_category');
+    expect(txn).toHaveProperty('is_recurring');
     expect(txn).toHaveProperty('merchant_name');
     expect(txn).toHaveProperty('amount');
-    expect(txn.category).toBeTruthy(); // Not null/empty
+    expect(txn.primary_category).toBeTruthy(); // Not null/empty
   }
 });
 ```
@@ -367,7 +369,7 @@ Every task must pass before marking complete:
 
 **EX-Insights (Day 12 gate):**
 - [ ] Spending by category query returns correct data
-- [ ] Spending spike detected for dining category
+- [ ] Spending spike detected for FOOD_AND_DRINK primary_category
 - [ ] Weekly summary matches transaction sums
 - [ ] Proactive cards: max 3, ranked by priority
 - [ ] Morning greeting includes balance + insights

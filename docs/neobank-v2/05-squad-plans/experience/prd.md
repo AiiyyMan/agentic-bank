@@ -784,7 +784,9 @@ Insight tools make Agentic Bank proactive. They compute spending patterns, detec
 - `get_spending_by_category` tool queries local `transactions` table (NOT BankingPort)
 - Returns: total_spent, per-category amounts with percentages, comparison to previous period
 - Supports: "this month", "last month", custom date range
-- Categories from CB's rule-based categorisation (#22)
+- Categories use Plaid PFCv2 taxonomy (16 primary categories, 111 subcategories — see tech-decisions.md ADR-08)
+- Spending insights group by `primary_category` (e.g. FOOD_AND_DRINK, TRANSPORTATION, ENTERTAINMENT)
+- Subscription/recurring views use `is_recurring` flag (cross-cutting, not a separate category)
 
 **Edge Cases:**
 - No transactions in period: "No spending recorded for that period"
@@ -799,8 +801,8 @@ Insight tools make Agentic Bank proactive. They compute spending patterns, detec
 **User Story:** As Alex, I want to be told when I'm spending more than usual, so that I'm aware before it becomes a problem.
 
 **Acceptance Criteria:**
-- Detect when category spending exceeds 1.5x the 30-day rolling average
-- Generate InsightCard with: category, current amount, average, percentage increase
+- Detect when `primary_category` spending exceeds 1.5x the 30-day rolling average
+- Generate InsightCard with: `primary_category`, current amount, average, percentage increase
 - Quick reply: "Set a budget" or "Show transactions"
 - Pre-computed from `user_insights_cache.category_averages`
 

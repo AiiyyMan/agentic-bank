@@ -228,37 +228,57 @@ Each squad file exports a `registerXTools(registry: ToolRegistry)` function. The
 
 ---
 
-## ADR-08: Transaction Categorisation (Rule-Based + AI Fallback)
+## ADR-08: Transaction Categorisation — Hybrid Pipeline with PFCv2 Taxonomy
 
 **Status:** Accepted
 
-**Context:** Spending insights require categorised transactions. Griffin doesn't provide categories. We need to map merchants to categories.
+**Context:** Spending insights require categorised transactions. Griffin doesn't provide categories. We need to map merchants to categories using an industry-standard taxonomy.
 
-**Decision:** Two-tier categorisation:
-1. **Rule-based (P0):** Static merchant-to-category mapping covering top 50 UK merchants. Stored in `packages/shared/src/constants/categories.ts`. Fast, deterministic, no API cost.
-2. **AI fallback (P2):** For unknown merchants, Claude classifies based on merchant name. Cached per merchant to avoid repeat API calls.
+**Decision:**
+- Adopt **Plaid PFCv2 taxonomy** (16 primary categories, 111 subcategories) as the internal categorisation standard
+- **Hybrid pipeline:** rule-based lookup for top 50-100 UK merchants → `merchant_categories` cache table → Claude Haiku fallback for unknowns → cache the result
+- `is_recurring` boolean flag on transactions for subscription management (cross-cuts all categories — Netflix = ENTERTAINMENT with `is_recurring: true`, not a separate "Subscriptions" category)
+- `categorise_transaction` is **server-side infrastructure**, not a Claude tool. It runs automatically when transactions are ingested.
+- Store both `primary_category` and `detailed_category` on transactions
 
-**Top-level categories (10):**
+**PFCv2 Primary Categories (16):**
 
-| Category | Examples |
-|----------|---------|
-| Groceries | Tesco, Sainsbury's, Waitrose, Aldi, Lidl, Ocado |
-| Dining | Deliveroo, Uber Eats, Just Eat, Nando's, Pret |
-| Transport | TfL, Uber, Bolt, Trainline, Shell, BP |
-| Shopping | Amazon, ASOS, John Lewis, Currys, Argos |
-| Bills | EE, Three, Sky, BT, Thames Water, Council Tax |
-| Entertainment | Netflix, Spotify, Disney+, Odeon, Ticketmaster |
-| Health | Boots, Holland & Barrett, gym memberships |
-| Travel | Booking.com, Airbnb, BA, easyJet, Ryanair |
-| Income | Salary credits, refunds, interest |
-| Other | Uncategorised |
+| Primary Category | Examples |
+|-----------------|---------|
+| INCOME | Salary credits, interest, refunds |
+| TRANSFER_IN | Incoming bank transfers, P2P receipts |
+| TRANSFER_OUT | Outgoing bank transfers, P2P sends |
+| LOAN_PAYMENTS | Mortgage, student loan, personal loan repayments |
+| BANK_FEES | Overdraft charges, ATM fees, account fees |
+| ENTERTAINMENT | Netflix, Spotify, Disney+, Odeon, Ticketmaster |
+| FOOD_AND_DRINK | Tesco, Sainsbury's, Pret, Deliveroo, Nando's |
+| GENERAL_MERCHANDISE | Amazon, ASOS, John Lewis, Currys, Argos |
+| HOME_IMPROVEMENT | B&Q, Wickes, IKEA, Homebase |
+| MEDICAL | Boots pharmacy, dentist, GP co-pays |
+| PERSONAL_CARE | Barbers, beauty, gym memberships |
+| GENERAL_SERVICES | Accountants, solicitors, cleaning services |
+| GOVERNMENT_AND_NON_PROFIT | Council tax, HMRC, charity donations |
+| TRANSPORTATION | TfL, Uber, Bolt, Trainline, Shell, BP |
+| TRAVEL | Booking.com, Airbnb, BA, easyJet, Ryanair |
+| RENT_AND_UTILITIES | Rent, EE, Three, Sky, BT, Thames Water |
+
+**Pipeline flow:**
+1. Normalise merchant name (lowercase, strip suffixes like "LTD", "PLC", collapse whitespace)
+2. Check in-code rule map (top 50-100 UK merchants → deterministic, zero cost)
+3. Check `merchant_categories` cache table (previously classified merchants)
+4. If miss: call Claude Haiku with merchant name → classify → write to `merchant_categories` cache
+5. Fallback: `GENERAL_MERCHANDISE` / `Other` if Haiku unavailable
+
+**Rationale:** PFCv2 is the industry standard (Plaid, adopted Dec 2025). Using it ensures data compatibility if we ever integrate enrichment APIs (Plaid, Ntropy, etc.). The hybrid approach gives deterministic speed for known merchants with intelligent fallback for unknowns at ~$0.15/month at 10K transactions.
 
 **Consequences:**
-- (+) P0 categorisation works without any AI cost
-- (+) Top 50 merchants cover ~80% of typical UK spending
-- (+) Deterministic = testable, predictable insight engine
-- (-) Long tail of merchants will be "Other" until AI fallback (P2)
-- (-) Merchant names from Griffin may not exactly match our mapping (e.g., "TESCO STORES LTD" vs "Tesco"). Need fuzzy matching.
+- (+) Industry-standard taxonomy — compatible with Plaid, enrichment APIs
+- (+) Rule-based layer covers ~80% of typical UK spending at zero cost
+- (+) Merchant-level caching means each unknown merchant triggers Haiku only once
+- (+) `is_recurring` flag enables "show me all subscriptions" across categories
+- (+) Dual-level categories (primary + detailed) support both summary views and drill-downs
+- (-) Merchant names from Griffin may not exactly match our mapping (e.g., "TESCO STORES LTD" vs "Tesco"). Need normalisation function.
+- (-) 16 categories is more than the original 10 — UI category filters need to handle this gracefully
 
 ---
 

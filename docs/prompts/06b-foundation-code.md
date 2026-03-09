@@ -80,7 +80,29 @@ Reference: system-architecture.md §11.5 V1, plan-assessment.md §5.1.
 Update or create the shared types package (`packages/shared/`):
 - API request/response types (from api-design.md)
 - Tool input/output types
-- Common enums (transaction categories, account statuses, pot rule types, etc.)
+- Common enums (account statuses, pot rule types, etc.)
+- Transaction categories follow Plaid PFCv2 taxonomy — see tech-decisions.md ADR-08. Define:
+  ```typescript
+  // PFCv2 Primary Categories (Plaid standard)
+  type PrimaryCategory =
+    | 'INCOME'
+    | 'TRANSFER_IN'
+    | 'TRANSFER_OUT'
+    | 'LOAN_PAYMENTS'
+    | 'BANK_FEES'
+    | 'ENTERTAINMENT'
+    | 'FOOD_AND_DRINK'
+    | 'GENERAL_MERCHANDISE'
+    | 'HOME_IMPROVEMENT'
+    | 'MEDICAL'
+    | 'PERSONAL_CARE'
+    | 'GENERAL_SERVICES'
+    | 'GOVERNMENT_AND_NON_PROFIT'
+    | 'TRANSPORTATION'
+    | 'TRAVEL'
+    | 'RENT_AND_UTILITIES';
+  ```
+  Transactions also carry `detailed_category` (string), `is_recurring` (boolean), and `category_icon` (string). Subscriptions are a cross-cutting `is_recurring` flag, not a separate category.
 - `BankingPort` interface types (interface definition — implementation in Phase F2)
 
 **UI Component Types — define comprehensive enum upfront:**
