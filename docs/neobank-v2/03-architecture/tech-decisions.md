@@ -330,29 +330,42 @@ Each squad file exports a `registerXTools(registry: ToolRegistry)` function. The
 
 ---
 
-## ADR-11: Tab Navigation Structure
+## ADR-11: Navigation Structure — Tabs + Chat FAB
 
-**Status:** Accepted
+**Status:** Accepted (revised)
 
-**Context:** The app is "AI-first, screens-second." The home screen IS the chat. But users also need direct access to accounts, cards, and settings without going through the AI.
+**Context:** The original design placed Chat as the home tab ("AI-first, screens-second"). User testing and competitive analysis showed that users expect a traditional banking home screen with balance and pots front-and-centre on launch. AI should be omnipresent rather than confined to a single tab. The balance + pots visual is the #1 thing users want to see when they open a banking app.
 
-**Decision:** 4-tab layout:
+**Decision:** 4 bottom tabs + a floating Chat FAB (Floating Action Button):
 
 | Tab | Screen | Purpose |
 |-----|--------|---------|
-| Chat (Home) | AI chat interface | Primary interaction surface. Proactive cards on open. |
-| Activity | Transaction history | Drill-down for transaction browsing, filtering |
-| Savings | Savings pots | Drill-down for pot management, progress tracking |
-| Profile | Account details + settings | Profile info, preferences, sign out |
+| Home | Balance + pots graph-style visual + proactive insight cards | Default landing screen. Combined financial overview. |
+| Payments | Beneficiary list + recent payments | Payment management and history |
+| Activity | Transaction history (date-grouped, PFCv2 categories) | Transaction browsing, filtering |
+| Profile | Account details (sort code, account number, copy) + settings + sign out | Account info, preferences, sign out |
 
-The Chat tab is the default/home tab. It's the leftmost tab and the one shown on app launch.
+**Chat FAB:** A floating action button visible on ALL tabs, overlaying the tab bar. Tapping opens Chat as a **full-screen modal** (not a bottom sheet, not a tab). The FAB shows a badge for unread proactive insights.
 
-**Rationale:** Cards has no P0 features; Activity and Savings are higher-frequency browse targets. Profile consolidates account details + settings into a single tab. Cards tab will be added when P1 card management features ship.
+Home is the default landing screen. It is shown on app launch for authenticated users.
+
+**Platform differences:**
+- **iOS:** Floating navigation bar style with dynamic adjustment
+- **Android:** Standard FAB (Material Design pattern)
+
+**Pre-login state:** Login screen is displayed before any tabs or FAB are accessible. This is a security boundary — no banking UI is visible until authenticated.
+
+**Onboarding:** On first launch for new users, the FAB auto-opens to trigger the onboarding conversation. After onboarding, the user lands on the Home tab.
+
+**Proactive insights:** Surface on BOTH the Home tab (as visual cards) and in Chat (as messages). The FAB badge count reflects unread proactive insights.
+
+**Rationale:** AI is omnipresent via the FAB rather than confined to one tab. Users get a traditional banking nav structure they understand immediately — balance and savings progress visible at a glance without any interaction. Chat remains one tap away from any screen.
 
 **Alternatives:**
-- **5 tabs** (add Payments) — Too many tabs. Payments are initiated via chat; a dedicated tab adds no value.
-- **Chat, Accounts, Cards, Settings** — Cards tab is P1 with no P0 features. Activity (transactions) and Savings (pots) are higher-frequency browse targets than a placeholder Cards tab.
-- **No tabs** (full-screen chat) — Loses the drill-down escape hatch. Users need to check balances without typing.
+- **Chat as home tab (previous decision)** — Forces users to interact with AI before seeing their balance. Most banking app opens are passive (glance at balance, check recent transactions). Making chat the default adds friction for the most common use case.
+- **5 tabs** (Home, Payments, Activity, Chat, Profile) — Chat as a tab confines it to one position. The FAB pattern makes chat accessible from every screen without consuming a tab slot.
+- **Bottom sheet for chat** — Partial screen means cramped card rendering. Full-screen modal gives cards the space they need.
+- **No tabs** (full-screen chat only) — Loses the drill-down escape hatch. Users need to browse transactions and manage pots without typing.
 
 ---
 

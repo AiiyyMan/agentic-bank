@@ -150,7 +150,7 @@ M4: TTFT targets — 500ms (PRD) vs 100ms (test plan) measure different things
 M5: AgentService → InsightService circular dependency concern
 M6: EX summary understates task count (8 features vs 12 tasks)
 M7: Summarisation threshold — 100 vs 50 messages, 80 at trigger
-M8: ~~Navigation tabs~~ RESOLVED — Decision: "Chat, Activity, Savings, Profile". Cards has no P0 features; Activity and Savings are higher-frequency browse targets. Profile consolidates account details + settings.
+M8: ~~Navigation tabs~~ RESOLVED — Decision: "Home, Payments, Activity, Profile" tabs + Chat FAB (floating action button). Chat is a full-screen modal launched from the FAB, not a tab. Home is the default landing screen (balance + pots visual + proactive insight cards). Savings content is integrated into the Home tab. FAB visible on all tabs with badge for unread proactive insights.
 M9: tabular-nums fallback not specified for monetary amounts
 M10: animate-pulse validation not assigned to any early task
 M11: DatePickerCard/AddressInputCard bypass card renderer — undocumented

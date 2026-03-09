@@ -2,7 +2,7 @@
 
 > **Phase 4 Output** | Experience Squad | March 2026
 >
-> Task breakdown for 47 P0 tasks across 4 streams. Max complexity: M (1-3 hours).
+> Task breakdown for 50 P0 tasks across 4 streams. Max complexity: M (1-3 hours).
 
 ---
 
@@ -39,14 +39,17 @@ Everything depends on this stream. It builds the chat infrastructure that all ot
 | EXI-10 | **Error handling** — Stream error recovery: 15s timeout detection, max 3 retries. Handle 429 (rate limit), 529 (AI overloaded, exponential backoff). Network loss -> "Reconnecting..." banner. Error card display via CardRenderer. | M | EXI-02, EXI-03 | #97 |
 | EXI-11 | **Message persistence** — Save messages to Supabase with `content_blocks` JSONB. Load history on app open. Synthetic tool_result for respond_to_user. Quick reply history as disabled pills. Session management (new conversation button). | M | EXI-09 | #96, #98, #99 |
 | EXI-12 | **Token refresh + auth integration** — API client intercepts 401, calls `supabase.auth.refreshSession()`, retries request transparently (QA U1). Auth state drives routing: unauthenticated -> (auth), authenticated -> (tabs). | M | Foundation auth | #119 |
+| EXI-13 | **Tab layout + ChatFAB** — Build `(tabs)/_layout.tsx` with 4 tabs (Home, Payments, Activity, Profile). Build `ChatFAB.tsx` component: floating action button visible on all tabs, overlaying the tab bar. iOS floating bar style with dynamic adjustment, Android standard FAB. Badge for unread proactive insights. Tapping opens `app/chat.tsx` as full-screen modal. On first launch for new users, FAB auto-opens to trigger onboarding. Chat route is `app/chat.tsx` (modal, not a tab). | M | Foundation mobile scaffold | — |
+| EXI-14 | **Home screen** — Build `(tabs)/index.tsx`. Combined balance + pots graph-style visual (balance card with pots progress integrated). Below: proactive insight cards (morning greeting, spending spike, bill reminder, etc.). This is the DEFAULT landing screen. Combines BalanceCard (EXC-01), pots overview, and proactive insight cards (from EXN-05). | M | EXI-13, EXC-01 | #5 |
+| EXI-15 | **Payments screen** — Build `(tabs)/payments.tsx`. Beneficiary list + recent payments. Uses TanStack Query for beneficiary and payment data. | M | EXI-13 | — |
 
 ### Sequencing
 
 ```
-Day 1: EXI-01 (ChatView) + EXI-02 (SSE) in parallel
+Day 1: EXI-01 (ChatView) + EXI-02 (SSE) in parallel + EXI-13 (Tab layout + ChatFAB)
 Day 2: EXI-03 (State machine) + EXI-04 (Card renderer)
 Day 3: EXI-05 (Input) + EXI-06 (Confirmation flow)
-Day 4: EXI-07 (Tool registry) + EXI-08 (System prompt) + EXI-12 (Auth)
+Day 4: EXI-07 (Tool registry) + EXI-08 (System prompt) + EXI-12 (Auth) + EXI-14 (Home screen) + EXI-15 (Payments screen)
 Day 5: EXI-09 (Agent loop) + EXI-10 (Error handling) + EXI-11 (Persistence)
 ```
 
@@ -123,7 +126,7 @@ Starts after EXI-01 (ChatView) and EXI-09 (AgentService) are usable. Builds the 
 | EXO-10 | **Funding options** — FundingOptionsCard: "Bank transfer" (shows details) or "I'll do this later". Compact account details if skipped. Transition to FUNDING_OFFERED. | M | EXO-09, EXC-13 | #76 |
 | EXO-11 | **Getting started checklist** — `get_onboarding_checklist` + `update_checklist_item` tools. ChecklistCard integration. First action prompts via QuickReplyGroup. `complete_onboarding` tool marks ONBOARDING_COMPLETE. | M | EXO-10, EXC-12 | #80, #81 |
 | EXO-12 | **Onboarding REST endpoints + tool gating transition** — POST /api/onboarding/start, /verify, GET /checklist. When onboarding completes, tool set expands from 8 to full (44 tools). Seamless in-conversation. | M | EXO-01, EXI-07 | #119, #81 |
-| EXO-13 | **Login Screen** — Build `(auth)/login.tsx` form screen with email/password fields, sign-in button, and 'Forgot password' link. | S | Foundation auth | #119 |
+| EXO-13 | **Login Screen** — Build `(auth)/login.tsx` form screen with email/password fields, sign-in button, and 'Forgot password' link. This is the pre-login state — no tabs or FAB visible. Post-login navigates to Home tab with FAB. | S | Foundation auth | #119 |
 
 ### Sequencing
 
@@ -285,18 +288,20 @@ type SSEEvent =
 apps/mobile/
   app/
     _layout.tsx              — Root layout, font loading, auth redirect
+    chat.tsx                 — Chat (full-screen modal, launched from ChatFAB)
     (auth)/
       _layout.tsx            — Auth group layout
       welcome.tsx            — Welcome/WelcomeCard screen
-      login.tsx              — Login form
+      login.tsx              — Login form (pre-login state — no tabs/FAB visible)
     (tabs)/
-      _layout.tsx            — Tab bar layout
-      index.tsx              — Chat home (primary screen)
-      transactions.tsx       — Activity drill-down (CB)
-      savings.tsx            — Savings drill-down (CB)
+      _layout.tsx            — Tab bar layout (Home, Payments, Activity, Profile) + ChatFAB overlay
+      index.tsx              — Home (balance + pots visual + proactive insight cards)
+      payments.tsx           — Payments (beneficiary list + recent payments)
+      activity.tsx           — Activity (transaction history, date-grouped)
       profile.tsx            — Profile (account details + settings + sign out)
   src/
     components/
+      ChatFAB.tsx            — Floating action button (opens chat modal, badge for insights)
       chat/
         ChatView.tsx         — FlatList container
         MessageBubble.tsx    — AI + user bubbles

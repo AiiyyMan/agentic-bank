@@ -15,7 +15,7 @@ The Experience squad owns the conversational interface that makes Agentic Bank A
 ### User Problems for Alex
 
 1. **Onboarding friction** — Alex hates forms. Signing up should feel like meeting a personal banker, not a compliance exercise. Target: account open in under 3 minutes.
-2. **Navigation overhead** — Alex opens banking apps 2-3x daily but dreads navigating menus. The chat IS the home screen; relevant information surfaces without a single tap.
+2. **Navigation overhead** — Alex opens banking apps 2-3x daily but dreads navigating menus. The Home screen shows balance + pots + proactive insight cards at a glance. Chat is one tap away via the FAB from any screen.
 3. **Passive banking** — Alex's current bank never tells her anything useful. Agentic Bank notices spending spikes, upcoming bills, and savings opportunities proactively.
 4. **Confirmation anxiety** — Alex trusts AI for information but needs clear control before money moves. Two-phase confirmation with visible details gives her confidence.
 5. **Context loss** — Mid-conversation topic switches ("wait, what's my balance?") shouldn't break flow. Multi-turn context and pending action resurfacing keep Alex in control.
@@ -363,7 +363,7 @@ All cards follow `agent-design-instructions.md` for design tokens, typography, s
 - Three error tiers: inline (form fields), toast (top banner, 4s), full card (unrecoverable)
 
 **Edge Cases:**
-- AI unavailable: "I'm having trouble right now. You can still access your accounts through the tabs below."
+- AI unavailable: "I'm having trouble right now. You can still access your accounts through the Home, Payments, and Activity tabs."
 - Tool failed: "I couldn't complete that action. Want me to try again?"
 - Network error: distinct from server error
 
@@ -758,7 +758,7 @@ Onboarding is AI-conversational, not form-based. The AI guides Alex through each
 - Supabase Auth: signUp, signInWithPassword, signOut, session management
 - JWT session tokens with 1-hour expiry + refresh token
 - Token refresh on 401 (QA U1): API client intercepts, calls `refreshSession()`, retries request
-- Auth state drives app routing: unauthenticated -> (auth)/welcome, authenticated -> (tabs)/chat
+- Auth state drives app routing: unauthenticated -> (auth)/welcome, authenticated -> (tabs)/home (with ChatFAB visible)
 - Password hashed by Supabase (bcrypt)
 
 **Edge Cases:**

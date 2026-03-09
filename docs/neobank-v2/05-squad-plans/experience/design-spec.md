@@ -13,10 +13,13 @@
 
 | Screen | Route | Description | Stream |
 |--------|-------|-------------|--------|
-| Chat Home | `(tabs)/index` or `(tabs)/chat` | The home screen. Full-screen chat with AI. | EX-Infra |
+| Home | `(tabs)/index` | Default landing screen. Combined balance + pots graph-style visual + proactive insight cards. | EX-Cards |
+| Payments | `(tabs)/payments` | Beneficiary list + recent payments. | EX-Cards |
+| Activity | `(tabs)/activity` | Transaction history, date-grouped, PFCv2 categories. | EX-Cards |
+| Profile | `(tabs)/profile` | Account details (sort code, account number, copy) + settings + sign out. | EX-Cards |
+| Chat | `app/chat` (modal) | Full-screen chat with AI. Launched from ChatFAB, not a tab. | EX-Infra |
 | Welcome | `(auth)/welcome` | First launch for unauthenticated users. Shows WelcomeCard. | EX-Onboarding |
-| Login | `(auth)/login` | Email + password sign-in. | EX-Onboarding |
-| Profile | `(tabs)/profile` | Account details + settings + sign out. | EX-Cards |
+| Login | `(auth)/login` | Email + password sign-in. Pre-login security boundary — no tabs or FAB visible. | EX-Onboarding |
 
 ### 1.2 Chat-Embedded Screens (Cards, not routes)
 
@@ -48,15 +51,75 @@ These are not separate screens — they are rich cards rendered inline in the ch
 
 ## 2. Screen Specifications
 
-### 2.1 Chat Home Screen
+### 2.1 Home Screen (Default Landing)
 
-The home screen IS the chat. No dashboard, no tabs for primary navigation. The chat feed is the primary interface.
+The default screen on app launch. Shows a combined balance + pots visual and proactive insight cards. This is NOT the chat — chat is accessed via the ChatFAB.
 
 ```
 ┌─────────────────────────────────────┐
 │  Header: h-14 px-4                  │
 │  ┌─────────────────────────────────┐│
-│  │ [Robot] Agentic Bank   [Refresh]││
+│  │ [Logo] Agentic Bank             ││
+│  └─────────────────────────────────┘│
+│                                     │
+│  ScrollView (flex-1, px-4)          │
+│  ┌─────────────────────────────────┐│
+│  │ Combined Balance + Pots Visual  ││
+│  │ ┌─────────────────────────────┐ ││
+│  │ │ £1,247.50                   │ ││
+│  │ │ Main Account                │ ││
+│  │ │ ┌───┐ ┌───┐ ┌───┐          │ ││
+│  │ │ │ 🏖 │ │ 🚨 │ │ 🏠 │ Pots    │ ││
+│  │ │ │60%│ │70%│ │13%│          │ ││
+│  │ │ └───┘ └───┘ └───┘          │ ││
+│  │ └─────────────────────────────┘ ││
+│  │                                 ││
+│  │ Proactive Insight Cards         ││
+│  │ ┌─────────────────────────────┐ ││
+│  │ │ 💡 Phone bill due tomorrow  │ ││
+│  │ │    £45 — balance can cover  │ ││
+│  │ └─────────────────────────────┘ ││
+│  │ ┌─────────────────────────────┐ ││
+│  │ │ 💡 Dining spend up 40%     │ ││
+│  │ │    £127 vs £91 average      │ ││
+│  │ └─────────────────────────────┘ ││
+│  └─────────────────────────────────┘│
+│                                     │
+│  Tab Bar: Home | Payments | Activity│
+│  │ Profile                  [FAB] │ │
+└─────────────────────────────────────┘
+```
+
+**Component Spec:**
+
+```
+SafeAreaView    bg-background-primary flex-1
+  Header        h-14 px-4 flex-row items-center
+                border-b border-border-default
+    Left:       Logo + "Agentic Bank" text-base font-semibold
+
+  ScrollView    flex-1 px-4 pt-4
+    BalancePotVisual  bg-surface-raised rounded-3xl p-6 shadow-sm border border-border-default
+      Balance:  text-4xl font-bold (pounds) + text-xl text-text-tertiary (pence)
+      Account:  text-text-secondary text-sm
+      Pots row: horizontal, emoji + mini progress bar + amount per pot
+
+    Insight section  mt-6
+      Section label  text-text-secondary text-xs font-medium uppercase mb-3
+      InsightCard*   mb-3 (same component as chat InsightCards)
+
+  ChatFAB       position absolute, bottom-right, overlaying tab bar
+```
+
+### 2.2 Chat Screen (Full-Screen Modal)
+
+Chat is a full-screen modal launched from the ChatFAB. Not a tab.
+
+```
+┌─────────────────────────────────────┐
+│  Header: h-14 px-4                  │
+│  ┌─────────────────────────────────┐│
+│  │ [←] Chat        [Refresh] [✕]  ││
 │  └─────────────────────────────────┘│
 │                                     │
 │  FlatList (inverted, flex-1, px-4)  │
@@ -91,8 +154,9 @@ The home screen IS the chat. No dashboard, no tabs for primary navigation. The c
 SafeAreaView    bg-background-primary flex-1
   Header        h-14 px-4 flex-row items-center justify-between
                 border-b border-border-default
-    Left:       Robot icon (Phosphor, 24px) + "Agentic Bank" text-base font-semibold
+    Left:       Back/close button + "Chat" text-base font-semibold
     Right:      ArrowsClockwise icon (24px) — new conversation button
+                Close (X) icon — dismiss modal
                 Connection status dot (green/red, w-2 h-2 rounded-full)
 
   FlatList      flex-1 px-4 pt-2
@@ -116,7 +180,7 @@ SafeAreaView    bg-background-primary flex-1
 - **Tool executing:** Input disabled, progress message showing ("Checking balance...")
 - **Error:** Input enabled, error card displayed
 
-### 2.2 Welcome Screen (First Launch)
+### 2.3 Welcome Screen (First Launch)
 
 Not a separate screen but the chat feed pre-populated with WelcomeCard for unauthenticated users.
 
@@ -142,7 +206,7 @@ Not a separate screen but the chat feed pre-populated with WelcomeCard for unaut
 └─────────────────────────────────────┘
 ```
 
-### 2.3 Login Screen
+### 2.4 Login Screen
 
 Simple form-based screen (not chat-embedded) for returning users.
 
@@ -158,7 +222,7 @@ SafeAreaView    bg-background-primary flex-1 px-4
     "Create account" Ghost text link, mt-2
 ```
 
-### 2.4 Profile Screen
+### 2.5 Profile Screen
 
 Minimal for POC. Account details + settings + sign-out.
 
@@ -682,19 +746,41 @@ AI: "I can't book restaurants, but I can help with anything
 
 ```
 App Root (_layout.tsx)
-  ├── (auth)/           — Unauthenticated routes
-  │   ├── welcome.tsx   — WelcomeCard in chat (or redirect to chat)
-  │   └── login.tsx     — Sign-in form
+  ├── (auth)/           — Unauthenticated routes (pre-login security boundary)
+  │   ├── welcome.tsx   — First launch WelcomeCard
+  │   └── login.tsx     — Sign-in form (no tabs or FAB visible)
+  │
+  ├── chat.tsx          — Chat (full-screen modal route, launched from ChatFAB)
   │
   └── (tabs)/           — Authenticated routes
-      ├── _layout.tsx   — Tab bar (Chat, Activity, Savings, Profile)
-      ├── index.tsx     — Chat home (primary screen)
-      ├── transactions.tsx — Activity (transaction drill-down)
-      ├── savings.tsx   — Savings (pots drill-down, CB builds)
+      ├── _layout.tsx   — Tab bar (Home, Payments, Activity, Profile) + ChatFAB overlay
+      ├── index.tsx     — Home (balance + pots graph-style visual + proactive insight cards)
+      ├── payments.tsx  — Payments (beneficiary list + recent payments)
+      ├── activity.tsx  — Activity (transaction history, date-grouped, PFCv2 categories)
       └── profile.tsx   — Profile (account details + settings + sign out)
 ```
 
-**Routing logic:** Auth state (Supabase session) determines which group renders. No manual navigation between auth and tabs — Expo Router handles it via `(auth)` and `(tabs)` groups with a redirect in `_layout.tsx`.
+**Tab file mapping:**
+- `(tabs)/index.tsx` → Home (default landing screen)
+- `(tabs)/payments.tsx` → Payments
+- `(tabs)/activity.tsx` → Activity
+- `(tabs)/profile.tsx` → Profile
+- `app/chat.tsx` → Chat (modal route, not a tab)
+- `components/ChatFAB.tsx` → FAB component (rendered in tabs `_layout.tsx`)
+
+**ChatFAB behaviour:**
+- Floating action button visible on ALL tabs, overlaying the tab bar
+- Opens chat as a **full-screen modal** (not a bottom sheet, not a tab)
+- Shows badge for unread proactive insights
+- iOS: floating navigation bar style with dynamic adjustment
+- Android: standard FAB (Material Design pattern)
+- On first launch for new users: FAB auto-opens to trigger onboarding conversation
+
+**Pre-login state:** Login screen is a security boundary. No tabs or FAB are visible until authenticated. Post-login navigates to Home tab with FAB visible.
+
+**Proactive insights:** Surface on BOTH the Home tab (as visual cards below the balance + pots visual) and in Chat (as messages from the AI).
+
+**Routing logic:** Auth state (Supabase session) determines which group renders. No manual navigation between auth and tabs — Expo Router handles it via `(auth)` and `(tabs)` groups with a redirect in `_layout.tsx`. Chat is presented as a modal from `app/chat.tsx`.
 
 ---
 
@@ -729,7 +815,7 @@ Cards slide up with `fadeIn + translateY(8 -> 0)` over 200ms. Multiple cards in 
 
 1. ErrorCard appears with friendly message
 2. If retryable: "Try again" button
-3. If AI unavailable: deep links to Activity/Savings tabs as fallback
+3. If AI unavailable: deep links to Home/Activity/Payments tabs as fallback
 4. Network error: banner at top with "Reconnecting..."
 
 ### 7.6 Keyboard Management

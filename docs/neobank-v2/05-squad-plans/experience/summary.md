@@ -1,6 +1,6 @@
 # Experience Squad — Executive Summary
 
-**47 P0 tasks | 4 parallel streams | 12-day delivery**
+**50 P0 tasks | 4 parallel streams | 12-day delivery**
 
 ---
 
@@ -10,7 +10,7 @@ The Experience squad builds the AI-first conversational interface that defines A
 
 ## Stream Architecture
 
-- **EX-Infra** (12 tasks, Days 1-5): Chat interface, SSE streaming, card renderer, confirmation flow, tool registry, agent loop, system prompt, error handling, message persistence, auth. CRITICAL PATH — all streams blocked until this ships.
+- **EX-Infra** (15 tasks, Days 1-5): Chat interface, SSE streaming, card renderer, confirmation flow, tool registry, agent loop, system prompt, error handling, message persistence, auth, tab layout + ChatFAB, Home screen, Payments screen. CRITICAL PATH — all streams blocked until this ships.
 - **EX-Cards** (14 tasks, Days 4-10): BalanceCard, TransactionListCard, PotStatusCard, ConfirmationCard, SuccessCard, ErrorCard, InsightCard, WelcomeCard, ValuePropInfoCards, QuickReplyGroup, TypingIndicator, ChecklistCard, AccountDetailsCard, SkeletonCard.
 - **EX-Onboarding** (13 tasks, Days 4-10): Welcome flow, name/email/DOB/address collection, KYC mock, account provisioning, funding options, getting started checklist, onboarding state machine, tool gating transition, login screen.
 - **EX-Insights** (8 tasks, Days 5-12): Spending by category, spike detection, weekly summary, proactive card engine, morning greeting, beneficiary fuzzy matching, insight caching.
@@ -45,4 +45,4 @@ The Experience squad builds the AI-first conversational interface that defines A
 
 ## Success Criteria
 
-The POC is demo-ready when: Alex can open the app, see a proactive greeting with balance and insights, ask questions in natural language, make a payment with confirmation, complete onboarding in under 3 minutes, and see spending insights — all through a single conversational interface.
+The POC is demo-ready when: Alex can open the app to the Home screen showing balance + pots + proactive insight cards, tap the Chat FAB to ask questions in natural language, make a payment with confirmation, complete onboarding in under 3 minutes, and see spending insights — with AI accessible from any screen via the floating action button.

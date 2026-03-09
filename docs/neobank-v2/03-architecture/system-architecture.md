@@ -197,13 +197,15 @@ apps/mobile/
 │   ├── (auth)/
 │   │   ├── _layout.tsx      # Auth stack
 │   │   └── welcome.tsx      # Entry: onboarding starts in chat
+│   ├── chat.tsx             # Chat (full-screen modal, launched from FAB)
 │   └── (tabs)/
-│       ├── _layout.tsx      # Tab bar: Chat, Activity, Savings, Profile
-│       ├── index.tsx        # Chat (home screen = AI chat)
-│       ├── transactions.tsx # Activity (transaction drill-down)
-│       ├── savings.tsx      # Savings (pots drill-down)
+│       ├── _layout.tsx      # Tab bar: Home, Payments, Activity, Profile
+│       ├── index.tsx        # Home (balance + pots visual + proactive insight cards)
+│       ├── payments.tsx     # Payments (beneficiary list + recent payments)
+│       ├── activity.tsx     # Activity (transaction history, date-grouped)
 │       └── profile.tsx      # Profile (account details + settings + sign out)
 ├── components/
+│   ├── ChatFAB.tsx              # Floating action button (opens chat modal, badge for insights)
 │   ├── chat/
 │   │   ├── ChatView.tsx         # Custom FlatList-based chat (replaces gifted-chat)
 │   │   ├── MessageBubble.tsx    # Text bubble (user/assistant)
