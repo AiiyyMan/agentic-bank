@@ -12,6 +12,7 @@ interface Database {
           griffin_account_url: string | null;
           griffin_onboarding_application_url: string | null;
           display_name: string | null;
+          onboarding_step: string;
           created_at: string;
         };
         Insert: Partial<{
@@ -20,19 +21,21 @@ interface Database {
           griffin_account_url: string | null;
           griffin_onboarding_application_url: string | null;
           display_name: string | null;
+          onboarding_step: string;
         }>;
         Update: Partial<{
           griffin_legal_person_url: string | null;
           griffin_account_url: string | null;
           griffin_onboarding_application_url: string | null;
           display_name: string | null;
+          onboarding_step: string;
         }>;
         Relationships: [];
       };
       conversations: {
-        Row: { id: string; user_id: string; created_at: string; updated_at: string };
+        Row: { id: string; user_id: string; summary: string | null; created_at: string; updated_at: string };
         Insert: { user_id: string };
-        Update: Partial<{ updated_at: string }>;
+        Update: Partial<{ updated_at: string; summary: string }>;
         Relationships: [];
       };
       messages: {
@@ -53,6 +56,7 @@ interface Database {
           content_blocks?: any;
           tool_calls?: any;
           ui_components?: any;
+          user_id?: string | null;
         };
         Update: Partial<{ content: string; content_blocks: any }>;
         Relationships: [];

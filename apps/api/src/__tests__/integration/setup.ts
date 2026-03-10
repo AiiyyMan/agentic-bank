@@ -10,6 +10,7 @@ export function createMockUser(overrides: Partial<UserProfile> = {}): UserProfil
     griffin_account_url: '/v0/bank/accounts/acc-test-123',
     griffin_onboarding_application_url: '/v0/onboarding/app-test-123',
     display_name: 'Test User',
+    onboarding_step: 'ONBOARDING_COMPLETE',
     created_at: '2025-01-01T00:00:00Z',
     ...overrides,
   };

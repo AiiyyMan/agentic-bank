@@ -57,6 +57,7 @@ describe('mockLoanDecision', () => {
     griffin_legal_person_url: '/v0/lp/1',
     griffin_onboarding_application_url: null,
     display_name: 'Test User',
+    onboarding_step: 'ONBOARDING_COMPLETE',
     created_at: '2025-01-01',
   };
 
