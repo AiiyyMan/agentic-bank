@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { GriffinClient } from '../lib/griffin.js';
+import { getBankingAdapter } from '../adapters/index.js';
 import { validateAmount, validateSortCode, validateAccountNumber } from '../lib/validation.js';
 import { providerUnavailable, validationError, notFoundError } from '../lib/errors.js';
 import { validateToolParams } from '../lib/tool-validation.js';
@@ -9,13 +9,6 @@ import { applyForLoan, makeLoanPayment, getUserLoans } from '../services/lending
 import type { UserProfile, ToolError } from '@agentic-bank/shared';
 import { READ_ONLY_TOOLS, WRITE_TOOLS } from './definitions.js';
 
-const griffin = new GriffinClient(
-  process.env.GRIFFIN_API_KEY || '',
-  process.env.GRIFFIN_ORG_ID || ''
-);
-
-const PRIMARY_ACCOUNT_URL = process.env.GRIFFIN_PRIMARY_ACCOUNT_URL || '';
-
 type ToolResult = Record<string, unknown>;
 
 // Handle a tool call from Claude
@@ -24,8 +17,9 @@ export async function handleToolCall(
   params: Record<string, unknown>,
   user: UserProfile
 ): Promise<Record<string, unknown>> {
-  // Ownership check — all Griffin operations use user's own account
-  if (!user.griffin_account_url && !['get_loan_status', 'apply_for_loan', 'make_loan_payment'].includes(toolName)) {
+  // Ownership check — need account for banking operations
+  const bankingTools = ['check_balance', 'get_transactions', 'get_accounts', 'get_beneficiaries', 'send_payment', 'add_beneficiary'];
+  if (bankingTools.includes(toolName) && !user.griffin_account_url && process.env.USE_MOCK_BANKING !== 'true' && process.env.NODE_ENV !== 'test') {
     return validationError('No bank account found. Please complete onboarding first.');
   }
 
@@ -72,68 +66,67 @@ async function executeReadTool(
   params: Record<string, unknown>,
   user: UserProfile
 ): Promise<ToolResult> {
+  const adapter = getBankingAdapter();
+
   switch (toolName) {
     case 'check_balance': {
-      const account = await griffin.getAccount(user.griffin_account_url!);
+      const balance = await adapter.getBalance(user.id);
       return {
-        balance: account['available-balance'].value,
-        currency: account['available-balance'].currency,
-        account_name: account['display-name'],
-        account_number: account['bank-addresses']?.[0]?.['account-number']
-          ? '****' + account['bank-addresses'][0]['account-number'].slice(-4)
-          : undefined,
-        status: account['account-status'],
+        balance: balance.balance,
+        currency: balance.currency,
+        account_name: balance.account_name,
+        account_number: balance.account_number_masked,
+        status: balance.status,
       };
     }
 
     case 'get_transactions': {
+      // Read from local enriched transactions table (not BankingPort)
       const limit = Math.min(Math.max(Number(params.limit) || 10, 1), 50);
-      const result = await griffin.listTransactions(user.griffin_account_url!, {
-        limit,
-        sort: '-effective-at',
-      });
+      const { data: txns } = await getSupabase()
+        .from('transactions' as any)
+        .select('*')
+        .eq('user_id', user.id)
+        .order('posted_at', { ascending: false })
+        .limit(limit);
 
       return {
-        transactions: result['account-transactions'].map(tx => ({
-          amount: tx['balance-change'].value,
-          currency: tx['balance-change'].currency,
-          direction: tx['balance-change-direction'],
-          type: tx['transaction-origin-type'],
-          date: tx['effective-at'],
-          balance_after: tx['account-balance'].value,
+        transactions: ((txns as any[]) || []).map(tx => ({
+          id: tx.id,
+          merchant_name: tx.merchant_name,
+          amount: Number(tx.amount),
+          primary_category: tx.primary_category,
+          detailed_category: tx.detailed_category,
+          category_icon: tx.category_icon,
+          is_recurring: tx.is_recurring,
+          posted_at: tx.posted_at,
+          reference: tx.reference,
         })),
-        count: result['account-transactions'].length,
+        count: ((txns as any[]) || []).length,
       };
     }
 
     case 'get_accounts': {
-      const result = await griffin.listAccounts();
-      const userAccounts = result['bank-accounts'].filter(
-        a => a['owner-url'] === user.griffin_legal_person_url
-      );
+      const accounts = await adapter.listAccounts(user.id);
       return {
-        accounts: userAccounts.map(a => ({
-          name: a['display-name'],
-          balance: a['available-balance'].value,
-          currency: a['available-balance'].currency,
-          status: a['account-status'],
-          type: a['bank-product-type'],
+        accounts: accounts.map(a => ({
+          name: a.account_name,
+          balance: a.balance,
+          currency: a.currency,
+          status: a.status,
         })),
       };
     }
 
     case 'get_beneficiaries': {
-      if (!user.griffin_legal_person_url) {
-        return { beneficiaries: [] };
-      }
-      const result = await griffin.listPayees(user.griffin_legal_person_url);
+      const payees = await adapter.listPayees(user.id);
       return {
-        beneficiaries: (result.payees || []).map(p => ({
-          name: p['account-holder'],
-          account_number: '****' + p['account-number'].slice(-4),
-          sort_code: p['bank-id'],
-          status: p['payee-status'],
-          payee_url: p['payee-url'],
+        beneficiaries: payees.map(p => ({
+          id: p.id,
+          name: p.name,
+          account_number: p.account_number_masked,
+          sort_code: p.sort_code,
+          status: p.status,
         })),
       };
     }
@@ -164,13 +157,12 @@ async function createPendingAction(
   const summary = buildConfirmationSummary(toolName, params);
 
   // Get post-transaction balance for payment tools
-  let postTransactionBalance: string | undefined;
-  if (toolName === 'send_payment' && user.griffin_account_url) {
+  let postTransactionBalance: number | undefined;
+  if (toolName === 'send_payment') {
     try {
-      const account = await griffin.getAccount(user.griffin_account_url);
-      const currentBalance = parseFloat(account['available-balance'].value);
-      const amount = Number(params.amount);
-      postTransactionBalance = `£${(currentBalance - amount).toFixed(2)}`;
+      const adapter = getBankingAdapter();
+      const balance = await adapter.getBalance(user.id);
+      postTransactionBalance = balance.balance - Number(params.amount);
     } catch {
       // Non-critical — continue without post-tx balance
     }
@@ -251,10 +243,7 @@ function buildConfirmationSummary(
       };
 
     default:
-      return {
-        text: `Execute ${toolName}`,
-        details: {},
-      };
+      return { text: `Execute ${toolName}`, details: {} };
   }
 }
 
@@ -263,7 +252,6 @@ export async function executeConfirmedAction(
   actionId: string,
   userId: string
 ): Promise<{ success: boolean; message: string; data?: Record<string, unknown> }> {
-  // Load the pending action
   const { data: action, error } = await getSupabase()
     .from('pending_actions')
     .select('*')
@@ -274,18 +262,16 @@ export async function executeConfirmedAction(
     return { success: false, message: 'Action not found' };
   }
 
-  // Verify ownership
   if (action.user_id !== userId) {
     return { success: false, message: 'Unauthorized' };
   }
 
-  // Check expiry
   if (new Date() > new Date(action.expires_at)) {
     await getSupabase().from('pending_actions').update({ status: 'expired' }).eq('id', actionId);
     return { success: false, message: 'This action has expired. Please try again.' };
   }
 
-  // Atomic: transition from 'pending' to 'confirmed' — prevents double-confirm race
+  // Atomic: transition from 'pending' to 'confirmed'
   const { data: confirmed } = await getSupabase()
     .from('pending_actions')
     .update({ status: 'confirmed' })
@@ -298,7 +284,6 @@ export async function executeConfirmedAction(
     return { success: false, message: 'Action already processed or not found' };
   }
 
-  // Get user profile for Griffin account
   const { data: profile } = await getSupabase()
     .from('profiles')
     .select('*')
@@ -310,12 +295,12 @@ export async function executeConfirmedAction(
   }
 
   try {
-    const result = await executeWriteTool(action.tool_name, action.params, profile);
+    const result = await executeWriteTool(action.tool_name, action.params, profile as any);
     logger.info({ actionId, toolName: action.tool_name }, 'Action executed successfully');
     return { success: true, message: 'Action completed successfully', data: result };
   } catch (err: any) {
     logger.error({ actionId, err: err.message }, 'Action execution failed');
-    await getSupabase().from('pending_actions').update({ status: 'failed', error_message: err.message } as any).eq('id', actionId);
+    await getSupabase().from('pending_actions').update({ status: 'failed' }).eq('id', actionId);
     return { success: false, message: `Failed: ${err.message}` };
   }
 }
@@ -326,9 +311,11 @@ async function executeWriteTool(
   params: Record<string, unknown>,
   user: UserProfile
 ): Promise<Record<string, unknown>> {
-  // QA C5: Re-validate params at execution time (pending_actions.params is typed as any)
+  // QA C5: Re-validate params at execution time
   const paramError = validateToolParams(toolName, params);
   if (paramError) return paramError;
+
+  const adapter = getBankingAdapter();
 
   switch (toolName) {
     case 'send_payment': {
@@ -336,31 +323,41 @@ async function executeWriteTool(
       const amount = Number(params.amount);
       const reference = params.reference ? String(params.reference) : undefined;
 
-      // Find the beneficiary by name
-      const { payees } = await griffin.listPayees(user.griffin_legal_person_url!);
-      const payee = (payees || []).find(
-        p => p['account-holder'].toLowerCase() === beneficiaryName.toLowerCase()
+      // Find the beneficiary by name in local DB
+      const { data: bens } = await getSupabase()
+        .from('beneficiaries' as any)
+        .select('id, name')
+        .eq('user_id', user.id);
+
+      const ben = ((bens as any[]) || []).find(
+        b => b.name.toLowerCase() === beneficiaryName.toLowerCase()
       );
 
-      let payment;
-      if (payee) {
-        // Pay to existing payee
-        payment = await griffin.createPayment(user.griffin_account_url!, {
-          creditor: { 'creditor-type': 'payee', 'payee-url': payee['payee-url'] },
-          'payment-amount': { currency: 'GBP', value: amount.toFixed(2) },
-          ...(reference ? { 'payment-reference': reference } : {}),
-        });
-      } else {
-        // For demo: if no payee found, try to find Griffin internal account
+      if (!ben) {
         return notFoundError(`No beneficiary found with name "${beneficiaryName}". Please add them first.`);
       }
 
-      // Submit payment
-      const submission = await griffin.submitPayment(payment['payment-url']);
+      const result = await adapter.createPayment(user.id, ben.id, amount, reference);
+
+      // TODO: Replace with webhook-based transaction sync for production
+      // Insert enriched transaction row into local table
+      await getSupabase()
+        .from('transactions' as any)
+        .insert({
+          user_id: user.id,
+          merchant_name: beneficiaryName,
+          merchant_name_normalised: beneficiaryName.toLowerCase(),
+          amount,
+          primary_category: 'TRANSFER_OUT',
+          detailed_category: 'PAYMENT',
+          is_recurring: false,
+          reference: reference || null,
+          posted_at: new Date().toISOString(),
+        } as any);
 
       return {
-        payment_url: payment['payment-url'],
-        status: submission['submission-status'],
+        payment_id: result.payment_id,
+        status: result.status,
         amount: amount.toFixed(2),
         currency: 'GBP',
         beneficiary: beneficiaryName,
@@ -372,23 +369,18 @@ async function executeWriteTool(
       const accountNumber = String(params.account_number);
       const sortCode = String(params.sort_code);
 
-      // Validate
       const accValidation = validateAccountNumber(accountNumber);
-      if (!accValidation.valid) return { error: true, message: accValidation.error };
+      if (!accValidation.valid) return validationError(accValidation.error!);
 
       const scValidation = validateSortCode(sortCode);
-      if (!scValidation.valid) return { error: true, message: scValidation.error };
+      if (!scValidation.valid) return validationError(scValidation.error!);
 
-      const payee = await griffin.createPayee(user.griffin_legal_person_url!, {
-        'account-holder': name,
-        'account-number': accountNumber,
-        'bank-id': sortCode,
-      });
+      const result = await adapter.createPayee(user.id, name, accountNumber, sortCode);
 
       return {
-        payee_url: payee['payee-url'],
-        name: payee['account-holder'],
-        status: payee['payee-status'],
+        payee_id: result.id,
+        name: result.name,
+        status: result.status,
       };
     }
 
