@@ -12,7 +12,9 @@
     "build": "turbo build",
     "lint": "turbo lint",
     "api:dev": "npm run dev --workspace=apps/api",
-    "mobile:dev": "npm run dev --workspace=apps/mobile"
+    "mobile:dev": "npm run dev --workspace=apps/mobile",
+    "seed": "npx tsx --tsconfig scripts/tsconfig.json scripts/seed.ts",
+    "demo:reset": "npx tsx --tsconfig scripts/tsconfig.json scripts/demo-reset.ts"
   },
   "devDependencies": {
     "turbo": "^2.4.0",
