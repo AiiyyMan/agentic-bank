@@ -196,7 +196,7 @@ Since Lending has no P0 features, Phase 1 is preparation work so P1 features can
 
 ### 3.3 Phase 1 Task Lists (4 Parallel Streams)
 
-#### EX-Infra Stream (15 tasks decomposed from 8 features, Days 1-5) — CRITICAL PATH
+#### EX-Infra Stream (17 tasks decomposed from 8 features, Days 1-6) — CRITICAL PATH
 
 | # | Task | Depends On | Acceptance Criteria | Test |
 |---|------|-----------|--------------------|----|
@@ -292,4 +292,4 @@ Since Lending has no P0 features, Phase 1 is preparation work so P1 features can
 |-------|-------------|-------------|-------|
 | **Core Banking** | HIGH (20 P0) | MEDIUM (P1 features) | Steady workload. No blockers on other squads |
 | **Lending** | LOW (0 P0, prep only) | HIGH (all P1 features) | Available to assist CB/EX in Phase 1 |
-| **Experience** | VERY HIGH (50 P0 tasks, 4 streams) | MEDIUM (integration, polish) | Critical path. EX-Infra is the #1 dependency |
+| **Experience** | VERY HIGH (53 P0 tasks, 4 streams) | MEDIUM (integration, polish) | Critical path. EX-Infra is the #1 dependency |

@@ -29,6 +29,12 @@
 
 ### Phase 1 — Prep Tasks (No UI)
 
+#### Day 1 Pre-Task: Deprecate Legacy Files
+
+> Before starting LE-01, deprecate legacy files: rename `services/lending.ts` to `services/lending-legacy.ts` with a deprecation comment at the top (`// @deprecated — migrating to lending-service.ts, remove after LE-01 complete`). Import and wrap `calculateEMI` in the new `services/lending-service.ts` so it remains available immediately. Plan removal of `routes/loans.ts` — the new `routes/lending.ts` replaces it (auto-discovery pattern means no conflict if the old file is removed from registration).
+
+---
+
 #### LE-01: LendingService Foundation
 
 **Size:** M (2-3 hours) | **Depends on:** Foundation (F1b)
@@ -53,6 +59,31 @@
 - `npx tsc --noEmit` passes
 
 **Test:** Unit test: service construction, error hierarchy, method signatures
+
+---
+
+#### LE-12: Shared Type Extensions
+
+**Size:** S (1 hour) | **Depends on:** LE-01
+
+> **Sequencing note:** LE-12 runs immediately after LE-01 (sequence: LE-01 → LE-12 → LE-02 → ...). Shared types defined early so all subsequent tasks benefit from compile-time checking.
+
+**Scope:**
+- Extend `packages/shared/src/types/lending.ts` with:
+  - `FlexPlan` interface
+  - `FlexPayment` interface
+  - `CreditScore` interface
+  - `LoanScheduleEntry` interface
+  - `EligibilityResult` interface
+  - UIComponent data types for all lending cards
+- Add to `packages/shared/src/types.ts` barrel export
+
+**Acceptance Criteria:**
+- All lending types exported from shared package
+- Types match data contracts in design-spec.md
+- `npx tsc --noEmit` passes across monorepo
+
+**Test:** Type compilation test (part of `tsc --noEmit`)
 
 ---
 
@@ -230,46 +261,69 @@
 
 #### LE-08: FlexService — Eligibility & Plan Creation
 
-**Size:** M (2-3 hours) | **Depends on:** LE-01, Foundation (transactions table from CB)
+Parent task — split into LE-08a and LE-08b below.
+
+---
+
+#### LE-08a: Flex Eligibility
+
+**Size:** S (1 hour) | **Depends on:** LE-01, Foundation (transactions table from CB)
 
 **Scope:**
-- Create flex methods within LendingService (or separate FlexService):
-  - `getFlexEligibleTransactions(userId)` — query transactions table:
-    - Amount >= £30 (absolute value, debits only)
-    - Posted within last 14 days
-    - Not already linked to a flex_plan
-    - LEFT JOIN flex_plans ON transaction_id to exclude
-  - `createFlexPlan(userId, transactionId, planMonths)`:
-    1. Validate transaction is eligible
-    2. Calculate monthly payment and interest:
-       - 3 months: 0% APR → amount / 3
-       - 6 months: 15.9% APR → use `calculateEMI(amount, 15.9, 6)`
-       - 12 months: 15.9% APR → use `calculateEMI(amount, 15.9, 12)`
-    3. Create `pending_action` for confirmation
-    4. On execution:
-       - Insert `flex_plans` row
-       - Insert `flex_payments` rows (first marked as 'paid')
-       - "Return" remaining amount to main account balance
-       - Write `audit_log` entry
+- `getFlexEligibleTransactions(userId)` — query transactions table:
+  - Amount £50-£2,000 (absolute value, debits only)
+  - Transaction age < 30 days
+  - No existing flex on same transaction (LEFT JOIN flex_plans ON transaction_id to exclude)
+- Eligibility rules enforced server-side
+- Returns list of eligible transactions with flex plan options (3/6/12 months), each showing monthly payment amount
 
 **Acceptance Criteria:**
-- Only eligible transactions returned (>= £30, <= 14 days, not flexed)
+- Only eligible transactions returned (£50-£2,000, < 30 days, not flexed)
+- Already-flexed transactions excluded
+- Each eligible transaction includes 3 plan option previews
+
+**Test:**
+- Unit test: eligible transaction detection (boundary: £50, £2,000, 30 days)
+- Unit test: already-flexed exclusion
+- Unit test: plan option preview calculation for 3, 6, 12 months
+
+---
+
+#### LE-08b: Flex Plan Creation
+
+**Size:** M (2 hours) | **Depends on:** LE-08a
+
+**Scope:**
+- Interest calculation: monthly rate from APR, EMI formula
+  - 3 months: 0% APR → amount / 3
+  - 6 months: 15.9% APR → use `calculateEMI(amount, 15.9, 6)`
+  - 12 months: 15.9% APR → use `calculateEMI(amount, 15.9, 12)`
+- `createFlexPlan(userId, transactionId, planMonths)`:
+  1. Validate transaction is eligible (via LE-08a)
+  2. Calculate monthly payment and total interest
+  3. Create `pending_action` for confirmation with FlexOptionsCard display
+- `executeFlexPlan(pendingActionId)`:
+  1. Insert `flex_plans` row
+  2. Insert `flex_payments` rows (first marked as 'paid')
+  3. Credit remaining amount to main account balance
+  4. Write `audit_log` entry
+
+**Acceptance Criteria:**
 - Interest calculation correct for all 3 plan lengths
 - First payment auto-marked as paid
 - Balance credit for returned amount
-- Already-flexed transactions excluded
+- Audit log written on execution
 
 **Test:**
-- Unit test: eligible transaction detection (boundary: £30, 14 days)
 - Unit test: interest calculation for 3, 6, 12 month plans
-- Unit test: already-flexed exclusion
 - Integration test: create plan → verify flex_plans + flex_payments rows
+- Unit test: first payment auto-paid, remaining scheduled
 
 ---
 
 #### LE-09: FlexService — List & Early Payoff
 
-**Size:** M (1-2 hours) | **Depends on:** LE-08
+**Size:** M (1-2 hours) | **Depends on:** LE-08b
 
 **Scope:**
 - `getFlexPlans(userId)`:
@@ -367,29 +421,6 @@
 
 ---
 
-#### LE-12: Shared Type Extensions
-
-**Size:** S (1 hour) | **Depends on:** LE-01
-
-**Scope:**
-- Extend `packages/shared/src/types/lending.ts` with:
-  - `FlexPlan` interface
-  - `FlexPayment` interface
-  - `CreditScore` interface
-  - `LoanScheduleEntry` interface
-  - `EligibilityResult` interface
-  - UIComponent data types for all lending cards
-- Add to `packages/shared/src/types.ts` barrel export
-
-**Acceptance Criteria:**
-- All lending types exported from shared package
-- Types match data contracts in design-spec.md
-- `npx tsc --noEmit` passes across monorepo
-
-**Test:** Type compilation test (part of `tsc --noEmit`)
-
----
-
 ### Phase 2 — User-Facing Tasks
 
 #### LE-13: Amortisation Schedule Screen
@@ -442,7 +473,7 @@
 
 #### LE-15: Flex Purchase Confirmation Integration
 
-**Size:** M (1-2 hours) | **Depends on:** LE-08, EX-Infra (ConfirmationCard)
+**Size:** M (1-2 hours) | **Depends on:** LE-08b, EX-Infra (ConfirmationCard)
 
 **Scope:**
 - Wire `flex_purchase` tool to FlexOptionsCard → user selects plan → ConfirmationCard → execution
@@ -487,7 +518,7 @@
 ```
 Foundation (F1a, F1b, F2)
     │
-    ├── LE-01 (LendingService)
+    ├── LE-01 (LendingService) → LE-12 (Shared Types) [types defined early]
     │     │
     │     ├── LE-02 (Credit Scoring)
     │     │     │
@@ -499,11 +530,12 @@ Foundation (F1a, F1b, F2)
     │     │
     │     ├── LE-07 (Extra Payment)
     │     │
-    │     ├── LE-08 (Flex Eligibility + Creation)
+    │     ├── LE-08a (Flex Eligibility)
     │     │     │
-    │     │     └── LE-09 (Flex List + Payoff)
+    │     │     └── LE-08b (Flex Plan Creation)
+    │     │           │
+    │     │           └── LE-09 (Flex List + Payoff)
     │     │
-    │     └── LE-12 (Shared Types)
     │
     ├── LE-03 (Product Seeding) [parallel with LE-01]
     │
@@ -511,10 +543,12 @@ Foundation (F1a, F1b, F2)
           │
           └── LE-11 (REST Endpoints) [parallel with LE-10]
 
+Sequencing: LE-01 → LE-12 → LE-02 → LE-03 (parallel) → LE-04 → ...
+
 Phase 2:
     LE-13 (Schedule Screen) ← LE-06 + EX-Infra
     LE-14 (Loan Confirmation) ← LE-05 + EX-Infra
-    LE-15 (Flex Confirmation) ← LE-08 + EX-Infra
+    LE-15 (Flex Confirmation) ← LE-08b + EX-Infra
     LE-16 (Payment Confirmations) ← LE-07 + LE-09 + EX-Infra
 ```
 
@@ -559,17 +593,18 @@ Phase 2:
 | Task | Size | Phase | Est. Hours |
 |------|------|-------|-----------|
 | LE-01: LendingService Foundation | M | 1 | 2-3 |
+| LE-12: Shared Type Extensions | S | 1 | 1 |
 | LE-02: Mock Credit Scoring | S | 1 | 1 |
 | LE-03: Product Seeding | S | 1 | 0.5 |
 | LE-04: Eligibility Check | M | 1 | 2 |
 | LE-05: Loan Application Flow | M | 1 | 2-3 |
 | LE-06: Amortisation Schedule | M | 1 | 1-2 |
 | LE-07: Extra Loan Payment | M | 1 | 1-2 |
-| LE-08: Flex Eligibility + Creation | M | 1 | 2-3 |
+| LE-08a: Flex Eligibility | S | 1 | 1 |
+| LE-08b: Flex Plan Creation | M | 1 | 2 |
 | LE-09: Flex List + Payoff | M | 1 | 1-2 |
 | LE-10: Tool Schema Definitions | M | 1 | 2 |
 | LE-11: REST Endpoints | M | 1 | 2 |
-| LE-12: Shared Type Extensions | S | 1 | 1 |
 | LE-13: Schedule Screen | M | 2 | 2-3 |
 | LE-14: Loan Confirmation Integration | M | 2 | 1-2 |
 | LE-15: Flex Confirmation Integration | M | 2 | 1-2 |

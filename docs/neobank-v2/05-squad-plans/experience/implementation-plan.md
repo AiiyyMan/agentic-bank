@@ -2,14 +2,14 @@
 
 > **Phase 4 Output** | Experience Squad | March 2026
 >
-> Task breakdown for 50 P0 tasks across 4 streams. Max complexity: M (1-3 hours).
+> Task breakdown for 53 P0 tasks across 4 streams. Max complexity: M (1-3 hours).
 
 ---
 
 ## 1. Stream Overview
 
 ```
-Days 1-5:   EX-Infra ─────────────────────► (CRITICAL PATH)
+Days 1-6:   EX-Infra ─────────────────────► (CRITICAL PATH)
 Days 4-10:  EX-Cards ──────────────► (starts when card renderer lands)
 Days 4-10:  EX-Onboarding ────────► (starts when chat interface lands)
 Days 5-12:  EX-Insights ──────────► (starts when tool registry lands)
@@ -19,7 +19,7 @@ Each stream runs in an isolated git worktree. All streams share CLAUDE.md conven
 
 ---
 
-## 2. EX-Infra Stream (Days 1-5) — CRITICAL PATH
+## 2. EX-Infra Stream (Days 1-6) — CRITICAL PATH
 
 Everything depends on this stream. It builds the chat infrastructure that all other streams consume.
 
@@ -30,27 +30,34 @@ Everything depends on this stream. It builds the chat infrastructure that all ot
 | EXI-01 | **ChatView + MessageBubble** — Custom FlatList-based chat. AI bubbles (left, with avatar) and user bubbles (right). Inverted list, auto-scroll, mb-3 gap. `max-w-[85%]` per bubble. | M | Foundation mobile scaffold | #89 |
 | EXI-02 | **SSE stream consumer** — Parse SSE events from `POST /api/chat`. Handle all event types: `thinking`, `heartbeat`, `token`, `tool_start`, `tool_result`, `ui_components`, `data_changed`, `error`, `done`. Build `lib/streaming.ts`. | M | Foundation API scaffold | #94 |
 | EXI-03 | **Chat state machine (Zustand)** — States: `idle` -> `thinking` -> `streaming` -> `tool_executing` -> `idle`. Manages: current message buffer, tool status, error state, pending quick replies. Error resets on new message. `stores/chat.ts`. | M | EXI-02 | #94, #98 |
-| EXI-04 | **Card renderer** — `CardRenderer.tsx`: switch on `UIComponentType`, render appropriate card component. Unknown types -> fallback text card. Placeholder components for unbuilt cards. Entry point for all EX-Cards work. | M | EXI-01 | #90 |
+| EXI-04 | **Card renderer** — `CardRenderer.tsx`: switch on `UIComponentType`, render appropriate card component. Unknown types -> fallback text card. Placeholder components for unbuilt cards. Entry point for all EX-Cards work. **Scaffold CardRenderer with ALL 22+ UIComponentType cases upfront. Each unimplemented type returns `<FallbackTextCard type={type} />`. EX-Cards tasks replace placeholders with real implementations — no new switch cases needed. This eliminates merge conflicts across the EX-Cards stream.** | M | EXI-01 | #90 |
 | EXI-05 | **Message input + send** — Text input with send button. Disable during streaming. Multi-line support. Keyboard avoidance. Send triggers `POST /api/chat` via SSE consumer. Auto-focus management. | S | EXI-01, EXI-03 | #89 |
-| EXI-06 | **ConfirmationCard + confirmation flow** — Render ConfirmationCard with countdown timer. Confirm button disables on tap (QA U5). Calls `POST /api/confirm/:id`. Cancel calls reject. Success -> SuccessCard. Expired state. Pending action resurfacing on app reopen (QA U3). Also implements `update_pending_action` tool handler for amending pending actions before confirmation. Implement action_type dispatcher registry (see api-design.md §POST /api/confirm). Each squad registers their action_type handlers. The confirm route iterates the registry to find the handler — never hardcodes action types. | M | EXI-04, Foundation pending_actions | #92 |
+| EXI-06a | **Action dispatcher + confirm route** — Create ActionDispatcher service with `Map<string, handler>` pattern. `POST /api/confirm/:id` route: validate action exists, not expired, belongs to user → look up handler by `action_type` → execute → return result. `POST /api/confirm/:id/reject` route: mark action as rejected. Squads register handlers in their own tool files. | M | EXI-04, Foundation pending_actions | #92 |
+| EXI-06b | **ConfirmationCard rendering** — ConfirmationCard component: title, details list, confirm/cancel buttons. 5-minute countdown timer with visual indicator. Disable-on-tap (prevent double confirm, QA U5). Expired state rendering. | M | EXI-06a | #92 |
+| EXI-06c | **Pending action resurfacing + amend** — On app reopen, check for pending (non-expired) actions via `GET /api/pending-actions`. Resurface as ConfirmationCard in chat. `update_pending_action` tool handler: allows Claude to amend params before confirmation. | S | EXI-06b | #92 |
 | EXI-07 | **Tool registry + tool gating** — Central registry: `register(domain, tools)`. `getAvailableTools(onboardingStep)` for system prompt. Tool gating per onboarding state (api-design.md 3.5). Log unknown tool names (QA U4). | M | Foundation tool registry scaffold | #95 |
 | EXI-08 | **System prompt assembly** — Static blocks: persona, safety, card usage policy (api-design.md 3.4.1). Dynamic blocks: user profile, tool list, conversation summary, proactive context. `cache_control` markers on static blocks (ADR-16). Onboarding vs banking mode. | M | EXI-07 | #100 |
-| EXI-09 | **AgentService (agent loop)** — Orchestrate: message -> prompt build -> Claude API -> stream response -> execute tools -> persist. Handle multi-tool responses (Promise.all). Max 8 iterations. respond_to_user synthetic tool interception + synthetic tool_result persistence (QA C1 FIX). Fix: All `saveMessage` and `saveStructuredMessage` calls must include `user_id` — the existing code omits it, which will fail the NOT NULL constraint on the messages table. | M | EXI-02, EXI-07, EXI-08 | #89, #96, #98 |
+| EXI-09a | **Agent loop core** — Message → build system prompt → Claude API call → tool iteration loop → done. Max 8 iterations with exhaustion recovery (return pending_action_id if exists). 30s timeout on Anthropic API calls (AbortController). Fix: all `saveMessage` and `saveStructuredMessage` calls must include `user_id` — the existing code omits it, which will fail the NOT NULL constraint on the messages table. Extension points: accept `promptExtensions: PromptBlock[]` parameter, `onAppOpen` flag. **Design requirement:** AgentService must be designed with extension points to avoid merge conflicts across EX streams: `buildSystemPrompt(userId, promptExtensions?: PromptBlock[])` — other streams add blocks without editing AgentService. `processChat(message, options?: { onAppOpen?: boolean })` — EX-Insights injects proactive cards via this flag. Tool registration is external (via ToolRegistry) — streams register tools in their own files. Onboarding mode detection reads from user profile (`onboarding_step`), no hardcoded state in AgentService. | M | EXI-02, EXI-07, EXI-08 | #89, #96, #98 |
+| EXI-09b | **respond_to_user + persistence** — Intercept `respond_to_user` tool call as the agent's final response. Persist synthetic `tool_result` to messages table (QA C1 fix). Handle `end_turn` (text-only, no tool call) as secondary exit. Parse `ui_components` from `respond_to_user` params. | M | EXI-09a | #89, #96, #98 |
+| EXI-09c | **SSE streaming integration** — Stream tokens to client via SSE as they arrive from Claude. Emit event types: `thinking`, `text_delta`, `tool_start`, `tool_result`, `ui_components`, `data_changed`, `done`, `error`. Heartbeat every 15s. | M | EXI-09a | #94 |
 | EXI-10 | **Error handling** — Stream error recovery: 15s timeout detection, max 3 retries. Handle 429 (rate limit), 529 (AI overloaded, exponential backoff). Network loss -> "Reconnecting..." banner. Error card display via CardRenderer. | M | EXI-02, EXI-03 | #97 |
-| EXI-11 | **Message persistence** — Save messages to Supabase with `content_blocks` JSONB. Load history on app open. Synthetic tool_result for respond_to_user. Quick reply history as disabled pills. Session management (new conversation button). | M | EXI-09 | #96, #98, #99 |
+| EXI-11 | **Message persistence** — Save messages to Supabase with `content_blocks` JSONB. Load history on app open. Synthetic tool_result for respond_to_user. Quick reply history as disabled pills. Session management (new conversation button). | M | EXI-09b | #96, #98, #99 |
 | EXI-12 | **Token refresh + auth integration** — API client intercepts 401, calls `supabase.auth.refreshSession()`, retries request transparently (QA U1). Auth state drives routing: unauthenticated -> (auth), authenticated -> (tabs). | M | Foundation auth | #119 |
 | EXI-13 | **Tab layout + ChatFAB** — Build `(tabs)/_layout.tsx` with 4 tabs (Home, Payments, Activity, Profile). Build `ChatFAB.tsx` component: floating action button visible on all tabs, overlaying the tab bar. iOS floating bar style with dynamic adjustment, Android standard FAB. Badge for unread proactive insights. Tapping opens `app/chat.tsx` as full-screen modal. On first launch for new users, FAB auto-opens to trigger onboarding. Chat route is `app/chat.tsx` (modal, not a tab). | M | Foundation mobile scaffold | — |
-| EXI-14 | **Home screen** — Build `(tabs)/index.tsx`. Combined balance + pots graph-style visual (balance card with pots progress integrated). Below: proactive insight cards (morning greeting, spending spike, bill reminder, etc.). This is the DEFAULT landing screen. Combines BalanceCard (EXC-01), pots overview, and proactive insight cards (from EXN-05). | M | EXI-13, EXC-01 | #5 |
+| EXI-14 | **Home screen** — Build `(tabs)/index.tsx`. Combined balance + pots graph-style visual (balance card with pots progress integrated). Below: proactive insight cards (morning greeting, spending spike, bill reminder, etc.). This is the DEFAULT landing screen. Combines BalanceCard (EXC-01), pots overview, and proactive insight cards (from EXN-05). **Note:** Until EXN-05 (proactive engine) ships on Day 9-10, the Home screen shows a static "Get started" insight card as placeholder. Replace with real InsightService data when EXN-05 is available. | M | EXI-13, EXC-01 | #5 |
 | EXI-15 | **Payments screen** — Build `(tabs)/payments.tsx`. Beneficiary list + recent payments. Uses TanStack Query for beneficiary and payment data. | M | EXI-13 | — |
+| EXI-16 | **Activity Tab** — `(tabs)/activity.tsx` — transaction history screen. Date-grouped transaction list using CB's TransactionRow + DateGroupHeader components. Pull-to-refresh, infinite scroll for older transactions. Filter by `primary_category` (optional for P0). | S | EXI-13, CB-18 (transaction components) | — |
+| EXI-17 | **Profile Tab + Sign Out** — `(tabs)/profile.tsx` — account details screen. Display: account name, account number (masked, copy button), sort code (formatted XX-XX-XX). Settings section: app version, help link. Sign Out button with confirmation dialog: clears auth state, Zustand stores, navigates to login. | S | EXI-13 | #115 |
 
 ### Sequencing
 
 ```
 Day 1: EXI-01 (ChatView) + EXI-02 (SSE) in parallel + EXI-13 (Tab layout + ChatFAB)
 Day 2: EXI-03 (State machine) + EXI-04 (Card renderer)
-Day 3: EXI-05 (Input) + EXI-06 (Confirmation flow)
-Day 4: EXI-07 (Tool registry) + EXI-08 (System prompt) + EXI-12 (Auth) + EXI-14 (Home screen) + EXI-15 (Payments screen)
-Day 5: EXI-09 (Agent loop) + EXI-10 (Error handling) + EXI-11 (Persistence)
+Day 3: EXI-05 (Input) + EXI-06a (Action dispatcher) + EXI-06b (ConfirmationCard rendering)
+Day 4: EXI-06c (Pending resurfacing) + EXI-07 (Tool registry) + EXI-08 (System prompt) + EXI-12 (Auth) + EXI-14 (Home screen) + EXI-15 (Payments screen)
+Day 5: EXI-09a (Agent loop core) + EXI-09b (respond_to_user) + EXI-09c (SSE streaming) + EXI-10 (Error handling) + EXI-11 (Persistence)
+Day 6: EXI-16 (Activity tab) + EXI-17 (Profile tab + Sign Out)
 ```
 
 ### Critical Fixes in EXI-09
@@ -94,11 +101,12 @@ Starts after EXI-04 (card renderer) ships. Each card is an independent task.
 | EXC-12 | **ChecklistCard** — Vertical checklist, done/pending icons, progress fraction. Tappable pending items. Spec: `3.20`. | M | EXI-04 | #80 (visual) |
 | EXC-13 | **AccountDetailsCard** — Sort code, account number, copy buttons, share. Spec: `3.21`. | M | EXI-04 | #77 |
 | EXC-14 | **Skeleton loading components** — One skeleton per card type. animate-pulse with Reanimated fallback. Spec: `9.1`. | M | EXI-04 | #123 |
+| EXC-15 | **InputCard** — Generic input card component for chat-based data collection. Supports: text, email, password, date fields. Validates input before sending response to agent. Used by EXO-05 (email/password) and other onboarding steps. | S | EXI-04 (CardRenderer — add placeholder case) | — |
 
 ### Sequencing
 
 ```
-Day 4-5: EXC-01 (Balance), EXC-02 (TransactionList), EXC-04 (Confirmation), EXC-05 (Success)
+Day 4-5: EXC-01 (Balance), EXC-02 (TransactionList), EXC-04 (Confirmation), EXC-05 (Success), EXC-15 (InputCard)
 Day 6-7: EXC-03 (Pot), EXC-06 (Error), EXC-07 (Insight), EXC-10 (QuickReply)
 Day 8-9: EXC-08 (Welcome), EXC-09 (ValueProp), EXC-11 (Typing), EXC-12 (Checklist)
 Day 10:  EXC-13 (AccountDetails), EXC-14 (Skeletons)
@@ -471,7 +479,7 @@ registry.register('core-banking', [
 | NativeWind animate-pulse broken | LOW — cosmetic | Reanimated opacity loop fallback |
 | tabular-nums not supported | LOW — cosmetic | Monospace font or fixed-width formatting |
 | Proactive engine > 1s | MEDIUM — slow greeting | Pre-compute aggressively, cache in user_insights_cache |
-| 47 tasks in 12 days | HIGH — scope | Strict M sizing, parallel streams, prioritise infra |
+| 53 tasks in 12 days | HIGH — scope | Strict M sizing, parallel streams, prioritise infra |
 | Card renderer dispatch too many types | LOW — maintenance | Type-safe switch, exhaustive check, fallback for unknown |
 
 ---
@@ -482,13 +490,13 @@ These cards are needed when Lending features ship (all P1):
 
 | Task | Card | Description | Depends On |
 |------|------|-------------|------------|
-| EXC-15 | LoanOfferCard | Displays loan offer with terms, APR, monthly payment | LE tool output |
-| EXC-16 | CreditScoreCard | Gauge visualization with score and factors | LE tool output |
-| EXC-17 | FlexOptionsCard | Flex plan options (extend term, reduce payment) | LE tool output |
-| EXC-18 | FlexPlanCard | Active flex plan details | LE tool output |
-| EXC-19 | PaymentHistoryCard | Loan repayment history list | LE tool output |
-| EXC-20 | LoanStatusCard | Active loan summary: balance remaining, next payment, progress bar, payoff date | LE tool output |
-| EXC-24 | StandingOrderCard | Recurring payment details | CB standing order tools |
-| EXC-21 | QuoteCard | International transfer quote | CB quote tools |
-| EXC-22 | SpendingBreakdownCard | Chart-based spending visualization (P2) | Victory Native XL |
-| EXC-23 | AutoSaveRuleCard | Auto-save rule configuration display | CB auto-save tools |
+| EXC-16 | LoanOfferCard | Displays loan offer with terms, APR, monthly payment | LE tool output |
+| EXC-17 | CreditScoreCard | Gauge visualization with score and factors | LE tool output |
+| EXC-18 | FlexOptionsCard | Flex plan options (extend term, reduce payment) | LE tool output |
+| EXC-19 | FlexPlanCard | Active flex plan details | LE tool output |
+| EXC-20 | PaymentHistoryCard | Loan repayment history list | LE tool output |
+| EXC-21 | LoanStatusCard | Active loan summary: balance remaining, next payment, progress bar, payoff date | LE tool output |
+| EXC-22 | StandingOrderCard | Recurring payment details | CB standing order tools |
+| EXC-23 | QuoteCard | International transfer quote | CB quote tools |
+| EXC-24 | SpendingBreakdownCard | Chart-based spending visualization (P2) | Victory Native XL |
+| EXC-25 | AutoSaveRuleCard | Auto-save rule configuration display | CB auto-save tools |

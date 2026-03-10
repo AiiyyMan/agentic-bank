@@ -102,6 +102,7 @@ Create ordered migration files based on the data model:
   1. `npx supabase db push --db-url "$DATABASE_URL"` (if `DATABASE_URL` is set in env)
   2. If no DB connection string is available, create a migration runner script `scripts/apply-migrations.ts` that reads each `.sql` file from `supabase/migrations/` in order and executes it via the Supabase JS client using `supabase.rpc()` or a custom SQL execution function. Alternatively, concatenate the SQL and output instructions for manual paste into the Supabase SQL Editor.
 - Verify tables exist by querying: `supabase.from('accounts').select('id').limit(0)` (should return 200, not 404)
+- **Lending table verification checklist:** Verify these Lending-specific tables are created: `credit_scores`, `loan_payments`, `loan_products` (with seed data), `flex_plans`, `flex_payments`. Verify `loan_applications` has `total_interest` column. Verify `loans` has `payments_made`, `payoff_date`, `product_id` columns.
 
 **QA-critical: RLS policies (from qa-architecture-review.md C2):**
 
@@ -196,6 +197,8 @@ Transaction amounts must be **deterministic** (not random). Document the total p
 
 **Important:** All seed data values (Alex's balance, pot amounts, beneficiary names, monthly totals) must match the values in `test-constants.ts` (Task 2b). The test constants file is the single source of truth.
 
+**Canonical balance:** Alex's main account balance is £1,247.50. This value is used across all squad test plans. Test assertions should validate that the correct value is returned (not hardcoded), but fixture data uses this amount.
+
 #### QA-Critical Seed Data (CPTO review §5.1)
 
 The following items must be included in seed data to support QA validation of P0 features and demo scenarios:
@@ -268,7 +271,7 @@ export const ALEX = {
   id: '00000000-0000-0000-0000-000000000001',
   email: 'alex@demo.agenticbank.com',
   displayName: 'Alex Chen',
-  balance: 2345.67,
+  balance: 1247.50,  // Canonical value: £1,247.50 — used across all squad test plans
   currency: 'GBP',
   pots: {
     holiday: { name: 'Holiday Fund', balance: 850.00, target: 2000.00, icon: '✈️', colour: '#4ECDC4' },

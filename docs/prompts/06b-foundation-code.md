@@ -103,7 +103,7 @@ Update or create the shared types package (`packages/shared/`):
     | 'RENT_AND_UTILITIES';
   ```
   Transactions also carry `detailed_category` (string), `is_recurring` (boolean), and `category_icon` (string). Subscriptions are a cross-cutting `is_recurring` flag, not a separate category.
-- `BankingPort` interface types (interface definition — implementation in Phase F2)
+- `BankingPort` interface types (interface definition — implementation in Phase F2). **Must include `creditAccount(userId: string, amount: number): Promise<void>` method** — needed by Lending squad for Flex balance returns (e.g., when a Flex plan is paid off early and the remaining balance is credited back to the user's account).
 
 **UI Component Types — define comprehensive enum upfront:**
 ```typescript
@@ -150,7 +150,7 @@ Set up the API route structure:
 
 2. **Agent loop exhaustion recovery (C3):** Increase `MAX_TOOL_ITERATIONS` from 5 to 8. When the loop exhausts, log a warning with the full tool call history, and if a `pending_action` was created during the loop, include its `action_id` in the response so the user can still confirm.
 
-3. **Tool param validation (Checklist):** Add a `validateToolParams(toolName, params)` utility that checks required fields exist and have correct types before executing. Currently `params` is `Record<string, unknown>` — Claude can pass undefined or wrong types for any field. At minimum validate: `send_payment` has `beneficiary_name` (string, non-empty) and `amount` (number, > 0); `add_beneficiary` has `name`, `account_number`, `sort_code`.
+3. **Tool param validation (Checklist):** Add a `validateToolParams(toolName, params)` utility that checks required fields exist and have correct types before executing. Currently `params` is `Record<string, unknown>` — Claude can pass undefined or wrong types for any field. At minimum validate: `send_payment` has `beneficiary_id` (string, valid UUID) and `amount` (number, > 0); `add_beneficiary` has `name`, `account_number`, `sort_code`.
 
 4. **Error differentiation (Checklist):** Refactor tool handler error responses to distinguish error types. Instead of all errors collapsing to `providerUnavailable()`, use:
    - `validationError()` for bad input (Claude can retry with different params)

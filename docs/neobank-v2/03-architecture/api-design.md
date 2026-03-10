@@ -71,6 +71,18 @@ When `message` is `"__app_open__"`, the server treats this as an app-open greeti
 - Claude generates a unified greeting with inline cards (BalanceCard, InsightCards, QuickReplies)
 - If no proactive cards are provided, Claude generates a simple greeting from user profile context
 
+**__app_open__ Trigger Contract**
+
+When the mobile app opens (cold start or foreground after >5 min background):
+1. Mobile sends `POST /api/chat` with `message: "__app_open__"`, `context: { trigger: "app_open" }`
+2. AgentService detects `__app_open__`:
+   - Does NOT persist `"__app_open__"` to conversation history
+   - Calls `InsightService.getProactiveCards(userId)` to get ranked insights
+   - Injects proactive context into system prompt
+   - Claude generates a contextual greeting referencing insights
+3. Response includes `ui_components` with InsightCards (if any)
+4. ChatFAB badge count is reset to 0 when chat is opened
+
 **Flow:**
 1. Emit `event: thinking` immediately (< 100ms, before any async work)
 2. Validate JWT, extract userId
