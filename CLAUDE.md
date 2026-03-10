@@ -213,6 +213,8 @@ User message → AgentService.processChat()
 | `apps/api/src/services/agent.ts` | Claude agent loop and conversation management |
 | `apps/api/src/tools/definitions.ts` | AI tool definitions (10 tools) |
 | `apps/api/src/tools/handlers.ts` | Tool execution and confirmation flow |
+| `apps/api/src/adapters/banking-port.ts` | BankingPort interface (hexagonal architecture) |
+| `apps/api/src/adapters/index.ts` | Adapter factory: `getBankingAdapter()` |
 | `apps/api/src/lib/griffin.ts` | Griffin BaaS client with retry logic |
 | `apps/api/src/lib/supabase.ts` | Supabase client and Database interface |
 | `packages/shared/src/types/api.ts` | Shared API types (UIComponent, AgentResponse, etc.) |
@@ -235,11 +237,31 @@ Set `USE_MOCK_BANKING=false` for Griffin sandbox testing. The GriffinAdapter:
 
 Both implement the same `BankingPort` interface (built in Foundation F2).
 
-## Agent Test Harness
+## Test Infrastructure
 
-(Built in Foundation F2)
+### Test Files
 
-Three levels of testing:
-1. `assertAgentLoop()` — full agent loop with mock Claude responses
-2. `assertToolHandler()` — single tool handler with mock adapter
-3. Confirmation gate E2E — full confirm flow (propose → confirm → execute)
+| File | Tests | Coverage |
+|------|-------|----------|
+| `__tests__/agent-loop.test.ts` | 9 | Agent loop: tool use, multi-tool, timeout, exhaustion, confirmation gate |
+| `__tests__/adapters.test.ts` | 12 | GriffinAdapter + MockBankingAdapter: normalisation, overrides, error handling |
+| `__tests__/handlers-confirm.test.ts` | 7 | Confirmation flow: confirm, reject, concurrent, failed execution |
+| `__tests__/tool-validation.test.ts` | 13 | Parameter validation for all write tools |
+| `__tests__/agent-history.test.ts` | 11 | Conversation history reconstruction |
+| `__tests__/integration/*.test.ts` | 30 | Full route testing: auth, banking, chat, confirm, health, loans |
+
+### Fixtures (`__tests__/fixtures/`)
+
+Import from `./fixtures` for ready-to-use test objects:
+- `alexProfile`, `emmaProfile` — UserProfile fixtures
+- `alexBalance`, `alexAccountList` — AccountBalance fixtures
+- `griffinAccountResponse`, etc. — Raw Griffin API responses
+- `sampleTransactions` — Transaction rows
+- `domesticBeneficiaries`, `successfulPayment` — Payment fixtures
+- `sampleMessages`, `generateFillerMessages(n)` — Conversation fixtures
+
+### Mocks (`__tests__/mocks/`)
+
+- `createMockChain()` — Chainable Supabase mock with configurable `.single()` returns
+- `createMockGriffinClient()` — All GriffinClient methods as `vi.fn()` stubs
+- `createMockAnthropicClient()` — Claude API mock with default response
