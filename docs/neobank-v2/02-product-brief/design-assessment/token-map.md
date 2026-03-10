@@ -418,7 +418,7 @@ These tokens are NOT in SwiftBank and MUST be authored for Agentic Bank. Mapping
 | `color.muted` | `gray.50` (#64748B) | `gray.40` (#94A3B8) | = `color.text.tertiary` | De-emphasized text |
 | `money.positive` | `success.60` (#059669) | `success.40` (#34D399) | Green for credit/income | +GBP amounts |
 | `money.negative` | = `color.text.primary` | = `color.text.primary` | Default text (not red -- debit is normal) | -GBP amounts |
-| `money.pending` | `warning.60` (#CA8A04) | `warning.40` (#FACC15) | Amber for pending txns | Pending state |
+| `money.pending` | `warning.70` (#A16207) | `warning.40` (#FACC15) | Amber for pending txns (darkened for WCAG AA) | Pending state |
 | `ai.bubble.assistant` | `brand.5` (#F0F9FF) | `brand.90` (#0C4A6E) | = `color.brand.subtle` | AI response bubble bg |
 | `ai.bubble.user` | `gray.10` (#F1F5F9) | `gray.80` (#1F2937) | = `color.background.tertiary` | User message bubble bg |
 | `card.confirmation.border` | `brand.50` (#0EA5E9) | `brand.40` (#38BDF8) | = `color.brand.default` | Confirmation card accent |
@@ -802,7 +802,7 @@ export const semanticColorsLight = {
   // -- Banking-specific --
   '--color-money-positive': '5 150 105',          // success.60
   '--color-money-negative': '225 29 72',          // destructive.60
-  '--color-money-pending': '202 138 4',           // warning.60
+  '--color-money-pending': '161 98 7',             // warning.70 (darkened for WCAG AA)
   '--color-ai-bubble-assistant': '240 249 255',   // brand.5
   '--color-ai-bubble-user': '241 245 249',        // gray.10
   '--color-card-confirmation': '14 165 233',      // brand.50

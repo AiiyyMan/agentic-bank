@@ -183,7 +183,7 @@ Helper text: text-text-tertiary text-xs mt-1
 
 ```
 Container:   flex-row flex-wrap gap-2 px-4
-Pill:        bg-surface-raised rounded-full px-4 py-2
+Pill:        bg-surface-raised rounded-full px-4 py-2.5 min-h-[44px]
              border border-border-default
              text-text-primary text-sm font-medium
 Pressed:     bg-brand-subtle border-brand-default text-brand-text
@@ -374,7 +374,9 @@ Four variants. All use `rounded-lg` (8px), `font-semibold`, `text-sm`.
 
 | Size   | Height | Padding            | Font     |
 |--------|--------|--------------------|----------|
-| sm     | h-9    | px-4 py-2          | text-xs  |
+| sm     | h-10   | px-4 py-2          | text-xs  |
+
+> **Touch target:** All button sizes must meet 44px minimum. `sm` uses `min-h-[44px]` wrapper when rendered standalone.
 | md     | h-11   | px-6 py-3          | text-sm  |
 | lg     | h-14   | px-8 py-4          | text-base|
 

@@ -10,10 +10,12 @@ The Experience squad builds the AI-first conversational interface that defines A
 
 ## Stream Architecture
 
-- **EX-Infra** (17 tasks, Days 1-6): Chat interface, SSE streaming, card renderer, confirmation flow (split: dispatcher, card rendering, resurfacing), tool registry, agent loop (split: core, respond_to_user, SSE streaming), system prompt, error handling, message persistence, auth, tab layout + ChatFAB, Home screen, Payments screen, Activity tab, Profile tab + Sign Out. CRITICAL PATH — all streams blocked until this ships.
-- **EX-Cards** (15 tasks, Days 4-10): BalanceCard, TransactionListCard, PotStatusCard, ConfirmationCard, SuccessCard, ErrorCard, InsightCard, WelcomeCard, ValuePropInfoCards, QuickReplyGroup, TypingIndicator, ChecklistCard, AccountDetailsCard, SkeletonCard, InputCard.
-- **EX-Onboarding** (13 tasks, Days 4-10): Welcome flow, name/email/DOB/address collection, KYC mock, account provisioning, funding options, getting started checklist, onboarding state machine, tool gating transition, login screen.
-- **EX-Insights** (8 tasks, Days 5-12): Spending by category, spike detection, weekly summary, proactive card engine, morning greeting, beneficiary fuzzy matching, insight caching.
+- **EX-Infra** (17 tasks, Days 1-6): Chat interface, SSE streaming, card renderer, confirmation flow (split: dispatcher, card rendering, resurfacing), tool registry, agent loop (split: core, respond_to_user, SSE streaming), system prompt (with greeting variation rules + time context), error handling, message persistence, auth, tab layout + ChatFAB (`__app_open__` sender), Home screen, Payments screen, Activity tab, Profile tab + Sign Out. CRITICAL PATH — all streams blocked until this ships.
+- **EX-Cards** (15 tasks, Days 4-11): BalanceCard, TransactionListCard, PotStatusCard, ConfirmationCard, SuccessCard, ErrorCard, InsightCard, WelcomeCard, ValuePropInfoCards, QuickReplyGroup, TypingIndicator, ChecklistCard, AccountDetailsCard, SkeletonCard, InputCard.
+- **EX-Onboarding** (13 tasks, Days 4-11): Welcome flow, name/email/DOB/address collection, KYC mock, account provisioning, funding options, getting started checklist, onboarding state machine, tool gating transition, login screen.
+- **EX-Insights** (8 tasks, Days 5-14): Spending by category, spike detection, weekly summary, proactive card engine, dynamic morning greeting (day-of-week, activity briefing lead-in), beneficiary fuzzy matching, insight caching.
+
+> **Timeline adjustment:** Realistic EX delivery is 15 days (was 12). Day 15 is integration testing buffer. LE engineer assists EX-Infra on CardRenderer scaffolding Days 2-5.
 
 ## Critical Fixes
 

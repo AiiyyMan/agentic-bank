@@ -423,7 +423,7 @@ AI: "That Pret purchase was £5.50 — flex plans are available on transactions
 
 - **Score display:** Large number with "/999" suffix, rating badge
 - **Progress arc or bar:** Visual representation of score position (0-999 scale)
-- **Colour coding:** `score.poor` (red), `score.fair` (amber), `score.good` (green), `score.excellent` (blue)
+- **Colour coding:** `score.poor` (red), `score.fair` (amber), `score.good` (yellow), `score.excellent` (blue)
 - **Factor sections:** Positive (green checkmarks), Improve (amber triangles)
 - **Context message:** Sentence explaining what the score means for lending eligibility
 

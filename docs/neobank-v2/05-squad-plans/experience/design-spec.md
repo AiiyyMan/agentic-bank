@@ -288,7 +288,7 @@ interface TransactionListCardProps {
     status?: 'completed' | 'pending';
     is_recurring?: boolean;
   }>;
-  show_more_link?: boolean;    // "See all" link
+  has_more?: boolean;           // True when more transactions exist; renders "See all" link
   onShowMore?: () => void;     // Navigate to Activity tab
   onTransactionPress?: (id: string) => void;
 }

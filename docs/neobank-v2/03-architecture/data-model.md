@@ -706,6 +706,8 @@ Two migrations exist:
 
 ### 4.3 Seed Data
 
+> **Note:** Canonical seed values are defined in `test-constants.ts` (created in Foundation F1a). This section is illustrative only — if values differ, `test-constants.ts` is authoritative.
+
 Seed script (`supabase/seed.sql` or `apps/api/src/seed.ts`) creates:
 
 **Alex's demo account:**
