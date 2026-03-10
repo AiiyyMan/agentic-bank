@@ -23,8 +23,7 @@ Read your squad's plan files and work through the tasks assigned to the specifie
 
 Read first:
 1. `/home/claude/agentic-bank/CLAUDE.md` — project conventions (created during Foundation)
-2. `docs/neobank-v2/06-final-plan/delivery-plan.md` — which tasks belong to your current phase
-3. `docs/neobank-v2/retro-foundation.md` — Foundation retrospective (lessons learned, pitfalls to avoid)
+2. `docs/neobank-v2/retro-foundation.md` — Foundation retrospective (lessons learned, pitfalls to avoid)
 
 Then read your squad's plan:
 4. `docs/neobank-v2/05-squad-plans/{YOUR_SQUAD}/implementation-plan.md` — task list

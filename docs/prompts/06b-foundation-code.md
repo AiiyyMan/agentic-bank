@@ -17,7 +17,6 @@ Read:
 4. `docs/neobank-v2/03-architecture/tech-decisions.md` — technology decisions
 5. `docs/neobank-v2/03-architecture/api-design.md` — API design (for route scaffolding and tool contracts)
 6. `docs/neobank-v2/03-architecture/data-model.md` — data model (for type generation)
-7. `docs/neobank-v2/06-final-plan/delivery-plan.md` — delivery plan
 
 Also review:
 - `supabase/migrations/` — migration files (created in Phase F1a, for table shapes)

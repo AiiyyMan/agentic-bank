@@ -15,7 +15,6 @@ Read:
 2. `docs/neobank-v2/03-architecture/system-architecture.md` — system architecture
 3. `docs/neobank-v2/03-architecture/tech-decisions.md` — technology decisions
 4. `docs/neobank-v2/03-architecture/data-model.md` — data model (for migrations)
-5. `docs/neobank-v2/06-final-plan/delivery-plan.md` — delivery plan (Foundation phase tasks)
 
 Also review the existing codebase:
 - `supabase/migrations/` — current migrations

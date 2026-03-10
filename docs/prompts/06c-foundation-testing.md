@@ -16,7 +16,6 @@ Read:
 3. `docs/neobank-v2/03-architecture/system-architecture.md` — system architecture
 4. `docs/neobank-v2/03-architecture/api-design.md` — API contracts
 5. `docs/neobank-v2/03-architecture/data-model.md` — data model
-6. `docs/neobank-v2/06-final-plan/delivery-plan.md` — delivery plan (for Foundation scope)
 
 Also review:
 - `apps/api/src/tools/handlers.ts` — current tool handlers (to refactor)

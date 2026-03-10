@@ -29,8 +29,7 @@ For per-squad sessions, read:
 5. The squad's actual code in the codebase
 
 For cross-squad session, read:
-1. `docs/neobank-v2/06-final-plan/delivery-plan.md` — what was built
-2. `docs/neobank-v2/04-cpto-review/cross-dependencies.md` — integration points
+1. `docs/neobank-v2/04-cpto-review/cross-dependencies.md` — integration points
 3. All squad test results: `docs/neobank-v2/07-qa/test-results/{squad}.md`
 4. `docs/neobank-v2/retro-phase1-merge.md` — merge retrospective (if exists)
 
