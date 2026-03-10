@@ -25,7 +25,7 @@ export function getBankingAdapter(): BankingPort {
     _adapter = new GriffinAdapter(client, process.env.GRIFFIN_PRIMARY_ACCOUNT_URL || '');
   }
 
-  return _adapter;
+  return _adapter!;
 }
 
 /** Replace the adapter (for tests). */
