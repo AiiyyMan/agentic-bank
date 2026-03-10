@@ -237,8 +237,8 @@ const result = await runAgentLoopTest({
     // Second API call returns respond_to_user
     { stop_reason: 'tool_use', content: [
       { type: 'tool_use', id: 'tu_2', name: 'respond_to_user', input: {
-        message: 'Your balance is £2,345.67',
-        ui_components: [{ type: 'balance_card', data: { balance: '2345.67' } }]
+        message: 'Your balance is £1,247.50',
+        ui_components: [{ type: 'balance_card', data: { balance: '1247.50' } }]
       }}
     ]},
   ],
@@ -259,7 +259,7 @@ const result = await assertToolHandler({
   toolName: 'accounts_check_balance',
   input: {},
   user: ALEX_USER,
-  expectedResult: { balance: '2345.67', currency: 'GBP' },
+  expectedResult: { balance: '1247.50', currency: 'GBP' },
 });
 ```
 

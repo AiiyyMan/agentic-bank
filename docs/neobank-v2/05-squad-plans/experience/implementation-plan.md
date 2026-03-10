@@ -152,21 +152,21 @@ Day 10: EXO-12 (REST + tool gating) + integration testing
 
 ---
 
-## 5. EX-Insights Stream (Days 5-12)
+## 5. EX-Insights Stream (Days 5-14)
 
-Starts after EXI-07 (tool registry) ships. Depends on CB-3 (transaction categorisation) for meaningful data.
+Starts after EXI-07 (tool registry) ships. Depends on CB-04 (transaction categorisation) for meaningful data.
 
 ### Task List
 
 | ID | Task | Size | Depends On | Features |
 |----|------|------|-----------|----------|
-| EXN-01 | **InsightService foundation** — Service class with pre-computation strategy. Groups spending by `primary_category` (PFCv2 taxonomy, 16 primary categories). 30-day rolling averages per `primary_category`. Weekly totals. Month-over-month comparisons. Can filter by `is_recurring` for subscription insights. Reads from local `transactions` table (not BankingPort). | M | Foundation, CB-3 (categorisation) | #101, #102, #103 |
+| EXN-01 | **InsightService foundation** — Service class with pre-computation strategy. Groups spending by `primary_category` (PFCv2 taxonomy, 16 primary categories). 30-day rolling averages per `primary_category`. Weekly totals. Month-over-month comparisons. Can filter by `is_recurring` for subscription insights. Reads from local `transactions` table (not BankingPort). | M | Foundation, CB-04 (categorisation) | #101, #102, #103 |
 | EXN-02 | **get_spending_by_category tool** — Returns spending breakdown by `primary_category` for date range. Total, per-category, comparison to previous period. Registers in tool registry. | M | EXN-01, EXI-07 | #101 |
 | EXN-03 | **get_weekly_summary + comparison tools** — Weekly total, top categories, previous week comparison. get_spending_insights returns anomalies. Spending comparison (current vs previous month). | M | EXN-01 | #103, #104 |
 | EXN-04 | **Spending spike detection** — Detect `primary_category` > 1.5x 30-day average. Generate InsightCard data. Quick reply: "Set budget" or "Show transactions". | M | EXN-01 | #102 |
 | EXN-05 | **Proactive card engine** — `get_proactive_cards` evaluates 8+ trigger rules. Rank by priority (1=time-sensitive, 2=actionable, 3=informational). Max 3 cards per session. < 1s target. | M | EXN-04, EXN-03 | #106 |
 | EXN-06 | **Morning greeting flow** — `__app_open__` -> InsightService -> proactive cards + last 24h activity summary -> inject into system prompt -> Claude generates unified, **dynamic** greeting. Day-of-week awareness (from EXI-08 time context). Activity briefing lead-in when actionable data exists (spending spike, pending payment, pot milestone). Claude varies naturally — no hardcoded templates. Balance card + insight cards + quick replies. **Future P1+ extensions** (not in scope): weather context, subscription savings alerts, rewards/milestones, birthday greetings. | M | EXN-05, EXI-09 | #107 |
-| EXN-07 | **Beneficiary resolution prompt + eval** — (a) Add a `BENEFICIARY RESOLUTION` instruction block to the system prompt template (see api-design.md §3.4.1). Claude uses `get_beneficiaries` + its own reasoning for name matching — no dedicated tool. (b) Write an eval test: "Send £50 to James" with 2 James beneficiaries → verify Claude calls `get_beneficiaries`, identifies ambiguity, presents disambiguation options via quick reply pills showing name + masked account number. | S | EXI-07, CB-4 (beneficiaries) | #31, #32 |
+| EXN-07 | **Beneficiary resolution prompt + eval** — (a) Add a `BENEFICIARY RESOLUTION` instruction block to the system prompt template (see api-design.md §3.4.1). Claude uses `get_beneficiaries` + its own reasoning for name matching — no dedicated tool. (b) Write an eval test: "Send £50 to James" with 2 James beneficiaries → verify Claude calls `get_beneficiaries`, identifies ambiguity, presents disambiguation options via quick reply pills showing name + masked account number. | S | EXI-07, CB-08 (beneficiaries) | #31, #32 |
 | EXN-08 | **Insight caching + REST endpoints** — Pre-compute category averages, store in `user_insights_cache`. GET /api/insights/spending, GET /api/insights/proactive. Cache read < 100ms. | M | EXN-01 | #106 |
 
 ### Sequencing

@@ -1,6 +1,6 @@
 # Experience Squad — Executive Summary
 
-**53 P0 tasks | 4 parallel streams | 12-day delivery**
+**53 P0 tasks | 4 parallel streams | 15-day delivery**
 
 ---
 
@@ -37,12 +37,12 @@ The Experience squad builds the AI-first conversational interface that defines A
 - 15 integration tests (chat flow, confirmation flow, onboarding flow, insights)
 - 4 contract test suites (CB tools -> cards, pending actions -> confirmation, proactive cards -> agent, transactions -> insights)
 - 4 E2E scenarios via agent test harness (balance+payment, onboarding, morning greeting, error recovery)
-- Stream completion checkpoints at Days 5, 10, 10, and 12
+- Stream completion checkpoints at Days 6, 11, 11, and 14
 
 ## Risks
 
 1. **SSE on React Native** (CRITICAL) — mitigated by Foundation V1 validation
-2. **53 tasks in 12 days** (HIGH) — mitigated by parallel streams and strict M sizing
+2. **53 tasks in 15 days** (MEDIUM) — mitigated by parallel streams, strict M sizing, timeline adjustment, and ~22h descoped
 3. **Proactive engine performance** (MEDIUM) — mitigated by pre-computation and caching
 
 ## Success Criteria
