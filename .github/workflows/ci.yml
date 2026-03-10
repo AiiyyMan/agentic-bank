@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  typecheck:
+    name: Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: cd packages/shared && npx tsc --noEmit
+      - run: cd apps/api && npx tsc --noEmit
+
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: cd apps/api && npx vitest --run
+
+  lint-fixtures:
+    name: Fixture Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for hardcoded test data outside fixtures
+        run: |
+          # Flag hardcoded UUIDs or GBP amounts in test files outside fixtures
+          VIOLATIONS=$(grep -rn '00000000-0000-0000-0000' apps/api/src/ --include='*.test.ts' | grep -v fixtures/ | grep -v test-constants | grep -v 'import' || true)
+          if [ -n "$VIOLATIONS" ]; then
+            echo "::error::Hardcoded test UUIDs found outside fixtures:"
+            echo "$VIOLATIONS"
+            exit 1
+          fi
+          echo "No fixture violations found."
+
+  build:
+    name: Build Verification
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: cd packages/shared && npm run build

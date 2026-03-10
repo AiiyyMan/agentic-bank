@@ -5,12 +5,12 @@ import { logger } from '../logger.js';
 import type { ChatRequest } from '@agentic-bank/shared';
 
 export const chatRoutes: FastifyPluginAsync = async (app) => {
-  // Chat endpoint — rate limited to 10/min per user
+  // Chat endpoint — rate limited to 20/min per user (architecture spec)
   app.post<{ Body: ChatRequest }>('/chat', {
     preHandler: authMiddleware,
     config: {
       rateLimit: {
-        max: 10,
+        max: 20,
         timeWindow: '1 minute',
         keyGenerator: (request: any) => {
           return (request as AuthenticatedRequest).userId || request.ip;

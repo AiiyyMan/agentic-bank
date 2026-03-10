@@ -18,8 +18,8 @@ export function validationError(message: string): ToolError {
   return toolError('VALIDATION_ERROR', message);
 }
 
-export function notFoundError(resource: string): ToolError {
-  return toolError('NOT_FOUND', `${resource} not found.`);
+export function notFoundError(message: string): ToolError {
+  return toolError('NOT_FOUND', message);
 }
 
 export function forbiddenError(): ToolError {

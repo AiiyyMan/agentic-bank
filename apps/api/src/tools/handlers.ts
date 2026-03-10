@@ -1,7 +1,8 @@
 import { randomUUID } from 'crypto';
 import { GriffinClient } from '../lib/griffin.js';
 import { validateAmount, validateSortCode, validateAccountNumber } from '../lib/validation.js';
-import { providerUnavailable, validationError } from '../lib/errors.js';
+import { providerUnavailable, validationError, notFoundError } from '../lib/errors.js';
+import { validateToolParams } from '../lib/tool-validation.js';
 import { getSupabase } from '../lib/supabase.js';
 import { logger } from '../logger.js';
 import { applyForLoan, makeLoanPayment, getUserLoans } from '../services/lending.js';
@@ -36,6 +37,10 @@ export async function handleToolCall(
     }
   }
 
+  // QA Checklist: Validate tool params before execution
+  const paramError = validateToolParams(toolName, params);
+  if (paramError) return paramError;
+
   try {
     // Read-only tools — execute immediately
     if (READ_ONLY_TOOLS.has(toolName)) {
@@ -52,6 +57,8 @@ export async function handleToolCall(
       return { passthrough: true, ...params };
     }
 
+    // QA U4: Log unknown tool names at warn level (detects Claude tool hallucination)
+    logger.warn({ toolName, userId: user.id }, 'Unknown tool called — possible hallucination');
     return validationError(`Unknown tool: ${toolName}`);
   } catch (err: any) {
     logger.error({ toolName, err: err.message, userId: user.id }, 'Tool execution failed');
@@ -319,6 +326,10 @@ async function executeWriteTool(
   params: Record<string, unknown>,
   user: UserProfile
 ): Promise<Record<string, unknown>> {
+  // QA C5: Re-validate params at execution time (pending_actions.params is typed as any)
+  const paramError = validateToolParams(toolName, params);
+  if (paramError) return paramError;
+
   switch (toolName) {
     case 'send_payment': {
       const beneficiaryName = String(params.beneficiary_name);
@@ -341,7 +352,7 @@ async function executeWriteTool(
         });
       } else {
         // For demo: if no payee found, try to find Griffin internal account
-        return { error: true, message: `No beneficiary found with name "${beneficiaryName}". Please add them first.` };
+        return notFoundError(`No beneficiary found with name "${beneficiaryName}". Please add them first.`);
       }
 
       // Submit payment

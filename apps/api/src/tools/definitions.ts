@@ -175,7 +175,14 @@ export const respondToUser: ToolDef = {
           properties: {
             type: {
               type: 'string',
-              enum: ['balance_card', 'transaction_list', 'confirmation_card', 'loan_offer_card', 'loan_status_card', 'error_card'],
+              enum: [
+                'balance_card', 'transaction_list', 'confirmation_card', 'success_card',
+                'error_card', 'pot_status_card', 'insight_card', 'spending_breakdown_card',
+                'quick_reply_group', 'welcome_card', 'checklist_card', 'input_card',
+                'quote_card', 'standing_order_card', 'flex_options_card', 'auto_save_rule_card',
+                'loan_offer_card', 'loan_status_card', 'flex_plan_card', 'credit_score_card',
+                'payment_history_card', 'date_picker_card', 'address_input_card',
+              ],
               description: 'Type of UI component to render',
             },
             data: {
