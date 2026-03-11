@@ -101,6 +101,20 @@ const TOOL_PARAM_SPECS: Record<string, Record<string, ParamSpec>> = {
       },
     },
   },
+  flex_purchase: {
+    transaction_id: { required: true, type: 'string' },
+    plan_months: {
+      required: true,
+      type: 'number',
+      validate: (v) => {
+        if (![3, 6, 12].includes(v as number)) return 'Plan must be 3, 6, or 12 months';
+        return null;
+      },
+    },
+  },
+  pay_off_flex: {
+    plan_id: { required: true, type: 'string' },
+  },
   make_loan_payment: {
     loan_id: {
       required: true,

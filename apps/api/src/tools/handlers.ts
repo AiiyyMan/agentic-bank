@@ -6,6 +6,7 @@ import { validateToolParams } from '../lib/tool-validation.js';
 import { getSupabase } from '../lib/supabase.js';
 import { logger } from '../logger.js';
 import { applyForLoan, makeLoanPayment, getUserLoans } from '../services/lending.js';
+import { LendingService } from '../services/lending-service.js';
 import { AccountService, ProviderUnavailableError } from '../services/account.js';
 import { PaymentService } from '../services/payment.js';
 import { PotService } from '../services/pot.js';
@@ -196,7 +197,37 @@ async function executeReadTool(
     }
 
     case 'get_loan_status': {
-      return await getUserLoans(user.id);
+      const lendingService = new LendingService(getSupabase(), adapter);
+      return await lendingService.getUserLoans(user.id);
+    }
+
+    case 'check_credit_score': {
+      const lendingService = new LendingService(getSupabase(), adapter);
+      return await lendingService.checkCreditScore(user.id);
+    }
+
+    case 'check_eligibility': {
+      const lendingService = new LendingService(getSupabase(), adapter);
+      const amount = params.amount ? Number(params.amount) : undefined;
+      return await lendingService.checkEligibility(user.id, amount);
+    }
+
+    case 'get_loan_schedule': {
+      const lendingService = new LendingService(getSupabase(), adapter);
+      const schedule = await lendingService.getLoanSchedule(user.id, String(params.loan_id));
+      return { schedule };
+    }
+
+    case 'get_flex_plans': {
+      const lendingService = new LendingService(getSupabase(), adapter);
+      const plans = await lendingService.getFlexPlans(user.id);
+      return { plans };
+    }
+
+    case 'get_flex_eligible': {
+      const lendingService = new LendingService(getSupabase(), adapter);
+      const eligible = await lendingService.getFlexEligibleTransactions(user.id);
+      return { eligible_transactions: eligible };
     }
 
     default:
@@ -343,6 +374,23 @@ function buildConfirmationSummary(
         },
       };
 
+    case 'flex_purchase':
+      return {
+        text: `Split purchase into ${params.plan_months} monthly payments`,
+        details: {
+          'Transaction': String(params.transaction_id),
+          'Plan': `${params.plan_months} months`,
+        },
+      };
+
+    case 'pay_off_flex':
+      return {
+        text: 'Pay off Flex plan early',
+        details: {
+          'Plan ID': String(params.plan_id),
+        },
+      };
+
     default:
       return { text: `Execute ${toolName}`, details: {} };
   }
@@ -486,16 +534,43 @@ async function executeWriteTool(
     }
 
     case 'apply_for_loan': {
-      const amount = Number(params.amount);
-      const termMonths = Number(params.term_months);
-      const purpose = String(params.purpose || 'Not specified');
-      return await applyForLoan(amount, termMonths, purpose, user);
+      const lendingService = new LendingService(getSupabase(), adapter);
+      const result = await lendingService.applyForLoan(
+        user.id,
+        Number(params.amount),
+        Number(params.term_months),
+        String(params.purpose || 'Not specified'),
+      );
+      return result.data as Record<string, unknown>;
     }
 
     case 'make_loan_payment': {
-      const loanId = String(params.loan_id);
-      const amount = Number(params.amount);
-      return await makeLoanPayment(loanId, amount, user);
+      const lendingService = new LendingService(getSupabase(), adapter);
+      const result = await lendingService.makeLoanPayment(
+        user.id,
+        String(params.loan_id),
+        Number(params.amount),
+      );
+      return result.data as Record<string, unknown>;
+    }
+
+    case 'flex_purchase': {
+      const lendingService = new LendingService(getSupabase(), adapter);
+      const result = await lendingService.createFlexPlan(
+        user.id,
+        String(params.transaction_id),
+        Number(params.plan_months),
+      );
+      return result.data as Record<string, unknown>;
+    }
+
+    case 'pay_off_flex': {
+      const lendingService = new LendingService(getSupabase(), adapter);
+      const result = await lendingService.payOffFlex(
+        user.id,
+        String(params.plan_id),
+      );
+      return result.data as Record<string, unknown>;
     }
 
     case 'delete_beneficiary': {

@@ -288,6 +288,107 @@ export const getPaymentHistory: ToolDef = {
   },
 };
 
+export const checkCreditScore: ToolDef = {
+  name: 'check_credit_score',
+  description: 'Check the user\'s credit score. Returns score, rating, positive factors, and improvement tips.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {},
+    required: [],
+    additionalProperties: false,
+  },
+};
+
+export const checkEligibility: ToolDef = {
+  name: 'check_eligibility',
+  description: 'Check if the user is eligible for a loan. Returns max eligible amount, APR, and monthly payment estimate.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      amount: {
+        type: 'number',
+        description: 'Requested loan amount in GBP (optional — returns max eligible if omitted)',
+      },
+    },
+    required: [],
+    additionalProperties: false,
+  },
+};
+
+export const getLoanSchedule: ToolDef = {
+  name: 'get_loan_schedule',
+  description: 'Get the amortisation schedule for a specific loan. Shows each payment with principal/interest breakdown.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      loan_id: {
+        type: 'string',
+        description: 'ID of the loan to get the schedule for',
+      },
+    },
+    required: ['loan_id'],
+    additionalProperties: false,
+  },
+};
+
+export const flexPurchase: ToolDef = {
+  name: 'flex_purchase',
+  description: 'Split a recent purchase into monthly instalments (Flex). Choose 3 months (0% APR), 6 months (15.9% APR), or 12 months (15.9% APR).',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      transaction_id: {
+        type: 'string',
+        description: 'ID of the transaction to flex',
+      },
+      plan_months: {
+        type: 'number',
+        description: 'Number of months: 3, 6, or 12',
+      },
+    },
+    required: ['transaction_id', 'plan_months'],
+    additionalProperties: false,
+  },
+};
+
+export const getFlexPlans: ToolDef = {
+  name: 'get_flex_plans',
+  description: 'Get all active Flex plans for the user.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {},
+    required: [],
+    additionalProperties: false,
+  },
+};
+
+export const getFlexEligible: ToolDef = {
+  name: 'get_flex_eligible',
+  description: 'Get recent transactions eligible for Flex (£50-£2,000, within 30 days).',
+  input_schema: {
+    type: 'object' as const,
+    properties: {},
+    required: [],
+    additionalProperties: false,
+  },
+};
+
+export const payOffFlex: ToolDef = {
+  name: 'pay_off_flex',
+  description: 'Pay off a Flex plan early with no penalty.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      plan_id: {
+        type: 'string',
+        description: 'ID of the Flex plan to pay off',
+      },
+    },
+    required: ['plan_id'],
+    additionalProperties: false,
+  },
+};
+
 // UI control tool — Claude decides what to render
 export const respondToUser: ToolDef = {
   name: 'respond_to_user',
@@ -351,6 +452,11 @@ export const READ_ONLY_TOOLS = new Set([
   'get_loan_status',
   'get_pots',
   'get_payment_history',
+  'check_credit_score',
+  'check_eligibility',
+  'get_loan_schedule',
+  'get_flex_plans',
+  'get_flex_eligible',
 ]);
 
 // Write tools need confirmation
@@ -363,6 +469,8 @@ export const WRITE_TOOLS = new Set([
   'create_pot',
   'transfer_to_pot',
   'transfer_from_pot',
+  'flex_purchase',
+  'pay_off_flex',
 ]);
 
 // All tool definitions
@@ -382,6 +490,13 @@ export const ALL_TOOLS: ToolDef[] = [
   transferFromPot,
   applyForLoan,
   makeLoanPayment,
+  checkCreditScore,
+  checkEligibility,
+  getLoanSchedule,
+  flexPurchase,
+  getFlexPlans,
+  getFlexEligible,
+  payOffFlex,
   respondToUser,
 ];
 
@@ -402,5 +517,12 @@ export const TOOL_PROGRESS: Record<string, string> = {
   transfer_from_pot: 'Withdrawing from pot...',
   apply_for_loan: 'Processing application...',
   make_loan_payment: 'Processing payment...',
+  check_credit_score: 'Checking credit score...',
+  check_eligibility: 'Checking eligibility...',
+  get_loan_schedule: 'Loading loan schedule...',
+  flex_purchase: 'Setting up Flex plan...',
+  get_flex_plans: 'Loading Flex plans...',
+  get_flex_eligible: 'Checking eligible transactions...',
+  pay_off_flex: 'Paying off Flex plan...',
   respond_to_user: '',
 };
