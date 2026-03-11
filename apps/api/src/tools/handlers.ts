@@ -7,6 +7,8 @@ import { getSupabase } from '../lib/supabase.js';
 import { logger } from '../logger.js';
 import { applyForLoan, makeLoanPayment, getUserLoans } from '../services/lending.js';
 import { AccountService, ProviderUnavailableError } from '../services/account.js';
+import { PaymentService } from '../services/payment.js';
+import { PotService } from '../services/pot.js';
 import { DomainError } from '../lib/domain-errors.js';
 import type { UserProfile, ToolError } from '@agentic-bank/shared';
 import { READ_ONLY_TOOLS, WRITE_TOOLS } from './definitions.js';
@@ -20,7 +22,7 @@ export async function handleToolCall(
   user: UserProfile
 ): Promise<Record<string, unknown>> {
   // Ownership check — need account for banking operations
-  const bankingTools = ['check_balance', 'get_transactions', 'get_accounts', 'get_beneficiaries', 'send_payment', 'add_beneficiary'];
+  const bankingTools = ['check_balance', 'get_transactions', 'get_accounts', 'get_beneficiaries', 'get_payment_history', 'send_payment', 'add_beneficiary', 'delete_beneficiary', 'create_pot', 'transfer_to_pot', 'transfer_from_pot'];
   if (bankingTools.includes(toolName) && !user.griffin_account_url && process.env.USE_MOCK_BANKING !== 'true' && process.env.NODE_ENV !== 'test') {
     return validationError('No bank account found. Please complete onboarding first.');
   }
@@ -179,6 +181,20 @@ async function executeReadTool(
       };
     }
 
+    case 'get_payment_history': {
+      const paymentService = new PaymentService(getSupabase(), adapter);
+      const history = await paymentService.getPaymentHistory(user.id, {
+        beneficiary_id: params.beneficiary_id as string | undefined,
+        start_date: params.start_date as string | undefined,
+        end_date: params.end_date as string | undefined,
+        limit: params.limit as number | undefined,
+      });
+      return {
+        payments: history.payments,
+        summary: history.summary,
+      };
+    }
+
     case 'get_loan_status': {
       return await getUserLoans(user.id);
     }
@@ -286,6 +302,43 @@ function buildConfirmationSummary(
         text: `Make a loan payment of £${Number(params.amount).toFixed(2)}`,
         details: {
           'Loan': String(params.loan_id),
+          'Amount': `£${Number(params.amount).toFixed(2)}`,
+        },
+      };
+
+    case 'delete_beneficiary':
+      return {
+        text: `Delete beneficiary`,
+        details: {
+          'Beneficiary ID': String(params.beneficiary_id),
+        },
+      };
+
+    case 'create_pot':
+      return {
+        text: `Create savings pot "${params.name}"`,
+        details: {
+          'Name': String(params.name),
+          ...(params.goal ? { 'Goal': `£${Number(params.goal).toFixed(2)}` } : {}),
+          ...(params.emoji ? { 'Emoji': String(params.emoji) } : {}),
+          ...(params.initial_deposit ? { 'Initial Deposit': `£${Number(params.initial_deposit).toFixed(2)}` } : {}),
+        },
+      };
+
+    case 'transfer_to_pot':
+      return {
+        text: `Transfer £${Number(params.amount).toFixed(2)} to savings pot`,
+        details: {
+          'Pot': String(params.pot_id),
+          'Amount': `£${Number(params.amount).toFixed(2)}`,
+        },
+      };
+
+    case 'transfer_from_pot':
+      return {
+        text: `Withdraw £${Number(params.amount).toFixed(2)} from savings pot`,
+        details: {
+          'Pot': String(params.pot_id),
           'Amount': `£${Number(params.amount).toFixed(2)}`,
         },
       };
@@ -443,6 +496,64 @@ async function executeWriteTool(
       const loanId = String(params.loan_id);
       const amount = Number(params.amount);
       return await makeLoanPayment(loanId, amount, user);
+    }
+
+    case 'delete_beneficiary': {
+      const paymentService = new PaymentService(getSupabase(), adapter);
+      const result = await paymentService.deleteBeneficiary(user.id, String(params.beneficiary_id));
+      return {
+        beneficiary_id: result.data!.beneficiary_id,
+        name: result.data!.name,
+        deleted: true,
+      };
+    }
+
+    case 'create_pot': {
+      const potService = new PotService(getSupabase(), adapter);
+      const result = await potService.createPot(user.id, {
+        name: String(params.name),
+        goal: params.goal ? Number(params.goal) : undefined,
+        emoji: params.emoji ? String(params.emoji) : undefined,
+        initial_deposit: params.initial_deposit ? Number(params.initial_deposit) : undefined,
+      });
+      return {
+        pot_id: result.data!.id,
+        name: result.data!.name,
+        balance: result.data!.balance,
+        goal: result.data!.goal,
+      };
+    }
+
+    case 'transfer_to_pot': {
+      const potService = new PotService(getSupabase(), adapter);
+      const result = await potService.transferToPot(user.id, {
+        pot_id: String(params.pot_id),
+        amount: Number(params.amount),
+      });
+      return {
+        pot_id: result.data!.pot_id,
+        pot_name: result.data!.pot_name,
+        amount: result.data!.amount,
+        direction: result.data!.direction,
+        pot_balance_after: result.data!.pot_balance_after,
+        main_balance_after: result.data!.main_balance_after,
+      };
+    }
+
+    case 'transfer_from_pot': {
+      const potService = new PotService(getSupabase(), adapter);
+      const result = await potService.transferFromPot(user.id, {
+        pot_id: String(params.pot_id),
+        amount: Number(params.amount),
+      });
+      return {
+        pot_id: result.data!.pot_id,
+        pot_name: result.data!.pot_name,
+        amount: result.data!.amount,
+        direction: result.data!.direction,
+        pot_balance_after: result.data!.pot_balance_after,
+        main_balance_after: result.data!.main_balance_after,
+      };
     }
 
     default:

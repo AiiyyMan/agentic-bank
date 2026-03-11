@@ -63,6 +63,44 @@ const TOOL_PARAM_SPECS: Record<string, Record<string, ParamSpec>> = {
     },
     purpose: { required: true, type: 'string' },
   },
+  delete_beneficiary: {
+    beneficiary_id: { required: true, type: 'string' },
+  },
+  create_pot: {
+    name: { required: true, type: 'string' },
+    goal: { required: false, type: 'number' },
+    emoji: { required: false, type: 'string' },
+    initial_deposit: {
+      required: false,
+      type: 'number',
+      validate: (v) => {
+        const result = validateAmount(v as number);
+        return result.valid ? null : result.error!;
+      },
+    },
+  },
+  transfer_to_pot: {
+    pot_id: { required: true, type: 'string' },
+    amount: {
+      required: true,
+      type: 'number',
+      validate: (v) => {
+        const result = validateAmount(v as number);
+        return result.valid ? null : result.error!;
+      },
+    },
+  },
+  transfer_from_pot: {
+    pot_id: { required: true, type: 'string' },
+    amount: {
+      required: true,
+      type: 'number',
+      validate: (v) => {
+        const result = validateAmount(v as number);
+        return result.valid ? null : result.error!;
+      },
+    },
+  },
   make_loan_payment: {
     loan_id: {
       required: true,

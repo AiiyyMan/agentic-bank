@@ -176,6 +176,118 @@ export const makeLoanPayment: ToolDef = {
   },
 };
 
+export const createPot: ToolDef = {
+  name: 'create_pot',
+  description: 'Create a new savings pot. Optionally set a goal amount, emoji, and initial deposit from the main account.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      name: {
+        type: 'string',
+        description: 'Name for the savings pot (1-30 characters)',
+      },
+      goal: {
+        type: 'number',
+        description: 'Target savings goal in GBP (optional)',
+      },
+      emoji: {
+        type: 'string',
+        description: 'Emoji to represent the pot (optional)',
+      },
+      initial_deposit: {
+        type: 'number',
+        description: 'Amount to deposit from main account when creating (optional)',
+      },
+    },
+    required: ['name'],
+    additionalProperties: false,
+  },
+};
+
+export const transferToPot: ToolDef = {
+  name: 'transfer_to_pot',
+  description: 'Transfer money from the main account into a savings pot.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      pot_id: {
+        type: 'string',
+        description: 'ID of the pot to transfer money into',
+      },
+      amount: {
+        type: 'number',
+        description: 'Amount in GBP to transfer to the pot',
+      },
+    },
+    required: ['pot_id', 'amount'],
+    additionalProperties: false,
+  },
+};
+
+export const transferFromPot: ToolDef = {
+  name: 'transfer_from_pot',
+  description: 'Transfer money from a savings pot back to the main account. Cannot withdraw from locked pots.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      pot_id: {
+        type: 'string',
+        description: 'ID of the pot to withdraw from',
+      },
+      amount: {
+        type: 'number',
+        description: 'Amount in GBP to transfer from the pot',
+      },
+    },
+    required: ['pot_id', 'amount'],
+    additionalProperties: false,
+  },
+};
+
+export const deleteBeneficiary: ToolDef = {
+  name: 'delete_beneficiary',
+  description: 'Delete a saved beneficiary/payee. Requires the beneficiary ID.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      beneficiary_id: {
+        type: 'string',
+        description: 'ID of the beneficiary to delete',
+      },
+    },
+    required: ['beneficiary_id'],
+    additionalProperties: false,
+  },
+};
+
+export const getPaymentHistory: ToolDef = {
+  name: 'get_payment_history',
+  description: 'Get payment history with optional filters. Returns payments and monthly spending summary.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      beneficiary_id: {
+        type: 'string',
+        description: 'Filter by beneficiary ID (optional)',
+      },
+      start_date: {
+        type: 'string',
+        description: 'Filter payments on or after this date (ISO 8601)',
+      },
+      end_date: {
+        type: 'string',
+        description: 'Filter payments on or before this date (ISO 8601)',
+      },
+      limit: {
+        type: 'number',
+        description: 'Number of payments to return (default 20, max 50)',
+      },
+    },
+    required: [],
+    additionalProperties: false,
+  },
+};
+
 // UI control tool — Claude decides what to render
 export const respondToUser: ToolDef = {
   name: 'respond_to_user',
@@ -238,14 +350,19 @@ export const READ_ONLY_TOOLS = new Set([
   'get_beneficiaries',
   'get_loan_status',
   'get_pots',
+  'get_payment_history',
 ]);
 
 // Write tools need confirmation
 export const WRITE_TOOLS = new Set([
   'send_payment',
   'add_beneficiary',
+  'delete_beneficiary',
   'apply_for_loan',
   'make_loan_payment',
+  'create_pot',
+  'transfer_to_pot',
+  'transfer_from_pot',
 ]);
 
 // All tool definitions
@@ -255,9 +372,14 @@ export const ALL_TOOLS: ToolDef[] = [
   getAccounts,
   getPots,
   getBeneficiaries,
+  getPaymentHistory,
   getLoanStatus,
   sendPayment,
   addBeneficiary,
+  deleteBeneficiary,
+  createPot,
+  transferToPot,
+  transferFromPot,
   applyForLoan,
   makeLoanPayment,
   respondToUser,
@@ -271,8 +393,13 @@ export const TOOL_PROGRESS: Record<string, string> = {
   get_beneficiaries: 'Loading beneficiaries...',
   get_loan_status: 'Checking loan status...',
   get_pots: 'Loading savings pots...',
+  get_payment_history: 'Loading payment history...',
   send_payment: 'Preparing payment...',
   add_beneficiary: 'Adding beneficiary...',
+  delete_beneficiary: 'Removing beneficiary...',
+  create_pot: 'Creating savings pot...',
+  transfer_to_pot: 'Transferring to pot...',
+  transfer_from_pot: 'Withdrawing from pot...',
   apply_for_loan: 'Processing application...',
   make_loan_payment: 'Processing payment...',
   respond_to_user: '',
