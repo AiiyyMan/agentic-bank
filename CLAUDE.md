@@ -216,6 +216,7 @@ User message → AgentService.processChat()
 | `apps/api/src/adapters/banking-port.ts` | BankingPort interface (hexagonal architecture) |
 | `apps/api/src/adapters/index.ts` | Adapter factory: `getBankingAdapter()` |
 | `apps/api/src/lib/griffin.ts` | Griffin BaaS client with retry logic |
+| `apps/api/src/routes/chat-stream.ts` | SSE streaming endpoint (validated) |
 | `apps/api/src/lib/supabase.ts` | Supabase client and Database interface |
 | `packages/shared/src/types/api.ts` | Shared API types (UIComponent, AgentResponse, etc.) |
 | `packages/shared/src/test-constants.ts` | Canonical test data (Alex, Emma) |
@@ -248,7 +249,7 @@ Both implement the same `BankingPort` interface (built in Foundation F2).
 | `__tests__/handlers-confirm.test.ts` | 7 | Confirmation flow: confirm, reject, concurrent, failed execution |
 | `__tests__/tool-validation.test.ts` | 13 | Parameter validation for all write tools |
 | `__tests__/agent-history.test.ts` | 11 | Conversation history reconstruction |
-| `__tests__/integration/*.test.ts` | 30 | Full route testing: auth, banking, chat, confirm, health, loans |
+| `__tests__/integration/*.test.ts` | 40 | Full route testing: auth, banking, chat, chat-stream, confirm, health, loans |
 
 ### Fixtures (`__tests__/fixtures/`)
 
@@ -265,3 +266,10 @@ Import from `./fixtures` for ready-to-use test objects:
 - `createMockChain()` — Chainable Supabase mock with configurable `.single()` returns
 - `createMockGriffinClient()` — All GriffinClient methods as `vi.fn()` stubs
 - `createMockAnthropicClient()` — Claude API mock with default response
+
+### Helpers (`__tests__/helpers/`)
+
+- `parseSSEStream()` — Parse raw SSE text into structured events
+- `injectSSE()` — Consume SSE endpoint via Fastify inject
+- `collectSSEStream()` — Real HTTP SSE consumer with timeout
+- `assertSSEHeaders()`, `assertEventSequence()` — SSE-specific assertions

@@ -8,6 +8,7 @@ import { chatRoutes } from './routes/chat.js';
 import { confirmRoutes } from './routes/confirm.js';
 import { loanRoutes } from './routes/loans.js';
 import { bankingRoutes } from './routes/banking.js';
+import { chatStreamRoutes } from './routes/chat-stream.js';
 import { logger } from './logger.js';
 
 export { logger };
@@ -41,6 +42,7 @@ export async function buildServer() {
   await app.register(confirmRoutes, { prefix: '/api' });
   await app.register(loanRoutes, { prefix: '/api' });
   await app.register(bankingRoutes, { prefix: '/api' });
+  await app.register(chatStreamRoutes, { prefix: '/api' });
 
   app.get('/', async () => ({ name: 'Agentic Bank API', version: '0.1.0' }));
 

@@ -111,7 +111,94 @@ async function main() {
     console.error('  ✗ Re-seed failed. Run manually: npx tsx scripts/seed.ts');
   }
 
+  console.log('\nPhase 4: Post-reset regression assertions...');
+  await verifyPostReset(alexId, emmaId);
+
   console.log('\n=== Demo state reset. Alex and Emma are ready. ===');
+}
+
+// ---------------------------------------------------------------------------
+// Post-reset regression assertions (Foundation 06a requirement)
+// ---------------------------------------------------------------------------
+
+async function verifyPostReset(alexId: string, emmaId: string) {
+  let passed = 0;
+  let failed = 0;
+
+  function assert(label: string, condition: boolean, detail?: string) {
+    if (condition) {
+      console.log(`  ✓ ${label}`);
+      passed++;
+    } else {
+      console.error(`  ✗ ${label}${detail ? ` — ${detail}` : ''}`);
+      failed++;
+    }
+  }
+
+  // Alex balance
+  const { data: account } = await supabase
+    .from('mock_accounts')
+    .select('balance')
+    .eq('id', 'd0000000-0000-0000-0000-000000000001')
+    .single();
+  assert('Alex balance = £1,247.50', account?.balance === ALEX.balance, `got ${account?.balance}`);
+
+  // Alex pots
+  const { data: pots } = await supabase
+    .from('pots')
+    .select('id, balance')
+    .eq('user_id', alexId)
+    .order('id');
+  assert('Alex has 3 pots', pots?.length === 3, `got ${pots?.length}`);
+  if (pots?.length === 3) {
+    assert('Holiday pot = £850', pots[0].balance === ALEX.pots.holiday.balance);
+    assert('Emergency pot = £1,200', pots[1].balance === ALEX.pots.emergency.balance);
+    assert('House pot = £2,000', pots[2].balance === ALEX.pots.house.balance);
+  }
+
+  // Alex transactions exist
+  const { count: txCount } = await supabase
+    .from('transactions')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', alexId);
+  assert('Alex has transactions', (txCount ?? 0) > 0, `got ${txCount}`);
+
+  // Conversations cleared
+  const { count: convCount } = await supabase
+    .from('conversations')
+    .select('id', { count: 'exact', head: true })
+    .in('user_id', [alexId, emmaId]);
+  assert('Conversations cleared', convCount === 0, `got ${convCount}`);
+
+  // Messages cleared
+  const { count: msgCount } = await supabase
+    .from('messages')
+    .select('id', { count: 'exact', head: true })
+    .in('user_id', [alexId, emmaId]);
+  assert('Messages cleared', msgCount === 0, `got ${msgCount}`);
+
+  // Alex profile onboarding complete
+  const { data: alexProfile } = await supabase
+    .from('profiles')
+    .select('onboarding_step')
+    .eq('id', alexId)
+    .single();
+  assert('Alex onboarding = ONBOARDING_COMPLETE', alexProfile?.onboarding_step === ALEX.onboardingStep, `got ${alexProfile?.onboarding_step}`);
+
+  // Emma onboarding-ready (STARTED, no Griffin data)
+  const { data: emmaProfile } = await supabase
+    .from('profiles')
+    .select('onboarding_step, griffin_legal_person_url, griffin_account_url')
+    .eq('id', emmaId)
+    .single();
+  assert('Emma onboarding = STARTED', emmaProfile?.onboarding_step === EMMA.onboardingStep, `got ${emmaProfile?.onboarding_step}`);
+  assert('Emma no Griffin legal person', emmaProfile?.griffin_legal_person_url === null);
+  assert('Emma no Griffin account', emmaProfile?.griffin_account_url === null);
+
+  console.log(`\n  Assertions: ${passed} passed, ${failed} failed`);
+  if (failed > 0) {
+    console.error('  ⚠ Some post-reset checks failed. Investigate before demoing.');
+  }
 }
 
 main().catch((err) => {

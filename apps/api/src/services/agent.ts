@@ -148,11 +148,20 @@ async function runAgentLoop(
 
     let response: Anthropic.Messages.Message;
     try {
+      // ADR-16: Prompt caching — cache static system prompt + tools (62% cost reduction)
       response = await anthropic.messages.create({
         model: CLAUDE_MODEL,
         max_tokens: 4096,
-        system: SYSTEM_PROMPT,
-        tools: ALL_TOOLS,
+        system: [{
+          type: 'text',
+          text: SYSTEM_PROMPT,
+          cache_control: { type: 'ephemeral' },
+        }],
+        tools: ALL_TOOLS.map((tool, i) =>
+          i === ALL_TOOLS.length - 1
+            ? { ...tool, cache_control: { type: 'ephemeral' as const } }
+            : tool
+        ),
         messages: currentMessages,
       }, { signal: controller.signal });
     } catch (err: any) {
