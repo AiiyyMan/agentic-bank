@@ -6,6 +6,8 @@ import { validateToolParams } from '../lib/tool-validation.js';
 import { getSupabase } from '../lib/supabase.js';
 import { logger } from '../logger.js';
 import { applyForLoan, makeLoanPayment, getUserLoans } from '../services/lending.js';
+import { AccountService, ProviderUnavailableError } from '../services/account.js';
+import { DomainError } from '../lib/domain-errors.js';
 import type { UserProfile, ToolError } from '@agentic-bank/shared';
 import { READ_ONLY_TOOLS, WRITE_TOOLS } from './definitions.js';
 
@@ -67,10 +69,11 @@ async function executeReadTool(
   user: UserProfile
 ): Promise<ToolResult> {
   const adapter = getBankingAdapter();
+  const accountService = new AccountService(getSupabase(), adapter);
 
   switch (toolName) {
     case 'check_balance': {
-      const balance = await adapter.getBalance(user.id);
+      const balance = await accountService.getBalance(user.id);
       return {
         balance: balance.balance,
         currency: balance.currency,
@@ -107,7 +110,7 @@ async function executeReadTool(
     }
 
     case 'get_accounts': {
-      const accounts = await adapter.listAccounts(user.id);
+      const { accounts, total_balance } = await accountService.getAccounts(user.id);
       return {
         accounts: accounts.map(a => ({
           name: a.account_name,
@@ -115,6 +118,7 @@ async function executeReadTool(
           currency: a.currency,
           status: a.status,
         })),
+        total_balance,
       };
     }
 
