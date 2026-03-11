@@ -9,6 +9,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { BankingPort } from '../adapters/banking-port.js';
 import type { ServiceResult } from '@agentic-bank/shared';
 import { DomainError, InsufficientFundsError, ValidationError } from '../lib/domain-errors.js';
+import { writeAudit } from '../lib/audit.js';
 import { logger } from '../logger.js';
 
 // ---------------------------------------------------------------------------
@@ -88,6 +89,21 @@ export interface FlexEligibleTransaction {
 }
 
 // ---------------------------------------------------------------------------
+// Utilities
+// ---------------------------------------------------------------------------
+
+/** Round to 2 decimal places (pennies). */
+function roundMoney(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+/** Safely parse a numeric DB value; returns 0 when result is not finite. */
+function safeNum(value: unknown): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
+// ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
@@ -158,7 +174,7 @@ export class LendingService {
       .eq('status', 'active');
 
     const totalOutstanding = (existingLoans || []).reduce(
-      (sum: number, l: any) => sum + Number(l.balance_remaining), 0,
+      (sum: number, l: any) => sum + safeNum(l.balance_remaining), 0,
     );
 
     if ((existingLoans || []).length >= 1) {
@@ -246,8 +262,8 @@ export class LendingService {
 
     const apr = eligibility.apr;
     const monthlyPayment = calculateEMI(amount, apr, termMonths);
-    const totalToRepay = monthlyPayment * termMonths;
-    const totalInterest = Math.round((totalToRepay - amount) * 100) / 100;
+    const totalToRepay = roundMoney(monthlyPayment * termMonths);
+    const totalInterest = roundMoney(totalToRepay - amount);
 
     // Create application
     const { data: application, error: appError } = await this.supabase
@@ -299,7 +315,7 @@ export class LendingService {
       .update({ status: 'disbursed' })
       .eq('id', application.id);
 
-    await this.writeAudit(userId, 'loan', loan.id, 'loan.created', null, {
+    await writeAudit(this.supabase, userId, 'loan', loan.id, 'loan.created', null, {
       amount, apr, termMonths, monthlyPayment, purpose,
     });
 
@@ -314,7 +330,7 @@ export class LendingService {
         term: termMonths,
         monthly_payment: monthlyPayment,
         total_interest: totalInterest,
-        total_to_repay: Math.round(totalToRepay * 100) / 100,
+        total_to_repay: totalToRepay,
         next_payment_date: nextPaymentDate.toISOString().split('T')[0],
         reason: 'Affordability check passed',
       },
@@ -335,9 +351,9 @@ export class LendingService {
 
     if (error || !loan) throw new LoanNotFoundError(loanId);
 
-    const principal = Number(loan.principal);
-    const apr = Number(loan.interest_rate);
-    const termMonths = Number(loan.term_months);
+    const principal = safeNum(loan.principal);
+    const apr = safeNum(loan.interest_rate);
+    const termMonths = safeNum(loan.term_months) || 1;
     const monthlyRate = apr / 100 / 12;
     const emi = calculateEMI(principal, apr, termMonths);
 
@@ -354,10 +370,6 @@ export class LendingService {
     let remaining = principal;
 
     for (let i = 1; i <= termMonths; i++) {
-      const interest = Math.round(remaining * monthlyRate * 100) / 100;
-      const principalPortion = Math.round((emi - interest) * 100) / 100;
-      remaining = Math.max(0, Math.round((remaining - principalPortion) * 100) / 100);
-
       const payDate = new Date(startDate);
       payDate.setMonth(payDate.getMonth() + i);
 
@@ -365,21 +377,34 @@ export class LendingService {
       if (paidNumbers.has(i)) status = 'paid';
       else if (i === paidNumbers.size + 1 && loan.status === 'active') status = 'pending';
 
-      schedule.push({
-        payment_number: i,
-        date: payDate.toISOString().split('T')[0],
-        total_payment: i === termMonths ? Math.round((remaining + emi) * 100) / 100 : emi, // last payment adjusts for rounding
-        principal: principalPortion,
-        interest,
-        remaining_balance: remaining,
-        status,
-      });
-    }
+      if (i === termMonths) {
+        // Last payment: exact clear-down to avoid accumulated rounding drift
+        const interest = roundMoney(remaining * monthlyRate);
+        const totalPayment = roundMoney(remaining + interest);
+        schedule.push({
+          payment_number: i,
+          date: payDate.toISOString().split('T')[0],
+          total_payment: totalPayment,
+          principal: remaining,
+          interest,
+          remaining_balance: 0,
+          status,
+        });
+      } else {
+        const interest = roundMoney(remaining * monthlyRate);
+        const principalPortion = roundMoney(emi - interest);
+        remaining = Math.max(0, roundMoney(remaining - principalPortion));
 
-    // Fix last payment to clear balance
-    if (schedule.length > 0) {
-      const last = schedule[schedule.length - 1];
-      last.remaining_balance = 0;
+        schedule.push({
+          payment_number: i,
+          date: payDate.toISOString().split('T')[0],
+          total_payment: emi,
+          principal: principalPortion,
+          interest,
+          remaining_balance: remaining,
+          status,
+        });
+      }
     }
 
     return schedule;
@@ -420,21 +445,33 @@ export class LendingService {
       throw new InsufficientFundsError(balance.balance, amount);
     }
 
-    const paymentAmount = Math.min(amount, Number(loan.balance_remaining));
-    const newBalance = Math.round((Number(loan.balance_remaining) - paymentAmount) * 100) / 100;
+    const balanceRemaining = safeNum(loan.balance_remaining);
+    const loanMonthlyPayment = safeNum(loan.monthly_payment);
+    const loanRate = safeNum(loan.interest_rate);
+
+    const paymentAmount = Math.min(amount, balanceRemaining);
+    const newBalance = roundMoney(balanceRemaining - paymentAmount);
     const newStatus = newBalance <= 0 ? 'paid_off' : 'active';
 
     // Calculate months saved for extra payments
     let monthsSaved: number | undefined;
-    if (paymentAmount > Number(loan.monthly_payment)) {
-      const extraPrincipal = paymentAmount - Number(loan.monthly_payment);
-      const monthlyRate = Number(loan.interest_rate) / 100 / 12;
-      if (monthlyRate > 0 && Number(loan.monthly_payment) > 0) {
-        const remainingWithout = Math.log(Number(loan.monthly_payment) / (Number(loan.monthly_payment) - Number(loan.balance_remaining) * monthlyRate)) / Math.log(1 + monthlyRate);
-        const remainingWith = newBalance > 0
-          ? Math.log(Number(loan.monthly_payment) / (Number(loan.monthly_payment) - newBalance * monthlyRate)) / Math.log(1 + monthlyRate)
-          : 0;
-        monthsSaved = Math.max(0, Math.round(remainingWithout - remainingWith - 1));
+    if (paymentAmount > loanMonthlyPayment) {
+      const monthlyRate = loanRate / 100 / 12;
+      if (monthlyRate > 0 && loanMonthlyPayment > 0) {
+        // Guard against log(0) or log(negative): the denominator
+        // (emi - balance * r) can be <= 0 when balance * r >= emi.
+        const denomWithout = loanMonthlyPayment - balanceRemaining * monthlyRate;
+        const denomWith = loanMonthlyPayment - newBalance * monthlyRate;
+        const logBase = Math.log(1 + monthlyRate);
+
+        if (denomWithout > 0 && logBase > 0) {
+          const remainingWithout = Math.log(loanMonthlyPayment / denomWithout) / logBase;
+          const remainingWith = (newBalance > 0 && denomWith > 0)
+            ? Math.log(loanMonthlyPayment / denomWith) / logBase
+            : 0;
+          const saved = Math.round(remainingWithout - remainingWith - 1);
+          monthsSaved = Number.isFinite(saved) && saved > 0 ? saved : 0;
+        }
       }
     }
 
@@ -450,7 +487,7 @@ export class LendingService {
     // Debit main account
     await this.bankingPort.creditAccount(userId, -paymentAmount);
 
-    await this.writeAudit(userId, 'loan', loanId, 'loan.payment', {
+    await writeAudit(this.supabase, userId, 'loan', loanId, 'loan.payment', {
       balance_remaining: loan.balance_remaining,
     }, {
       payment_amount: paymentAmount,
@@ -557,7 +594,7 @@ export class LendingService {
 
     const apr = FLEX_RATES[planMonths] ?? 15.9;
     const monthlyPayment = calculateEMI(amount, apr, planMonths);
-    const totalCost = Math.round(monthlyPayment * planMonths * 100) / 100;
+    const totalCost = roundMoney(monthlyPayment * planMonths);
 
     // Create flex plan
     const { data: plan, error: planError } = await this.supabase
@@ -611,7 +648,7 @@ export class LendingService {
       await this.bankingPort.creditAccount(userId, creditBack);
     }
 
-    await this.writeAudit(userId, 'flex_plan', plan.id, 'flex.created', null, {
+    await writeAudit(this.supabase, userId, 'flex_plan', plan.id, 'flex.created', null, {
       transaction_id: transactionId,
       amount,
       months: planMonths,
@@ -683,7 +720,7 @@ export class LendingService {
       throw new ValidationError(`Flex plan is ${plan.status}, cannot pay off`);
     }
 
-    const remainingAmount = Number(plan.monthly_payment) * plan.payments_remaining;
+    const remainingAmount = roundMoney(safeNum(plan.monthly_payment) * plan.payments_remaining);
 
     // Check balance
     const balance = await this.bankingPort.getBalance(userId);
@@ -709,7 +746,7 @@ export class LendingService {
       })
       .eq('id', planId);
 
-    await this.writeAudit(userId, 'flex_plan', planId, 'flex.paid_off', {
+    await writeAudit(this.supabase, userId, 'flex_plan', planId, 'flex.paid_off', {
       payments_remaining: plan.payments_remaining,
     }, {
       amount_paid: remainingAmount,
@@ -751,10 +788,10 @@ export class LendingService {
     return {
       loans: (loans || []).map((l: any) => ({
         id: l.id,
-        principal: Number(l.principal),
-        remaining: Number(l.balance_remaining),
-        rate: Number(l.interest_rate),
-        monthly_payment: Number(l.monthly_payment),
+        principal: safeNum(l.principal),
+        remaining: safeNum(l.balance_remaining),
+        rate: safeNum(l.interest_rate),
+        monthly_payment: safeNum(l.monthly_payment),
         next_payment_date: l.next_payment_date,
         status: l.status,
       })),
@@ -820,32 +857,11 @@ export class LendingService {
         months,
         apr,
         monthly_payment: monthlyPayment,
-        total_cost: Math.round(monthlyPayment * months * 100) / 100,
+        total_cost: roundMoney(monthlyPayment * months),
       };
     });
   }
 
-  private async writeAudit(
-    actorId: string,
-    entityType: string,
-    entityId: string,
-    action: string,
-    beforeState: Record<string, unknown> | null,
-    afterState: Record<string, unknown>,
-  ): Promise<void> {
-    try {
-      await this.supabase.from('audit_log').insert({
-        actor_id: actorId,
-        entity_type: entityType,
-        entity_id: entityId,
-        action,
-        before_state: beforeState,
-        after_state: afterState,
-      });
-    } catch (err) {
-      logger.error({ err, actorId, entityType, entityId, action }, 'Failed to write audit log');
-    }
-  }
 }
 
 // -------------------------------------------------------------------------
@@ -853,9 +869,10 @@ export class LendingService {
 // -------------------------------------------------------------------------
 
 export function calculateEMI(principal: number, annualRate: number, termMonths: number): number {
+  if (termMonths <= 0) return 0;
   const monthlyRate = annualRate / 100 / 12;
-  if (monthlyRate === 0) return Math.round(principal / termMonths * 100) / 100;
+  if (monthlyRate === 0) return roundMoney(principal / termMonths);
   const emi = principal * monthlyRate * Math.pow(1 + monthlyRate, termMonths) /
     (Math.pow(1 + monthlyRate, termMonths) - 1);
-  return Math.round(emi * 100) / 100;
+  return roundMoney(emi);
 }

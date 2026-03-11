@@ -80,7 +80,10 @@ export const bankingRoutes: FastifyPluginAsync = async (app) => {
       if (category) query = query.eq('primary_category', category);
       if (start_date) query = query.gte('posted_at', start_date);
       if (end_date) query = query.lte('posted_at', end_date);
-      if (merchant) query = query.ilike('merchant_name', `%${merchant}%`);
+      if (merchant) {
+        const escapedMerchant = String(merchant).replace(/[%_\\]/g, '\\$&');
+        query = query.ilike('merchant_name', `%${escapedMerchant}%`);
+      }
 
       const { data: txns, count: totalCount } = await query
         .order('posted_at', { ascending: false })

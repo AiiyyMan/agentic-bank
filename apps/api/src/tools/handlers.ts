@@ -108,7 +108,8 @@ async function executeReadTool(
         query = query.lte('posted_at', params.end_date);
       }
       if (params.merchant && typeof params.merchant === 'string') {
-        query = query.ilike('merchant_name', `%${params.merchant}%`);
+        const escapedMerchant = String(params.merchant).replace(/[%_\\]/g, '\\$&');
+        query = query.ilike('merchant_name', `%${escapedMerchant}%`);
       }
 
       const { data: txns, count: totalCount } = await query
@@ -478,13 +479,17 @@ async function executeWriteTool(
         .select('id, name')
         .eq('user_id', user.id);
 
-      const ben = ((bens as any[]) || []).find(
+      const benMatches = ((bens as any[]) || []).filter(
         b => b.name.toLowerCase() === beneficiaryName.toLowerCase()
       );
 
-      if (!ben) {
+      if (benMatches.length === 0) {
         return notFoundError(`No beneficiary found with name "${beneficiaryName}". Please add them first.`);
       }
+      if (benMatches.length > 1) {
+        return validationError(`Multiple beneficiaries found matching "${beneficiaryName}". Please use a more specific name.`);
+      }
+      const ben = benMatches[0];
 
       const result = await adapter.createPayment(user.id, ben.id, amount, reference);
 

@@ -9,6 +9,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { BankingPort } from '../adapters/banking-port.js';
 import type { ServiceResult, Pot } from '@agentic-bank/shared';
 import { DomainError, InsufficientFundsError, ValidationError } from '../lib/domain-errors.js';
+import { writeAudit } from '../lib/audit.js';
 import { logger } from '../logger.js';
 
 // ---------------------------------------------------------------------------
@@ -126,7 +127,7 @@ export class PotService {
     }
 
     // Audit log
-    await this.writeAudit(userId, 'pot', pot.id, 'pot.created', null, {
+    await writeAudit(this.supabase, userId, 'pot', pot.id, 'pot.created', null, {
       name: pot.name,
       goal: pot.goal,
       balance: pot.balance,
@@ -142,6 +143,10 @@ export class PotService {
     if (params.amount <= 0) throw new ValidationError('Amount must be greater than zero');
 
     const pot = await this.getPotOrThrow(params.pot_id, userId);
+
+    if (pot.is_locked) {
+      throw new PotLockedError(params.pot_id);
+    }
 
     const balance = await this.bankingPort.getBalance(userId);
     if (balance.balance < params.amount) {
@@ -165,7 +170,7 @@ export class PotService {
     });
 
     // Audit log
-    await this.writeAudit(userId, 'pot', params.pot_id, 'pot.transferred', {
+    await writeAudit(this.supabase, userId, 'pot', params.pot_id, 'pot.transferred', {
       balance: pot.balance,
     }, {
       balance: newPotBalance,
@@ -221,7 +226,7 @@ export class PotService {
     const balance = await this.bankingPort.getBalance(userId);
 
     // Audit log
-    await this.writeAudit(userId, 'pot', params.pot_id, 'pot.transferred', {
+    await writeAudit(this.supabase, userId, 'pot', params.pot_id, 'pot.transferred', {
       balance: pot.balance,
     }, {
       balance: newPotBalance,
@@ -261,25 +266,4 @@ export class PotService {
     return pot;
   }
 
-  private async writeAudit(
-    actorId: string,
-    entityType: string,
-    entityId: string,
-    action: string,
-    beforeState: Record<string, unknown> | null,
-    afterState: Record<string, unknown>,
-  ): Promise<void> {
-    try {
-      await this.supabase.from('audit_log').insert({
-        actor_id: actorId,
-        entity_type: entityType,
-        entity_id: entityId,
-        action,
-        before_state: beforeState,
-        after_state: afterState,
-      });
-    } catch (err) {
-      logger.error({ err, actorId, entityType, entityId, action }, 'Failed to write audit log');
-    }
-  }
 }

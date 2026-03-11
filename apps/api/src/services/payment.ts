@@ -10,7 +10,7 @@ import type { BankingPort } from '../adapters/banking-port.js';
 import type { ServiceResult } from '@agentic-bank/shared';
 import { DomainError, InsufficientFundsError, ValidationError } from '../lib/domain-errors.js';
 import { validateSortCode, validateAccountNumber } from '../lib/validation.js';
-import { logger } from '../logger.js';
+import { writeAudit } from '../lib/audit.js';
 
 // ---------------------------------------------------------------------------
 // Error Types
@@ -112,15 +112,19 @@ export class PaymentService {
       .select('*')
       .eq('user_id', userId);
 
-    const beneficiary = ((bens as any[]) || []).find(
+    const matches = ((bens as any[]) || []).filter(
       (b: any) => b.name.toLowerCase() === params.beneficiary_name.toLowerCase(),
     );
 
-    if (!beneficiary) {
+    if (matches.length === 0) {
       throw new InvalidBeneficiaryError(
         `No beneficiary found with name "${params.beneficiary_name}". Please add them first.`,
       );
     }
+    if (matches.length > 1) {
+      throw new ValidationError(`Multiple beneficiaries found matching "${params.beneficiary_name}". Please use a more specific name.`);
+    }
+    const beneficiary = matches[0];
 
     // Check balance
     const balance = await this.bankingPort.getBalance(userId);
@@ -172,7 +176,7 @@ export class PaymentService {
       .eq('id', beneficiary.id);
 
     // Audit log
-    await this.writeAudit(userId, 'payment', result.payment_id, 'payment.created', null, {
+    await writeAudit(this.supabase, userId, 'payment', result.payment_id, 'payment.created', null, {
       beneficiary_id: beneficiary.id,
       beneficiary_name: params.beneficiary_name,
       amount: params.amount,
@@ -251,7 +255,7 @@ export class PaymentService {
       params.sort_code,
     );
 
-    await this.writeAudit(userId, 'beneficiary', result.id, 'beneficiary.added', null, {
+    await writeAudit(this.supabase, userId, 'beneficiary', result.id, 'beneficiary.added', null, {
       name: params.name,
       sort_code: params.sort_code,
       account_number_masked: `****${params.account_number.slice(-4)}`,
@@ -289,7 +293,7 @@ export class PaymentService {
       .delete()
       .eq('id', beneficiaryId);
 
-    await this.writeAudit(userId, 'beneficiary', beneficiaryId, 'beneficiary.deleted', {
+    await writeAudit(this.supabase, userId, 'beneficiary', beneficiaryId, 'beneficiary.deleted', {
       name: ben.name,
     }, {
       deleted: true,
@@ -363,25 +367,4 @@ export class PaymentService {
   // Helpers
   // ---------------------------------------------------------------------------
 
-  private async writeAudit(
-    actorId: string,
-    entityType: string,
-    entityId: string,
-    action: string,
-    beforeState: Record<string, unknown> | null,
-    afterState: Record<string, unknown>,
-  ): Promise<void> {
-    try {
-      await this.supabase.from('audit_log').insert({
-        actor_id: actorId,
-        entity_type: entityType,
-        entity_id: entityId,
-        action,
-        before_state: beforeState,
-        after_state: afterState,
-      });
-    } catch (err) {
-      logger.error({ err, actorId, entityType, entityId, action }, 'Failed to write audit log');
-    }
-  }
 }
