@@ -389,6 +389,196 @@ export const payOffFlex: ToolDef = {
   },
 };
 
+// ---------------------------------------------------------------------------
+// Insight tools (EXN-02 to EXN-04)
+// ---------------------------------------------------------------------------
+
+export const getSpendingByCategory: ToolDef = {
+  name: 'get_spending_by_category',
+  description: 'Get spending breakdown by category for a date range. Returns totals per category with percentages and comparison to the previous period. Supports "this month", "last month", or custom date ranges.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      start_date: {
+        type: 'string',
+        description: 'Start of date range (ISO 8601, e.g. 2026-03-01). Defaults to start of current month.',
+      },
+      end_date: {
+        type: 'string',
+        description: 'End of date range (ISO 8601). Defaults to now.',
+      },
+    },
+    required: [],
+    additionalProperties: false,
+  },
+};
+
+export const getWeeklySummary: ToolDef = {
+  name: 'get_weekly_summary',
+  description: 'Get a weekly spending summary: total spent, top 3 categories, and comparison to the previous week. Surfaced proactively on Mondays.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {},
+    required: [],
+    additionalProperties: false,
+  },
+};
+
+export const getSpendingInsights: ToolDef = {
+  name: 'get_spending_insights',
+  description: 'Detect spending anomalies — categories where spending exceeds 1.5x the 30-day rolling average. Returns spike details with suggested actions.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {},
+    required: [],
+    additionalProperties: false,
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Onboarding tools (EXO-03 to EXO-11)
+// ---------------------------------------------------------------------------
+
+export const collectName: ToolDef = {
+  name: 'collect_name',
+  description: 'Save the user\'s name during onboarding. Transitions from STARTED to NAME_COLLECTED.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      display_name: {
+        type: 'string',
+        description: 'The user\'s display name (1-50 characters)',
+      },
+    },
+    required: ['display_name'],
+    additionalProperties: false,
+  },
+};
+
+export const collectDob: ToolDef = {
+  name: 'collect_dob',
+  description: 'Save the user\'s date of birth during onboarding. Must be 18 or older. Transitions from EMAIL_REGISTERED to DOB_COLLECTED.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      date_of_birth: {
+        type: 'string',
+        description: 'Date of birth in YYYY-MM-DD format',
+      },
+    },
+    required: ['date_of_birth'],
+    additionalProperties: false,
+  },
+};
+
+export const collectAddress: ToolDef = {
+  name: 'collect_address',
+  description: 'Save the user\'s address during onboarding. Transitions from DOB_COLLECTED to ADDRESS_COLLECTED.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      line_1: {
+        type: 'string',
+        description: 'Address line 1',
+      },
+      line_2: {
+        type: 'string',
+        description: 'Address line 2 (optional)',
+      },
+      city: {
+        type: 'string',
+        description: 'City',
+      },
+      postcode: {
+        type: 'string',
+        description: 'UK postcode',
+      },
+    },
+    required: ['line_1', 'city', 'postcode'],
+    additionalProperties: false,
+  },
+};
+
+export const verifyIdentity: ToolDef = {
+  name: 'verify_identity',
+  description: 'Start identity verification (KYC) during onboarding. Transitions from ADDRESS_COLLECTED to VERIFICATION_COMPLETE.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {},
+    required: [],
+    additionalProperties: false,
+  },
+};
+
+export const provisionAccount: ToolDef = {
+  name: 'provision_account',
+  description: 'Create the user\'s bank account after identity verification. Transitions from VERIFICATION_COMPLETE to ACCOUNT_PROVISIONED.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {},
+    required: [],
+    additionalProperties: false,
+  },
+};
+
+export const getValuePropInfo: ToolDef = {
+  name: 'get_value_prop_info',
+  description: 'Get information about an Agentic Bank feature/topic. Topics: speed, control, ai, fscs, fca, features.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      topic: {
+        type: 'string',
+        description: 'Topic to get info about: speed, control, ai, fscs, fca, features',
+      },
+    },
+    required: ['topic'],
+    additionalProperties: false,
+  },
+};
+
+export const getOnboardingChecklist: ToolDef = {
+  name: 'get_onboarding_checklist',
+  description: 'Get the user\'s getting started checklist with completion status.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {},
+    required: [],
+    additionalProperties: false,
+  },
+};
+
+export const updateChecklistItem: ToolDef = {
+  name: 'update_checklist_item',
+  description: 'Mark a checklist item as complete or incomplete.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      key: {
+        type: 'string',
+        description: 'Checklist item key: checklist_add_money, checklist_create_pot, checklist_add_payee, checklist_explore',
+      },
+      completed: {
+        type: 'boolean',
+        description: 'Whether the item is completed',
+      },
+    },
+    required: ['key', 'completed'],
+    additionalProperties: false,
+  },
+};
+
+export const completeOnboarding: ToolDef = {
+  name: 'complete_onboarding',
+  description: 'Complete the onboarding flow. Transitions to ONBOARDING_COMPLETE and unlocks all banking tools.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {},
+    required: [],
+    additionalProperties: false,
+  },
+};
+
 // UI control tool — Claude decides what to render
 export const respondToUser: ToolDef = {
   name: 'respond_to_user',
@@ -457,6 +647,15 @@ export const READ_ONLY_TOOLS = new Set([
   'get_loan_schedule',
   'get_flex_plans',
   'get_flex_eligible',
+  // Insight tools (EXN)
+  'get_spending_by_category',
+  'get_weekly_summary',
+  'get_spending_insights',
+  // Onboarding tools (EXO)
+  'get_value_prop_info',
+  'get_onboarding_checklist',
+  'verify_identity',
+  'provision_account',
 ]);
 
 // Write tools need confirmation
@@ -473,8 +672,17 @@ export const WRITE_TOOLS = new Set([
   'pay_off_flex',
 ]);
 
-// All tool definitions
-export const ALL_TOOLS: ToolDef[] = [
+// Onboarding tools — execute immediately (no confirmation needed)
+export const ONBOARDING_IMMEDIATE_TOOLS = new Set([
+  'collect_name',
+  'collect_dob',
+  'collect_address',
+  'update_checklist_item',
+  'complete_onboarding',
+]);
+
+// All banking tools (available after ONBOARDING_COMPLETE)
+export const BANKING_TOOLS: ToolDef[] = [
   checkBalance,
   getTransactions,
   getAccounts,
@@ -497,8 +705,41 @@ export const ALL_TOOLS: ToolDef[] = [
   getFlexPlans,
   getFlexEligible,
   payOffFlex,
+  getSpendingByCategory,
+  getWeeklySummary,
+  getSpendingInsights,
+];
+
+// Onboarding-only tools
+export const ONBOARDING_TOOL_DEFS: ToolDef[] = [
+  collectName,
+  collectDob,
+  collectAddress,
+  verifyIdentity,
+  provisionAccount,
+  getValuePropInfo,
+  getOnboardingChecklist,
+  updateChecklistItem,
+  completeOnboarding,
+];
+
+// All tool definitions (full set, for backward compatibility)
+export const ALL_TOOLS: ToolDef[] = [
+  ...BANKING_TOOLS,
+  ...ONBOARDING_TOOL_DEFS,
   respondToUser,
 ];
+
+/**
+ * EXI-07: Get available tools based on onboarding step.
+ */
+export function getAvailableTools(onboardingStep: string): ToolDef[] {
+  if (onboardingStep === 'ONBOARDING_COMPLETE') {
+    return [...BANKING_TOOLS, respondToUser];
+  }
+  // During onboarding, only onboarding tools + respond_to_user
+  return [...ONBOARDING_TOOL_DEFS, respondToUser];
+}
 
 // Tool progress messages for UX
 export const TOOL_PROGRESS: Record<string, string> = {
@@ -524,5 +765,19 @@ export const TOOL_PROGRESS: Record<string, string> = {
   get_flex_plans: 'Loading Flex plans...',
   get_flex_eligible: 'Checking eligible transactions...',
   pay_off_flex: 'Paying off Flex plan...',
+  // Insight tools
+  get_spending_by_category: 'Analysing spending...',
+  get_weekly_summary: 'Preparing weekly summary...',
+  get_spending_insights: 'Checking spending patterns...',
+  // Onboarding tools
+  collect_name: 'Saving your name...',
+  collect_dob: 'Saving date of birth...',
+  collect_address: 'Saving your address...',
+  verify_identity: 'Verifying your identity...',
+  provision_account: 'Setting up your account...',
+  get_value_prop_info: 'Getting information...',
+  get_onboarding_checklist: 'Loading checklist...',
+  update_checklist_item: 'Updating checklist...',
+  complete_onboarding: 'Completing setup...',
   respond_to_user: '',
 };

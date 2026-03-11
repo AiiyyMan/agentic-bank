@@ -1,11 +1,13 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { getSupabase } from '../lib/supabase.js';
 import { handleToolCall } from '../tools/handlers.js';
-import { ALL_TOOLS } from '../tools/definitions.js';
+import { ALL_TOOLS, getAvailableTools } from '../tools/definitions.js';
 import { sanitizeChatInput } from '../lib/validation.js';
 import { logger } from '../logger.js';
 import { CLAUDE_MODEL, CLAUDE_MODEL_FAST } from '../lib/config.js';
+import { InsightService } from './insight.js';
 import type { UserProfile, AgentResponse, UIComponent } from '@agentic-bank/shared';
+import type { ProactiveCard } from './insight.js';
 
 const anthropic = new Anthropic();
 
@@ -20,33 +22,23 @@ const MESSAGES_TO_KEEP = 20;
 // QA C6: 30s timeout for Anthropic API calls
 const ANTHROPIC_TIMEOUT_MS = 30_000;
 
-const SYSTEM_PROMPT = `You are a banking assistant for Agentic Bank, a modern digital bank. You help customers manage their money through natural conversation.
+// ---------------------------------------------------------------------------
+// System Prompt Assembly (EXI-08)
+// ---------------------------------------------------------------------------
 
-You can:
-- Check account balances
-- View transaction history
-- Send payments to beneficiaries
-- Add new beneficiaries
-- Apply for personal loans
-- Make loan payments
+const PERSONA_BLOCK = `You are a banking assistant for Agentic Bank, a modern AI-first digital bank in the UK. You help customers manage their money through natural conversation. You are friendly, clear, and professional. You use British English.`;
 
-RULES:
+const SAFETY_RULES_BLOCK = `RULES:
 1. For any action that moves money or creates obligations, use the appropriate write tool. The system will handle user confirmation.
 2. When showing payment confirmations, mention what the balance will be after the transaction.
 3. Never fabricate data. If a tool returns an error, inform the user clearly and suggest they try again.
 4. Never reveal full account numbers or sort codes. Show last 4 digits only.
-5. Currency is GBP (British Pounds). Format amounts as £X,XXX.XX.
+5. Currency is GBP (British Pounds). Format amounts as £X,XXX.XX with thousands separator.
 6. If a tool returns an error, tell the user the banking service is temporarily unavailable and suggest trying again.
 7. ALWAYS use the respond_to_user tool to send your final response. Include appropriate UI components when showing financial data.
+8. Never repeat the same greeting opener within 24 hours. Vary between name-first, time-first, activity-first, and day-first patterns.`;
 
-Available tools by domain:
-- Accounts: check_balance, get_accounts, get_pots
-- Payments: send_payment, get_beneficiaries, add_beneficiary
-- Transactions: get_transactions
-- Lending: apply_for_loan, make_loan_payment, get_loan_status
-- Chat: respond_to_user
-
-UI component guidelines:
+const CARD_USAGE_BLOCK = `UI COMPONENT GUIDELINES:
 - Use balance_card when showing account balance
 - Use transaction_list when showing transaction history
 - Use confirmation_card when a write action needs confirmation (the system will provide this data)
@@ -57,7 +49,103 @@ UI component guidelines:
 - Use spending_breakdown_card for spending analysis
 - Use insight_card for proactive financial insights
 - Use error_card when there's an error the user should see
-- Use success_card after a successful action`;
+- Use success_card after a successful action
+- Use quick_reply_group to suggest common follow-up actions
+- Use checklist_card for onboarding progress
+- Cards are for banking flows — use text for casual conversation. No card is better than an irrelevant card.`;
+
+const BENEFICIARY_RESOLUTION_BLOCK = `BENEFICIARY RESOLUTION:
+When the user asks to send money to someone by name:
+1. Call get_beneficiaries to get their saved payees.
+2. If exactly ONE beneficiary matches (case-insensitive): proceed with send_payment using that name.
+3. If MULTIPLE beneficiaries match: present disambiguation options via quick_reply_group showing each name + masked account number. Wait for user to select.
+4. If ZERO match: ask if the user wants to add them as a new beneficiary.
+Never guess which beneficiary the user means. Always confirm if ambiguous.`;
+
+const ONBOARDING_PROMPT_BLOCK = `ONBOARDING MODE:
+You are guiding a new user through account setup. Be warm and encouraging. The steps are:
+1. Ask their name (collect_name)
+2. They'll register email/password via the app
+3. Ask date of birth (collect_dob) — must be 18+
+4. Ask for address (collect_address) — UK postcode required
+5. Verify identity (verify_identity) — instant for POC
+6. Create account (provision_account)
+7. Show funding options
+8. Show getting started checklist
+9. Complete onboarding (complete_onboarding)
+
+If the user asks "tell me more", use get_value_prop_info with topics: speed, control, ai, fscs, fca, features.
+Guide them step by step. Don't skip ahead.`;
+
+function buildSystemPrompt(
+  user: UserProfile,
+  options?: { proactiveCards?: ProactiveCard[]; isAppOpen?: boolean },
+): string {
+  const isOnboarding = user.onboarding_step !== 'ONBOARDING_COMPLETE';
+  const now = new Date();
+  const hour = now.getHours();
+  const timeOfDay = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
+  const dayOfWeek = now.toLocaleDateString('en-GB', { weekday: 'long' });
+  const formattedDate = now.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  const blocks: string[] = [PERSONA_BLOCK, SAFETY_RULES_BLOCK, CARD_USAGE_BLOCK];
+
+  // Beneficiary resolution (banking mode only)
+  if (!isOnboarding) {
+    blocks.push(BENEFICIARY_RESOLUTION_BLOCK);
+  }
+
+  // Onboarding-specific prompt
+  if (isOnboarding) {
+    blocks.push(ONBOARDING_PROMPT_BLOCK);
+  }
+
+  // Dynamic context
+  const dynamicParts: string[] = [];
+
+  // User profile context
+  if (user.display_name) {
+    dynamicParts.push(`The user's name is ${user.display_name}.`);
+  }
+  dynamicParts.push(`Current onboarding step: ${user.onboarding_step}.`);
+
+  // Time context (EXI-08)
+  dynamicParts.push(`Current time context: ${timeOfDay}, ${dayOfWeek}, ${formattedDate}.`);
+
+  // Greeting variation instructions
+  if (options?.isAppOpen) {
+    dynamicParts.push(`This is an app-open greeting. Vary your opener naturally:
+- If proactive insights exist, lead with the most actionable one.
+- On Monday mornings, you may reference the start of the week.
+- In the evening, you may reference the day's activity if data is available.
+- Keep greetings concise — one sentence, then cards.`);
+  }
+
+  // Proactive cards context (EXN-06)
+  if (options?.proactiveCards && options.proactiveCards.length > 0) {
+    const cardSummaries = options.proactiveCards.map(c => `- ${c.title}: ${c.message}`).join('\n');
+    dynamicParts.push(`PROACTIVE INSIGHTS to weave into your greeting:\n${cardSummaries}`);
+  }
+
+  // Tool domain listing (mode-dependent)
+  if (!isOnboarding) {
+    dynamicParts.push(`Available tools by domain:
+- Accounts: check_balance, get_accounts, get_pots
+- Payments: send_payment, get_beneficiaries, add_beneficiary, delete_beneficiary, get_payment_history
+- Transactions: get_transactions
+- Lending: apply_for_loan, make_loan_payment, get_loan_status, check_credit_score, check_eligibility, get_loan_schedule
+- Flex: flex_purchase, get_flex_plans, get_flex_eligible, pay_off_flex
+- Pots: create_pot, transfer_to_pot, transfer_from_pot
+- Insights: get_spending_by_category, get_weekly_summary, get_spending_insights
+- Chat: respond_to_user`);
+  }
+
+  if (dynamicParts.length > 0) {
+    blocks.push(`CONTEXT:\n${dynamicParts.join('\n')}`);
+  }
+
+  return blocks.join('\n\n');
+}
 
 const SUMMARISATION_PROMPT = `Summarise the following banking conversation concisely. Preserve:
 - Any pending actions or confirmations awaiting user response (include action IDs)
@@ -71,9 +159,11 @@ Output a single paragraph summary, max 500 tokens. Do not include greetings or p
 export async function processChat(
   userMessage: string,
   conversationId: string | undefined,
-  user: UserProfile
+  user: UserProfile,
+  options?: { isAppOpen?: boolean },
 ): Promise<AgentResponse> {
-  const cleanMessage = sanitizeChatInput(userMessage);
+  const isAppOpen = options?.isAppOpen || userMessage === '__app_open__';
+  const cleanMessage = isAppOpen ? '__app_open__' : sanitizeChatInput(userMessage);
   if (!cleanMessage) {
     return { message: 'Please enter a message.', conversation_id: conversationId || '' };
   }
@@ -95,16 +185,33 @@ export async function processChat(
   // Load conversation history (including summary if present)
   const history = await getConversationHistory(convId);
 
-  // Save user message
-  await saveMessage(convId, 'user', cleanMessage, user.id);
+  // Don't persist __app_open__ as a regular user message
+  if (!isAppOpen) {
+    await saveMessage(convId, 'user', cleanMessage, user.id);
+  }
+
+  // EXN-06: Fetch proactive cards for app-open greeting
+  let proactiveCards: ProactiveCard[] | undefined;
+  if (isAppOpen && user.onboarding_step === 'ONBOARDING_COMPLETE') {
+    try {
+      const insightService = new InsightService(getSupabase());
+      proactiveCards = await insightService.getProactiveCards(user.id);
+    } catch (err: any) {
+      logger.warn({ err: err.message, userId: user.id }, 'Failed to fetch proactive cards for greeting');
+    }
+  }
+
+  const userContent = isAppOpen
+    ? 'The user just opened the app. Greet them with a personalised greeting and show their balance. If there are proactive insights, weave them into the greeting naturally.'
+    : cleanMessage;
 
   const messages: Anthropic.Messages.MessageParam[] = [
     ...history,
-    { role: 'user', content: cleanMessage },
+    { role: 'user', content: userContent },
   ];
 
   try {
-    const response = await runAgentLoop(messages, user, convId);
+    const response = await runAgentLoop(messages, user, convId, { proactiveCards, isAppOpen });
 
     if (response.contentBlocks) {
       await saveStructuredMessage(convId, 'assistant', response.contentBlocks, response.message, response.ui_components, user.id);
@@ -136,10 +243,15 @@ export async function processChat(
 async function runAgentLoop(
   messages: Anthropic.Messages.MessageParam[],
   user: UserProfile,
-  conversationId: string
+  conversationId: string,
+  options?: { proactiveCards?: ProactiveCard[]; isAppOpen?: boolean },
 ): Promise<{ message: string; ui_components?: UIComponent[]; contentBlocks?: Anthropic.Messages.ContentBlock[] }> {
   let currentMessages = [...messages];
   let lastPendingActionId: string | undefined;
+
+  // EXI-07/EXI-08: Build dynamic system prompt and tool set based on onboarding state
+  const systemPrompt = buildSystemPrompt(user, options);
+  const availableTools = getAvailableTools(user.onboarding_step);
 
   for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration++) {
     // QA C6: Anthropic API call with timeout
@@ -154,11 +266,11 @@ async function runAgentLoop(
         max_tokens: 4096,
         system: [{
           type: 'text',
-          text: SYSTEM_PROMPT,
+          text: systemPrompt,
           cache_control: { type: 'ephemeral' },
         }],
-        tools: ALL_TOOLS.map((tool, i) =>
-          i === ALL_TOOLS.length - 1
+        tools: availableTools.map((tool, i) =>
+          i === availableTools.length - 1
             ? { ...tool, cache_control: { type: 'ephemeral' as const } }
             : tool
         ),

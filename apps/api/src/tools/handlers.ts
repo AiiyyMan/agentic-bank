@@ -10,9 +10,11 @@ import { LendingService } from '../services/lending-service.js';
 import { AccountService, ProviderUnavailableError } from '../services/account.js';
 import { PaymentService } from '../services/payment.js';
 import { PotService } from '../services/pot.js';
+import { InsightService } from '../services/insight.js';
+import { OnboardingService } from '../services/onboarding.js';
 import { DomainError } from '../lib/domain-errors.js';
 import type { UserProfile, ToolError } from '@agentic-bank/shared';
-import { READ_ONLY_TOOLS, WRITE_TOOLS } from './definitions.js';
+import { READ_ONLY_TOOLS, WRITE_TOOLS, ONBOARDING_IMMEDIATE_TOOLS } from './definitions.js';
 
 type ToolResult = Record<string, unknown>;
 
@@ -49,6 +51,11 @@ export async function handleToolCall(
     // Write tools — create pending action
     if (WRITE_TOOLS.has(toolName)) {
       return await createPendingAction(toolName, params, user);
+    }
+
+    // Onboarding immediate tools — execute directly (no confirmation needed)
+    if (ONBOARDING_IMMEDIATE_TOOLS.has(toolName)) {
+      return await executeOnboardingTool(toolName, params, user);
     }
 
     // respond_to_user — pass through (handled by agent orchestrator)
@@ -231,8 +238,106 @@ async function executeReadTool(
       return { eligible_transactions: eligible };
     }
 
+    // Insight tools (EXN)
+    case 'get_spending_by_category': {
+      const insightService = new InsightService(getSupabase());
+      const now = new Date();
+      const startDate = params.start_date
+        ? String(params.start_date)
+        : new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      const endDate = params.end_date ? String(params.end_date) : now.toISOString();
+      return await insightService.getSpendingByCategory(user.id, {
+        start_date: startDate,
+        end_date: endDate,
+      });
+    }
+
+    case 'get_weekly_summary': {
+      const insightService = new InsightService(getSupabase());
+      return await insightService.getWeeklySummary(user.id);
+    }
+
+    case 'get_spending_insights': {
+      const insightService = new InsightService(getSupabase());
+      const spikes = await insightService.detectSpendingSpikes(user.id);
+      return { spikes, has_spikes: spikes.length > 0 };
+    }
+
+    // Onboarding read tools (EXO)
+    case 'get_value_prop_info': {
+      const onboardingService = new OnboardingService(getSupabase(), adapter);
+      return onboardingService.getValuePropInfo(String(params.topic || ''));
+    }
+
+    case 'get_onboarding_checklist': {
+      const onboardingService = new OnboardingService(getSupabase(), adapter);
+      const items = await onboardingService.getChecklist(user.id);
+      return { items };
+    }
+
+    case 'verify_identity': {
+      const onboardingService = new OnboardingService(getSupabase(), adapter);
+      const result = await onboardingService.verifyIdentity(user.id);
+      return result;
+    }
+
+    case 'provision_account': {
+      const onboardingService = new OnboardingService(getSupabase(), adapter);
+      const result = await onboardingService.provisionAccount(user.id);
+      return result;
+    }
+
     default:
       return { error: 'Unknown read tool' };
+  }
+}
+
+// Execute onboarding tools (no confirmation needed)
+async function executeOnboardingTool(
+  toolName: string,
+  params: Record<string, unknown>,
+  user: UserProfile
+): Promise<ToolResult> {
+  const adapter = getBankingAdapter();
+  const onboardingService = new OnboardingService(getSupabase(), adapter);
+
+  switch (toolName) {
+    case 'collect_name': {
+      const result = await onboardingService.collectName(user.id, String(params.display_name));
+      return result.data as ToolResult;
+    }
+
+    case 'collect_dob': {
+      const result = await onboardingService.collectDob(user.id, String(params.date_of_birth));
+      return result.data as ToolResult;
+    }
+
+    case 'collect_address': {
+      const result = await onboardingService.collectAddress(user.id, {
+        line_1: String(params.line_1),
+        line_2: params.line_2 ? String(params.line_2) : undefined,
+        city: String(params.city),
+        postcode: String(params.postcode),
+      });
+      return result.data as ToolResult;
+    }
+
+    case 'update_checklist_item': {
+      await onboardingService.updateChecklistItem(
+        user.id,
+        String(params.key),
+        Boolean(params.completed),
+      );
+      return { success: true };
+    }
+
+    case 'complete_onboarding': {
+      await onboardingService.completeOnboarding(user.id);
+      return { success: true, message: 'Onboarding complete! All banking features are now available.' };
+    }
+
+    default:
+      return { error: 'Unknown onboarding tool' };
   }
 }
 
