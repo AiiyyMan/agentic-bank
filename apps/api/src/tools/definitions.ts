@@ -219,6 +219,17 @@ export const respondToUser: ToolDef = {
   },
 };
 
+export const getPots: ToolDef = {
+  name: 'get_pots',
+  description: 'Get all savings pots for the user. Returns pot names, balances, goals, and progress percentages.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {},
+    required: [],
+    additionalProperties: false,
+  },
+};
+
 // Read-only tools execute immediately
 export const READ_ONLY_TOOLS = new Set([
   'check_balance',
@@ -226,6 +237,7 @@ export const READ_ONLY_TOOLS = new Set([
   'get_accounts',
   'get_beneficiaries',
   'get_loan_status',
+  'get_pots',
 ]);
 
 // Write tools need confirmation
@@ -241,6 +253,7 @@ export const ALL_TOOLS: ToolDef[] = [
   checkBalance,
   getTransactions,
   getAccounts,
+  getPots,
   getBeneficiaries,
   getLoanStatus,
   sendPayment,
@@ -257,6 +270,7 @@ export const TOOL_PROGRESS: Record<string, string> = {
   get_accounts: 'Loading accounts...',
   get_beneficiaries: 'Loading beneficiaries...',
   get_loan_status: 'Checking loan status...',
+  get_pots: 'Loading savings pots...',
   send_payment: 'Preparing payment...',
   add_beneficiary: 'Adding beneficiary...',
   apply_for_loan: 'Processing application...',

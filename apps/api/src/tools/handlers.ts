@@ -145,6 +145,27 @@ async function executeReadTool(
       };
     }
 
+    case 'get_pots': {
+      const { data: pots } = await getSupabase()
+        .from('pots' as any)
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('is_closed', false)
+        .order('created_at', { ascending: true }) as any;
+
+      return {
+        pots: ((pots as any[]) || []).map(pot => ({
+          id: pot.id,
+          name: pot.name,
+          balance: Number(pot.balance),
+          goal: pot.goal ? Number(pot.goal) : null,
+          emoji: pot.emoji,
+          is_locked: pot.is_locked || false,
+          progress_pct: pot.goal ? Math.min(100, Math.round((Number(pot.balance) / Number(pot.goal)) * 100)) : null,
+        })),
+      };
+    }
+
     case 'get_beneficiaries': {
       const payees = await adapter.listPayees(user.id);
       return {

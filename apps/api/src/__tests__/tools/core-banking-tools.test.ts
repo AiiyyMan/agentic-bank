@@ -186,3 +186,55 @@ describe('get_transactions tool (CB-03)', () => {
     expect(tx.posted_at).toBeDefined();
   });
 });
+
+describe('get_pots tool (CB-05)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns pots with progress_pct', async () => {
+    mockSupabase._data = [
+      { id: 'pot-1', name: 'Holiday Fund', balance: 850, goal: 2000, emoji: '✈️', is_closed: false, is_locked: false },
+      { id: 'pot-2', name: 'Emergency Fund', balance: 1200, goal: 1500, emoji: '🛡️', is_closed: false, is_locked: false },
+      { id: 'pot-3', name: 'House Deposit', balance: 2000, goal: 25000, emoji: '🏠', is_closed: false, is_locked: false },
+    ];
+
+    const result = await handleToolCall('get_pots', {}, alexProfile);
+
+    const pots = result.pots as any[];
+    expect(pots).toHaveLength(3);
+
+    expect(pots[0].name).toBe('Holiday Fund');
+    expect(pots[0].progress_pct).toBe(43); // 850/2000 = 42.5 → 43
+    expect(pots[1].progress_pct).toBe(80); // 1200/1500 = 80
+    expect(pots[2].progress_pct).toBe(8);  // 2000/25000 = 8
+  });
+
+  it('caps progress_pct at 100', async () => {
+    mockSupabase._data = [
+      { id: 'pot-1', name: 'Overfunded', balance: 3000, goal: 2000, emoji: '💰', is_closed: false },
+    ];
+
+    const result = await handleToolCall('get_pots', {}, alexProfile);
+
+    expect((result.pots as any[])[0].progress_pct).toBe(100);
+  });
+
+  it('returns null progress_pct when no goal', async () => {
+    mockSupabase._data = [
+      { id: 'pot-1', name: 'General', balance: 500, goal: null, emoji: '💰', is_closed: false },
+    ];
+
+    const result = await handleToolCall('get_pots', {}, alexProfile);
+
+    expect((result.pots as any[])[0].progress_pct).toBeNull();
+  });
+
+  it('returns empty array for user with no pots', async () => {
+    mockSupabase._data = [];
+
+    const result = await handleToolCall('get_pots', {}, alexProfile);
+
+    expect(result.pots).toEqual([]);
+  });
+});
