@@ -203,7 +203,10 @@ export type ToolErrorCode =
   | 'RATE_LIMITED'
   | 'TIMEOUT'
   | 'NOT_FOUND'
-  | 'FORBIDDEN';
+  | 'FORBIDDEN'
+  | 'INSUFFICIENT_FUNDS'
+  | 'POT_LOCKED'
+  | 'BENEFICIARY_NOT_FOUND';
 
 export interface ToolError {
   error: true;
