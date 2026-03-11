@@ -16,13 +16,33 @@ export const checkBalance: ToolDef = {
 
 export const getTransactions: ToolDef = {
   name: 'get_transactions',
-  description: 'Get recent transactions for the user\'s bank account. Returns a list of transactions with amounts, directions, and dates.',
+  description: 'Get recent transactions for the user\'s bank account. Supports filtering by category, date range, and merchant name. Returns a list of transactions with amounts, categories, and dates.',
   input_schema: {
     type: 'object' as const,
     properties: {
       limit: {
         type: 'number',
         description: 'Number of transactions to return (default 10, max 50)',
+      },
+      offset: {
+        type: 'number',
+        description: 'Number of transactions to skip for pagination (default 0)',
+      },
+      category: {
+        type: 'string',
+        description: 'Filter by primary category (PFCv2): FOOD_AND_DRINK, TRANSPORTATION, ENTERTAINMENT, GENERAL_MERCHANDISE, RENT_AND_UTILITIES, INCOME, etc.',
+      },
+      start_date: {
+        type: 'string',
+        description: 'Filter transactions on or after this date (ISO 8601, e.g. 2026-01-01)',
+      },
+      end_date: {
+        type: 'string',
+        description: 'Filter transactions on or before this date (ISO 8601, e.g. 2026-03-31)',
+      },
+      merchant: {
+        type: 'string',
+        description: 'Filter by merchant name (partial match, case-insensitive)',
       },
     },
     required: [],

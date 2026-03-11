@@ -85,27 +85,50 @@ async function executeReadTool(
 
     case 'get_transactions': {
       // Read from local enriched transactions table (not BankingPort)
+      // Supports filters: category, start_date, end_date, merchant, limit, offset
       const limit = Math.min(Math.max(Number(params.limit) || 10, 1), 50);
-      const { data: txns } = await getSupabase()
+      const offset = Math.max(Number(params.offset) || 0, 0);
+
+      // Build query with filters
+      let query = getSupabase()
         .from('transactions' as any)
-        .select('*')
-        .eq('user_id', user.id)
+        .select('*', { count: 'exact' })
+        .eq('user_id', user.id);
+
+      if (params.category && typeof params.category === 'string') {
+        query = query.eq('primary_category', params.category);
+      }
+      if (params.start_date && typeof params.start_date === 'string') {
+        query = query.gte('posted_at', params.start_date);
+      }
+      if (params.end_date && typeof params.end_date === 'string') {
+        query = query.lte('posted_at', params.end_date);
+      }
+      if (params.merchant && typeof params.merchant === 'string') {
+        query = query.ilike('merchant_name', `%${params.merchant}%`);
+      }
+
+      const { data: txns, count: totalCount } = await query
         .order('posted_at', { ascending: false })
-        .limit(limit);
+        .range(offset, offset + limit - 1) as any;
+
+      const transactions = ((txns as any[]) || []).map(tx => ({
+        id: tx.id,
+        merchant_name: tx.merchant_name,
+        amount: Number(tx.amount),
+        primary_category: tx.primary_category,
+        detailed_category: tx.detailed_category,
+        category_icon: tx.category_icon,
+        is_recurring: tx.is_recurring,
+        posted_at: tx.posted_at,
+        reference: tx.reference,
+      }));
 
       return {
-        transactions: ((txns as any[]) || []).map(tx => ({
-          id: tx.id,
-          merchant_name: tx.merchant_name,
-          amount: Number(tx.amount),
-          primary_category: tx.primary_category,
-          detailed_category: tx.detailed_category,
-          category_icon: tx.category_icon,
-          is_recurring: tx.is_recurring,
-          posted_at: tx.posted_at,
-          reference: tx.reference,
-        })),
-        count: ((txns as any[]) || []).length,
+        transactions,
+        count: transactions.length,
+        total: totalCount ?? transactions.length,
+        has_more: offset + limit < (totalCount ?? 0),
       };
     }
 

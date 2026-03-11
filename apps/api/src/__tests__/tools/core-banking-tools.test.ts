@@ -27,12 +27,23 @@ vi.mock('../../adapters/index.js', () => ({
 
 const mockSupabase = vi.hoisted(() => {
   const chain: Record<string, any> = {};
-  for (const m of ['from', 'select', 'insert', 'update', 'delete', 'eq', 'neq', 'order', 'limit', 'in']) {
+  for (const m of ['from', 'select', 'insert', 'update', 'delete', 'eq', 'neq', 'gte', 'lte', 'ilike', 'order', 'limit', 'range', 'in']) {
     chain[m] = vi.fn().mockReturnValue(chain);
   }
   chain.single = vi.fn().mockResolvedValue({ data: null, error: null });
   chain.maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
   chain.auth = { getUser: vi.fn() };
+  // Default: make chain thenable for non-single queries
+  chain._data = [] as any[];
+  chain._count = 0;
+  Object.defineProperty(chain, 'then', {
+    get() {
+      const d = chain._data;
+      const c = chain._count;
+      return (resolve: any) => resolve({ data: d, count: c, error: null });
+    },
+    configurable: true,
+  });
   return chain;
 });
 
@@ -46,6 +57,7 @@ vi.mock('../../logger.js', () => ({
 
 import { handleToolCall } from '../../tools/handlers.js';
 import { alexBalance, alexAccountList } from '../fixtures/accounts.js';
+import { sampleTransactions } from '../fixtures/transactions.js';
 import { alexProfile } from '../fixtures/users.js';
 
 // ---------------------------------------------------------------------------
@@ -101,5 +113,76 @@ describe('get_accounts tool (CB-02)', () => {
 
     expect((result.accounts as any[])).toHaveLength(0);
     expect(result.total_balance).toBe(0);
+  });
+});
+
+describe('get_transactions tool (CB-03)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns transactions with count and has_more', async () => {
+    mockSupabase._data = sampleTransactions.slice(0, 3);
+    mockSupabase._count = 10;
+
+    const result = await handleToolCall('get_transactions', { limit: 3 }, alexProfile);
+
+    expect(result.transactions).toBeDefined();
+    expect((result.transactions as any[]).length).toBe(3);
+    expect(result.total).toBe(10);
+    expect(result.has_more).toBe(true);
+  });
+
+  it('returns has_more=false when all fetched', async () => {
+    mockSupabase._data = sampleTransactions.slice(0, 2);
+    mockSupabase._count = 2;
+
+    const result = await handleToolCall('get_transactions', { limit: 10 }, alexProfile);
+
+    expect(result.has_more).toBe(false);
+  });
+
+  it('passes category filter to query', async () => {
+    mockSupabase._data = [];
+    mockSupabase._count = 0;
+
+    await handleToolCall('get_transactions', { category: 'FOOD_AND_DRINK' }, alexProfile);
+
+    expect(mockSupabase.eq).toHaveBeenCalledWith('primary_category', 'FOOD_AND_DRINK');
+  });
+
+  it('passes date range filters to query', async () => {
+    mockSupabase._data = [];
+    mockSupabase._count = 0;
+
+    await handleToolCall('get_transactions', {
+      start_date: '2026-01-01',
+      end_date: '2026-01-31',
+    }, alexProfile);
+
+    expect(mockSupabase.gte).toHaveBeenCalledWith('posted_at', '2026-01-01');
+    expect(mockSupabase.lte).toHaveBeenCalledWith('posted_at', '2026-01-31');
+  });
+
+  it('passes merchant filter with ILIKE to query', async () => {
+    mockSupabase._data = [];
+    mockSupabase._count = 0;
+
+    await handleToolCall('get_transactions', { merchant: 'Tesco' }, alexProfile);
+
+    expect(mockSupabase.ilike).toHaveBeenCalledWith('merchant_name', '%Tesco%');
+  });
+
+  it('formats transaction fields correctly', async () => {
+    mockSupabase._data = [sampleTransactions[0]];
+    mockSupabase._count = 1;
+
+    const result = await handleToolCall('get_transactions', {}, alexProfile);
+
+    const tx = (result.transactions as any[])[0];
+    expect(tx.merchant_name).toBeDefined();
+    expect(tx.amount).toBeTypeOf('number');
+    expect(tx.primary_category).toBeDefined();
+    expect(tx.posted_at).toBeDefined();
   });
 });
