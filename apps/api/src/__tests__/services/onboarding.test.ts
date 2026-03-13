@@ -13,11 +13,17 @@ vi.mock('../../logger.js', () => ({
 }));
 
 function createMockChain(data: any = null, error: any = null) {
+  const result = { data: Array.isArray(data) ? data : data ? [data] : [{ id: 'mock' }], error };
   const chain: Record<string, any> = {};
-  const methods = ['select', 'eq', 'single', 'update', 'insert', 'upsert', 'not', 'order', 'limit'];
+  const methods = ['eq', 'update', 'insert', 'upsert', 'not', 'order', 'limit'];
   for (const m of methods) {
     chain[m] = vi.fn().mockReturnValue(chain);
   }
+  // .select() returns a thenable that resolves to { data, error } (for update().select() chains)
+  chain.select = vi.fn().mockReturnValue({
+    ...chain,
+    then: (resolve: any) => resolve(result),
+  });
   chain.single = vi.fn().mockResolvedValue({ data, error });
   return chain;
 }

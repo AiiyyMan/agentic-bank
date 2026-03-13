@@ -15,6 +15,7 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
 }
 
 const REQUEST_TIMEOUT_MS = 15_000;
+const CHAT_TIMEOUT_MS = 45_000; // Agent loop can take 30s+ for multi-tool turns
 
 async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers = await getAuthHeaders();
@@ -53,10 +54,27 @@ export async function healthCheck(): Promise<HealthCheck> {
 
 // Chat
 export async function sendChatMessage(request: ChatRequest): Promise<AgentResponse> {
-  return apiRequest('/api/chat', {
-    method: 'POST',
-    body: JSON.stringify(request),
-  });
+  const headers = await getAuthHeaders();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), CHAT_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(`${API_URL}/api/chat`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(request),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      throw new Error(`API error ${response.status}: ${errorBody}`);
+    }
+
+    return response.json() as Promise<AgentResponse>;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 // Confirm pending action
@@ -115,4 +133,34 @@ export async function getBalance(): Promise<any> {
 export async function getTransactions(limit?: number): Promise<any> {
   const query = limit ? `?limit=${limit}` : '';
   return apiRequest(`/api/transactions${query}`);
+}
+
+// Onboarding
+export async function getOnboardingStatus(): Promise<any> {
+  return apiRequest('/api/onboarding/status');
+}
+
+export async function getOnboardingChecklist(): Promise<any> {
+  return apiRequest('/api/onboarding/checklist');
+}
+
+export async function verifyIdentity(): Promise<any> {
+  return apiRequest('/api/onboarding/verify', { method: 'POST' });
+}
+
+// Insights
+export async function getSpendingBreakdown(startDate?: string, endDate?: string): Promise<any> {
+  const params = new URLSearchParams();
+  if (startDate) params.set('start_date', startDate);
+  if (endDate) params.set('end_date', endDate);
+  const query = params.toString() ? `?${params}` : '';
+  return apiRequest(`/api/insights/spending${query}`);
+}
+
+export async function getWeeklySummary(): Promise<any> {
+  return apiRequest('/api/insights/weekly');
+}
+
+export async function getProactiveCards(): Promise<any> {
+  return apiRequest('/api/insights/proactive');
 }

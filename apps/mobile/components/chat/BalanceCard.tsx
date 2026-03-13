@@ -1,14 +1,14 @@
 import { View, Text, StyleSheet } from 'react-native';
 
 interface BalanceCardProps {
-  balance: string;
+  balance: number | string;
   currency: string;
   accountName: string;
   accountNumber?: string;
 }
 
 export function BalanceCard({ balance, currency, accountName, accountNumber }: BalanceCardProps) {
-  const formattedBalance = `£${parseFloat(balance).toLocaleString('en-GB', {
+  const formattedBalance = `£${parseFloat(String(balance)).toLocaleString('en-GB', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;

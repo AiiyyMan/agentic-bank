@@ -20,6 +20,7 @@ export const chatRoutes: FastifyPluginAsync = async (app) => {
   }, async (request, reply) => {
     const req = request as AuthenticatedRequest;
     const { message, conversation_id } = request.body;
+    const isAppOpen = (request.body as any).is_app_open === true;
 
     if (!message || typeof message !== 'string') {
       return reply.status(400).send({ error: 'Message is required' });
@@ -32,7 +33,7 @@ export const chatRoutes: FastifyPluginAsync = async (app) => {
     }, 'Chat request received');
 
     try {
-      const response = await processChat(message, conversation_id, req.userProfile);
+      const response = await processChat(message, conversation_id, req.userProfile, { isAppOpen });
 
       logger.info({
         userId: req.userId,

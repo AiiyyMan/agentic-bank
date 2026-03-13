@@ -5,7 +5,6 @@ import { providerUnavailable, validationError, notFoundError } from '../lib/erro
 import { validateToolParams } from '../lib/tool-validation.js';
 import { getSupabase } from '../lib/supabase.js';
 import { logger } from '../logger.js';
-import { applyForLoan, makeLoanPayment, getUserLoans } from '../services/lending.js';
 import { LendingService } from '../services/lending-service.js';
 import { AccountService, ProviderUnavailableError } from '../services/account.js';
 import { PaymentService } from '../services/payment.js';
@@ -24,10 +23,13 @@ export async function handleToolCall(
   params: Record<string, unknown>,
   user: UserProfile
 ): Promise<Record<string, unknown>> {
-  // Ownership check — need account for banking operations
-  const bankingTools = ['check_balance', 'get_transactions', 'get_accounts', 'get_beneficiaries', 'get_payment_history', 'send_payment', 'add_beneficiary', 'delete_beneficiary', 'create_pot', 'transfer_to_pot', 'transfer_from_pot'];
-  if (bankingTools.includes(toolName) && !user.griffin_account_url && process.env.USE_MOCK_BANKING !== 'true' && process.env.NODE_ENV !== 'test') {
-    return validationError('No bank account found. Please complete onboarding first.');
+  // Ownership check — banking tools require completed onboarding
+  const isOnboardingTool = ONBOARDING_IMMEDIATE_TOOLS.has(toolName)
+    || toolName === 'get_value_prop_info'
+    || toolName === 'get_onboarding_checklist'
+    || toolName === 'respond_to_user';
+  if (!isOnboardingTool && user.onboarding_step !== 'ONBOARDING_COMPLETE' && process.env.USE_MOCK_BANKING !== 'true' && process.env.NODE_ENV !== 'test') {
+    return validationError('Please complete onboarding before using banking features.');
   }
 
   // Amount validation for write tools
@@ -55,7 +57,14 @@ export async function handleToolCall(
 
     // Onboarding immediate tools — execute directly (no confirmation needed)
     if (ONBOARDING_IMMEDIATE_TOOLS.has(toolName)) {
-      return await executeOnboardingTool(toolName, params, user);
+      try {
+        return await executeOnboardingTool(toolName, params, user);
+      } catch (err: any) {
+        if (err instanceof DomainError) {
+          return { error: true, code: err.code, message: err.message };
+        }
+        throw err;
+      }
     }
 
     // respond_to_user — pass through (handled by agent orchestrator)
@@ -172,7 +181,7 @@ async function executeReadTool(
           goal: pot.goal ? Number(pot.goal) : null,
           emoji: pot.emoji,
           is_locked: pot.is_locked || false,
-          progress_pct: pot.goal ? Math.min(100, Math.round((Number(pot.balance) / Number(pot.goal)) * 100)) : null,
+          progress_percent: pot.goal ? Math.min(100, Math.round((Number(pot.balance) / Number(pot.goal)) * 100)) : null,
         })),
       };
     }
@@ -275,18 +284,6 @@ async function executeReadTool(
       return { items };
     }
 
-    case 'verify_identity': {
-      const onboardingService = new OnboardingService(getSupabase(), adapter);
-      const result = await onboardingService.verifyIdentity(user.id);
-      return result;
-    }
-
-    case 'provision_account': {
-      const onboardingService = new OnboardingService(getSupabase(), adapter);
-      const result = await onboardingService.provisionAccount(user.id);
-      return result;
-    }
-
     default:
       return { error: 'Unknown read tool' };
   }
@@ -320,6 +317,16 @@ async function executeOnboardingTool(
         postcode: String(params.postcode),
       });
       return result.data as ToolResult;
+    }
+
+    case 'verify_identity': {
+      const result = await onboardingService.verifyIdentity(user.id);
+      return result as ToolResult;
+    }
+
+    case 'provision_account': {
+      const result = await onboardingService.provisionAccount(user.id);
+      return result as ToolResult;
     }
 
     case 'update_checklist_item': {
@@ -686,9 +693,10 @@ async function executeWriteTool(
     case 'delete_beneficiary': {
       const paymentService = new PaymentService(getSupabase(), adapter);
       const result = await paymentService.deleteBeneficiary(user.id, String(params.beneficiary_id));
+      if (!result.success || !result.data) return { error: true, code: result.error?.code, message: result.error?.message || 'Delete failed' };
       return {
-        beneficiary_id: result.data!.beneficiary_id,
-        name: result.data!.name,
+        beneficiary_id: result.data.beneficiary_id,
+        name: result.data.name,
         deleted: true,
       };
     }
@@ -701,11 +709,12 @@ async function executeWriteTool(
         emoji: params.emoji ? String(params.emoji) : undefined,
         initial_deposit: params.initial_deposit ? Number(params.initial_deposit) : undefined,
       });
+      if (!result.success || !result.data) return { error: true, code: result.error?.code, message: result.error?.message || 'Create pot failed' };
       return {
-        pot_id: result.data!.id,
-        name: result.data!.name,
-        balance: result.data!.balance,
-        goal: result.data!.goal,
+        pot_id: result.data.id,
+        name: result.data.name,
+        balance: result.data.balance,
+        goal: result.data.goal,
       };
     }
 
@@ -715,13 +724,14 @@ async function executeWriteTool(
         pot_id: String(params.pot_id),
         amount: Number(params.amount),
       });
+      if (!result.success || !result.data) return { error: true, code: result.error?.code, message: result.error?.message || 'Transfer failed' };
       return {
-        pot_id: result.data!.pot_id,
-        pot_name: result.data!.pot_name,
-        amount: result.data!.amount,
-        direction: result.data!.direction,
-        pot_balance_after: result.data!.pot_balance_after,
-        main_balance_after: result.data!.main_balance_after,
+        pot_id: result.data.pot_id,
+        pot_name: result.data.pot_name,
+        amount: result.data.amount,
+        direction: result.data.direction,
+        pot_balance_after: result.data.pot_balance_after,
+        main_balance_after: result.data.main_balance_after,
       };
     }
 
@@ -731,13 +741,14 @@ async function executeWriteTool(
         pot_id: String(params.pot_id),
         amount: Number(params.amount),
       });
+      if (!result.success || !result.data) return { error: true, code: result.error?.code, message: result.error?.message || 'Transfer failed' };
       return {
-        pot_id: result.data!.pot_id,
-        pot_name: result.data!.pot_name,
-        amount: result.data!.amount,
-        direction: result.data!.direction,
-        pot_balance_after: result.data!.pot_balance_after,
-        main_balance_after: result.data!.main_balance_after,
+        pot_id: result.data.pot_id,
+        pot_name: result.data.pot_name,
+        amount: result.data.amount,
+        direction: result.data.direction,
+        pot_balance_after: result.data.pot_balance_after,
+        main_balance_after: result.data.main_balance_after,
       };
     }
 

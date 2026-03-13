@@ -192,7 +192,7 @@ describe('get_pots tool (CB-05)', () => {
     vi.clearAllMocks();
   });
 
-  it('returns pots with progress_pct', async () => {
+  it('returns pots with progress_percent', async () => {
     mockSupabase._data = [
       { id: 'pot-1', name: 'Holiday Fund', balance: 850, goal: 2000, emoji: '✈️', is_closed: false, is_locked: false },
       { id: 'pot-2', name: 'Emergency Fund', balance: 1200, goal: 1500, emoji: '🛡️', is_closed: false, is_locked: false },
@@ -205,29 +205,29 @@ describe('get_pots tool (CB-05)', () => {
     expect(pots).toHaveLength(3);
 
     expect(pots[0].name).toBe('Holiday Fund');
-    expect(pots[0].progress_pct).toBe(43); // 850/2000 = 42.5 → 43
-    expect(pots[1].progress_pct).toBe(80); // 1200/1500 = 80
-    expect(pots[2].progress_pct).toBe(8);  // 2000/25000 = 8
+    expect(pots[0].progress_percent).toBe(43); // 850/2000 = 42.5 → 43
+    expect(pots[1].progress_percent).toBe(80); // 1200/1500 = 80
+    expect(pots[2].progress_percent).toBe(8);  // 2000/25000 = 8
   });
 
-  it('caps progress_pct at 100', async () => {
+  it('caps progress_percent at 100', async () => {
     mockSupabase._data = [
       { id: 'pot-1', name: 'Overfunded', balance: 3000, goal: 2000, emoji: '💰', is_closed: false },
     ];
 
     const result = await handleToolCall('get_pots', {}, alexProfile);
 
-    expect((result.pots as any[])[0].progress_pct).toBe(100);
+    expect((result.pots as any[])[0].progress_percent).toBe(100);
   });
 
-  it('returns null progress_pct when no goal', async () => {
+  it('returns null progress_percent when no goal', async () => {
     mockSupabase._data = [
       { id: 'pot-1', name: 'General', balance: 500, goal: null, emoji: '💰', is_closed: false },
     ];
 
     const result = await handleToolCall('get_pots', {}, alexProfile);
 
-    expect((result.pots as any[])[0].progress_pct).toBeNull();
+    expect((result.pots as any[])[0].progress_percent).toBeNull();
   });
 
   it('returns empty array for user with no pots', async () => {

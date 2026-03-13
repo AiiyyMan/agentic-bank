@@ -127,12 +127,7 @@ export class OnboardingService {
       throw new ValidationError('Name must be 1-50 characters');
     }
 
-    await this.assertStep(userId, 'STARTED');
-
-    await this.supabase
-      .from('profiles')
-      .update({ display_name: name, onboarding_step: 'NAME_COLLECTED' })
-      .eq('id', userId);
+    await this.assertAndTransition(userId, 'STARTED', 'NAME_COLLECTED', { display_name: name });
 
     await writeAudit(this.supabase, userId, 'profile', userId, 'onboarding.name_collected', null, {
       display_name: name,
@@ -160,15 +155,9 @@ export class OnboardingService {
       throw new ValidationError('You must be 18 or over to open an account.');
     }
 
-    await this.assertStep(userId, 'EMAIL_REGISTERED');
-
-    await this.supabase
-      .from('profiles')
-      .update({
-        date_of_birth: dateOfBirth,
-        onboarding_step: 'DOB_COLLECTED',
-      })
-      .eq('id', userId);
+    await this.assertAndTransition(userId, 'EMAIL_REGISTERED', 'DOB_COLLECTED', {
+      date_of_birth: dateOfBirth,
+    });
 
     await writeAudit(this.supabase, userId, 'profile', userId, 'onboarding.dob_collected', null, {
       date_of_birth: dateOfBirth,
@@ -196,18 +185,12 @@ export class OnboardingService {
       throw new ValidationError('Please enter a valid UK postcode.');
     }
 
-    await this.assertStep(userId, 'DOB_COLLECTED');
-
-    await this.supabase
-      .from('profiles')
-      .update({
-        address_line_1: address.line_1,
-        address_line_2: address.line_2 || null,
-        city: address.city,
-        postcode: address.postcode.trim().toUpperCase(),
-        onboarding_step: 'ADDRESS_COLLECTED',
-      })
-      .eq('id', userId);
+    await this.assertAndTransition(userId, 'DOB_COLLECTED', 'ADDRESS_COLLECTED', {
+      address_line_1: address.line_1,
+      address_line_2: address.line_2 || null,
+      city: address.city,
+      postcode: address.postcode.trim().toUpperCase(),
+    });
 
     await writeAudit(this.supabase, userId, 'profile', userId, 'onboarding.address_collected', null, {
       postcode: address.postcode,
@@ -220,19 +203,8 @@ export class OnboardingService {
    * Verify identity (KYC mock). Transitions ADDRESS_COLLECTED → VERIFICATION_COMPLETE.
    */
   async verifyIdentity(userId: string): Promise<ServiceResult<{ verified: boolean }>> {
-    await this.assertStep(userId, 'ADDRESS_COLLECTED');
-
-    // Transition to pending
-    await this.supabase
-      .from('profiles')
-      .update({ onboarding_step: 'VERIFICATION_PENDING' })
-      .eq('id', userId);
-
-    // Mock KYC — instant approval for POC
-    await this.supabase
-      .from('profiles')
-      .update({ onboarding_step: 'VERIFICATION_COMPLETE' })
-      .eq('id', userId);
+    // Mock KYC — instant approval for POC. Single atomic transition.
+    await this.assertAndTransition(userId, 'ADDRESS_COLLECTED', 'VERIFICATION_COMPLETE');
 
     await writeAudit(this.supabase, userId, 'profile', userId, 'onboarding.identity_verified', null, {
       method: 'mock_kyc',
@@ -246,55 +218,38 @@ export class OnboardingService {
    * Provision bank account. Transitions VERIFICATION_COMPLETE → ACCOUNT_PROVISIONED.
    */
   async provisionAccount(userId: string): Promise<ServiceResult<AccountDetails>> {
-    await this.assertStep(userId, 'VERIFICATION_COMPLETE');
+    // Use banking port to get account details (mock or Griffin)
+    const accounts = await this.bankingPort.listAccounts(userId);
+    const account = accounts[0];
 
-    try {
-      // Use banking port to get account details (mock or Griffin)
-      const accounts = await this.bankingPort.listAccounts(userId);
-      const account = accounts[0];
-
-      if (!account) {
-        throw new DomainError('PROVIDER_UNAVAILABLE', 'Failed to provision account');
-      }
-
-      // Update profile with account details
-      await this.supabase
-        .from('profiles')
-        .update({
-          griffin_account_url: `mock://${userId}`,
-          onboarding_step: 'ACCOUNT_PROVISIONED',
-        })
-        .eq('id', userId);
-
-      await writeAudit(this.supabase, userId, 'profile', userId, 'onboarding.account_provisioned', null, {
-        account_name: account.account_name,
-      });
-
-      return {
-        success: true,
-        data: {
-          account_name: account.account_name,
-          sort_code: '04-00-04',
-          account_number: account.account_number_masked || '****1234',
-        },
-      };
-    } catch (err: any) {
-      logger.error({ err: err.message, userId }, 'Account provisioning failed');
-      throw new DomainError('PROVIDER_UNAVAILABLE', 'Unable to create your account right now. Please try again.');
+    if (!account) {
+      throw new DomainError('PROVIDER_UNAVAILABLE', 'Failed to provision account');
     }
+
+    // Atomic step transition with account URL
+    await this.assertAndTransition(userId, 'VERIFICATION_COMPLETE', 'ACCOUNT_PROVISIONED', {
+      griffin_account_url: `mock://${userId}`,
+    });
+
+    await writeAudit(this.supabase, userId, 'profile', userId, 'onboarding.account_provisioned', null, {
+      account_name: account.account_name,
+    });
+
+    return {
+      success: true,
+      data: {
+        account_name: account.account_name,
+        sort_code: '04-00-04',
+        account_number: account.account_number_masked || '****1234',
+      },
+    };
   }
 
   /**
    * Mark funding step shown. Transitions ACCOUNT_PROVISIONED → FUNDING_OFFERED.
    */
   async offerFunding(userId: string): Promise<ServiceResult<void>> {
-    await this.assertStep(userId, 'ACCOUNT_PROVISIONED');
-
-    await this.supabase
-      .from('profiles')
-      .update({ onboarding_step: 'FUNDING_OFFERED' })
-      .eq('id', userId);
-
+    await this.assertAndTransition(userId, 'ACCOUNT_PROVISIONED', 'FUNDING_OFFERED');
     return { success: true };
   }
 
@@ -316,10 +271,12 @@ export class OnboardingService {
       throw new OnboardingStepError(step, 'FUNDING_OFFERED');
     }
 
+    // Conditional update to prevent race condition
     await this.supabase
       .from('profiles')
       .update({ onboarding_step: 'ONBOARDING_COMPLETE' })
-      .eq('id', userId);
+      .eq('id', userId)
+      .eq('onboarding_step', step);
 
     await writeAudit(this.supabase, userId, 'profile', userId, 'onboarding.complete', null, {
       completed_at: new Date().toISOString(),
@@ -418,6 +375,41 @@ export class OnboardingService {
   // Helpers
   // ---------------------------------------------------------------------------
 
+  /**
+   * Assert the user is at the expected step AND atomically transition to nextStep.
+   * First validates step (clear error messages), then uses conditional UPDATE
+   * with WHERE onboarding_step = expectedStep to prevent TOCTOU race conditions.
+   */
+  private async assertAndTransition(
+    userId: string,
+    expectedStep: OnboardingStep,
+    nextStep: OnboardingStep,
+    extraFields?: Record<string, unknown>,
+  ): Promise<void> {
+    // Validate step first (clear error messages)
+    await this.assertStep(userId, expectedStep);
+
+    // Conditional update — prevents TOCTOU race in production
+    const { data, error } = await this.supabase
+      .from('profiles')
+      .update({ onboarding_step: nextStep, ...extraFields })
+      .eq('id', userId)
+      .eq('onboarding_step', expectedStep)
+      .select('id') as any;
+
+    if (error) {
+      throw new DomainError('PROVIDER_UNAVAILABLE', 'Failed to update onboarding step');
+    }
+
+    // If no rows matched, another request won the race
+    if (!data || data.length === 0) {
+      throw new DomainError('VALIDATION_ERROR', 'Onboarding step has already changed — please retry');
+    }
+  }
+
+  /**
+   * Assert step without transitioning (for read-only checks).
+   */
   private async assertStep(userId: string, expectedStep: OnboardingStep): Promise<void> {
     const { data: profile } = await this.supabase
       .from('profiles')

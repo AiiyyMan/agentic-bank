@@ -20,38 +20,69 @@ export default function ChatScreen() {
   const [isTyping, setIsTyping] = useState(false);
   const [progressMessage, setProgressMessage] = useState('');
   const conversationIdRef = useRef<string | undefined>(undefined);
+  const hasGreetedRef = useRef(false);
 
   useEffect(() => {
-    // Welcome message
-    setMessages([
-      {
+    // Send app-open greeting to get personalised welcome + proactive cards
+    if (!hasGreetedRef.current) {
+      hasGreetedRef.current = true;
+      sendAppOpenGreeting();
+    }
+  }, []);
+
+  const sendAppOpenGreeting = async () => {
+    setIsTyping(true);
+    setProgressMessage('Loading...');
+    try {
+      const response = await sendChatMessage({
+        message: 'Hello',
+        conversation_id: conversationIdRef.current,
+        is_app_open: true,
+      } as any);
+      conversationIdRef.current = response.conversation_id;
+
+      const botMessage: ExtendedMessage = {
+        _id: `greeting-${Date.now()}`,
+        text: response.message,
+        createdAt: new Date(),
+        user: BOT_USER,
+        ui_components: response.ui_components,
+      };
+      setMessages([botMessage]);
+    } catch {
+      // Fallback to static welcome if API unavailable
+      setMessages([{
         _id: 'welcome',
         text: "Hello! I'm your banking assistant. I can help you check your balance, view transactions, send payments, and more. What would you like to do?",
         createdAt: new Date(),
         user: BOT_USER,
-      },
-    ]);
-  }, []);
+      }]);
+    } finally {
+      setIsTyping(false);
+      setProgressMessage('');
+    }
+  };
 
-  const onSend = useCallback(async (newMessages: IMessage[] = []) => {
-    const userMessage = newMessages[0];
-    if (!userMessage?.text) return;
+  const sendMessage = useCallback(async (text: string) => {
+    const userMessage: ExtendedMessage = {
+      _id: `user-${Date.now()}`,
+      text,
+      createdAt: new Date(),
+      user: USER,
+    };
 
-    // Add user message to chat
-    setMessages(prev => GiftedChat.append(prev, newMessages));
+    setMessages(prev => GiftedChat.append(prev, [userMessage]));
     setIsTyping(true);
     setProgressMessage('Thinking...');
 
     try {
       const response = await sendChatMessage({
-        message: userMessage.text,
+        message: text,
         conversation_id: conversationIdRef.current,
       });
 
-      // Save conversation ID
       conversationIdRef.current = response.conversation_id;
 
-      // Create bot response message
       const botMessage: ExtendedMessage = {
         _id: `bot-${Date.now()}`,
         text: response.message,
@@ -79,6 +110,16 @@ export default function ChatScreen() {
     }
   }, []);
 
+  const onSend = useCallback((newMessages: IMessage[] = []) => {
+    const userMessage = newMessages[0];
+    if (!userMessage?.text) return;
+    sendMessage(userMessage.text);
+  }, [sendMessage]);
+
+  const handleQuickReply = useCallback((value: string) => {
+    sendMessage(value);
+  }, [sendMessage]);
+
   const renderBubble = (props: any) => {
     return (
       <View>
@@ -105,6 +146,7 @@ export default function ChatScreen() {
             onRefresh={() => {
               // Could trigger a balance refresh
             }}
+            onQuickReply={handleQuickReply}
           />
         )}
       </View>

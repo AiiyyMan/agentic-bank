@@ -102,6 +102,14 @@ function setupFromMock(tableData: Record<string, { data: any; error: any }>) {
       chain.order = vi.fn().mockResolvedValue({ data: null, error: null });
     }
 
+    // Make .select() thenable for update().eq().eq().select('id') chains
+    const origSelect = chain.select;
+    chain.select = vi.fn((...args: any[]) => {
+      const result = origSelect(...args);
+      result.then = (resolve: any) => resolve({ data: [{ id: 'mock' }], error: null });
+      return result;
+    });
+
     return chain;
   });
 }

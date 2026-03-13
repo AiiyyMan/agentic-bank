@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { getSupabase } from '../lib/supabase.js';
 import { handleToolCall } from '../tools/handlers.js';
-import { ALL_TOOLS, getAvailableTools } from '../tools/definitions.js';
+import { getAvailableTools } from '../tools/definitions.js';
 import { sanitizeChatInput } from '../lib/validation.js';
 import { logger } from '../logger.js';
 import { CLAUDE_MODEL, CLAUDE_MODEL_FAST } from '../lib/config.js';
@@ -77,59 +77,22 @@ You are guiding a new user through account setup. Be warm and encouraging. The s
 If the user asks "tell me more", use get_value_prop_info with topics: speed, control, ai, fscs, fca, features.
 Guide them step by step. Don't skip ahead.`;
 
-function buildSystemPrompt(
-  user: UserProfile,
-  options?: { proactiveCards?: ProactiveCard[]; isAppOpen?: boolean },
-): string {
-  const isOnboarding = user.onboarding_step !== 'ONBOARDING_COMPLETE';
-  const now = new Date();
-  const hour = now.getHours();
-  const timeOfDay = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
-  const dayOfWeek = now.toLocaleDateString('en-GB', { weekday: 'long' });
-  const formattedDate = now.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
-
+/**
+ * Build static portion of system prompt (cacheable via ADR-16).
+ * Varies only by onboarding mode — two cache variants.
+ */
+function buildStaticPrompt(isOnboarding: boolean): string {
   const blocks: string[] = [PERSONA_BLOCK, SAFETY_RULES_BLOCK, CARD_USAGE_BLOCK];
 
-  // Beneficiary resolution (banking mode only)
   if (!isOnboarding) {
     blocks.push(BENEFICIARY_RESOLUTION_BLOCK);
-  }
-
-  // Onboarding-specific prompt
-  if (isOnboarding) {
+  } else {
     blocks.push(ONBOARDING_PROMPT_BLOCK);
   }
 
-  // Dynamic context
-  const dynamicParts: string[] = [];
-
-  // User profile context
-  if (user.display_name) {
-    dynamicParts.push(`The user's name is ${user.display_name}.`);
-  }
-  dynamicParts.push(`Current onboarding step: ${user.onboarding_step}.`);
-
-  // Time context (EXI-08)
-  dynamicParts.push(`Current time context: ${timeOfDay}, ${dayOfWeek}, ${formattedDate}.`);
-
-  // Greeting variation instructions
-  if (options?.isAppOpen) {
-    dynamicParts.push(`This is an app-open greeting. Vary your opener naturally:
-- If proactive insights exist, lead with the most actionable one.
-- On Monday mornings, you may reference the start of the week.
-- In the evening, you may reference the day's activity if data is available.
-- Keep greetings concise — one sentence, then cards.`);
-  }
-
-  // Proactive cards context (EXN-06)
-  if (options?.proactiveCards && options.proactiveCards.length > 0) {
-    const cardSummaries = options.proactiveCards.map(c => `- ${c.title}: ${c.message}`).join('\n');
-    dynamicParts.push(`PROACTIVE INSIGHTS to weave into your greeting:\n${cardSummaries}`);
-  }
-
-  // Tool domain listing (mode-dependent)
+  // Tool domain listing (banking mode only — static)
   if (!isOnboarding) {
-    dynamicParts.push(`Available tools by domain:
+    blocks.push(`TOOL DOMAINS:
 - Accounts: check_balance, get_accounts, get_pots
 - Payments: send_payment, get_beneficiaries, add_beneficiary, delete_beneficiary, get_payment_history
 - Transactions: get_transactions
@@ -140,11 +103,44 @@ function buildSystemPrompt(
 - Chat: respond_to_user`);
   }
 
-  if (dynamicParts.length > 0) {
-    blocks.push(`CONTEXT:\n${dynamicParts.join('\n')}`);
+  return blocks.join('\n\n');
+}
+
+/**
+ * Build dynamic context (per-request, not cached).
+ */
+function buildDynamicContext(
+  user: UserProfile,
+  options?: { proactiveCards?: ProactiveCard[]; isAppOpen?: boolean },
+): string {
+  const now = new Date();
+  const hour = now.getHours();
+  const timeOfDay = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
+  const dayOfWeek = now.toLocaleDateString('en-GB', { weekday: 'long' });
+  const formattedDate = now.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  const parts: string[] = [];
+
+  if (user.display_name) {
+    parts.push(`The user's name is ${user.display_name}.`);
+  }
+  parts.push(`Current onboarding step: ${user.onboarding_step}.`);
+  parts.push(`Current time context: ${timeOfDay}, ${dayOfWeek}, ${formattedDate}.`);
+
+  if (options?.isAppOpen) {
+    parts.push(`This is an app-open greeting. Vary your opener naturally:
+- If proactive insights exist, lead with the most actionable one.
+- On Monday mornings, you may reference the start of the week.
+- In the evening, you may reference the day's activity if data is available.
+- Keep greetings concise — one sentence, then cards.`);
   }
 
-  return blocks.join('\n\n');
+  if (options?.proactiveCards && options.proactiveCards.length > 0) {
+    const cardSummaries = options.proactiveCards.map(c => `- ${c.title}: ${c.message}`).join('\n');
+    parts.push(`PROACTIVE INSIGHTS to weave into your greeting:\n${cardSummaries}`);
+  }
+
+  return parts.join('\n');
 }
 
 const SUMMARISATION_PROMPT = `Summarise the following banking conversation concisely. Preserve:
@@ -162,7 +158,7 @@ export async function processChat(
   user: UserProfile,
   options?: { isAppOpen?: boolean },
 ): Promise<AgentResponse> {
-  const isAppOpen = options?.isAppOpen || userMessage === '__app_open__';
+  const isAppOpen = options?.isAppOpen === true;
   const cleanMessage = isAppOpen ? '__app_open__' : sanitizeChatInput(userMessage);
   if (!cleanMessage) {
     return { message: 'Please enter a message.', conversation_id: conversationId || '' };
@@ -249,8 +245,10 @@ async function runAgentLoop(
   let currentMessages = [...messages];
   let lastPendingActionId: string | undefined;
 
-  // EXI-07/EXI-08: Build dynamic system prompt and tool set based on onboarding state
-  const systemPrompt = buildSystemPrompt(user, options);
+  // EXI-07/EXI-08: Build split system prompt for proper cache_control (ADR-16)
+  const isOnboarding = user.onboarding_step !== 'ONBOARDING_COMPLETE';
+  const staticPrompt = buildStaticPrompt(isOnboarding);
+  const dynamicContext = buildDynamicContext(user, options);
   const availableTools = getAvailableTools(user.onboarding_step);
 
   for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration++) {
@@ -260,15 +258,21 @@ async function runAgentLoop(
 
     let response: Anthropic.Messages.Message;
     try {
-      // ADR-16: Prompt caching — cache static system prompt + tools (62% cost reduction)
+      // ADR-16: Prompt caching — cache static prompt, dynamic context uncached (62% cost reduction)
       response = await anthropic.messages.create({
         model: CLAUDE_MODEL,
         max_tokens: 4096,
-        system: [{
-          type: 'text',
-          text: systemPrompt,
-          cache_control: { type: 'ephemeral' },
-        }],
+        system: [
+          {
+            type: 'text',
+            text: staticPrompt,
+            cache_control: { type: 'ephemeral' },
+          },
+          {
+            type: 'text',
+            text: dynamicContext,
+          },
+        ],
         tools: availableTools.map((tool, i) =>
           i === availableTools.length - 1
             ? { ...tool, cache_control: { type: 'ephemeral' as const } }
@@ -299,12 +303,15 @@ async function runAgentLoop(
     }, 'Claude API response');
 
     // If no tool use, extract text response
-    if (response.stop_reason === 'end_turn') {
+    if (response.stop_reason === 'end_turn' || response.stop_reason === 'max_tokens') {
       const textBlocks = response.content.filter(
         (b): b is Anthropic.Messages.TextBlock => b.type === 'text'
       );
+      if (response.stop_reason === 'max_tokens') {
+        logger.warn({ iteration, conversationId }, 'Response truncated at max_tokens');
+      }
       return {
-        message: textBlocks.map(b => b.text).join('\n'),
+        message: textBlocks.map(b => b.text).join('\n') || 'I completed the request but the response was too long. Please ask a more specific question.',
         contentBlocks: response.content,
       };
     }
@@ -315,25 +322,15 @@ async function runAgentLoop(
         (b): b is Anthropic.Messages.ToolUseBlock => b.type === 'tool_use'
       );
 
-      // Handle respond_to_user — final response
+      // Separate respond_to_user from data tools — execute data tools first
       const respondCall = toolUseBlocks.find(b => b.name === 'respond_to_user');
-      if (respondCall) {
-        const input = respondCall.input as {
-          message: string;
-          ui_components?: UIComponent[];
-        };
-        return {
-          message: input.message,
-          ui_components: input.ui_components,
-          contentBlocks: response.content,
-        };
-      }
+      const dataToolCalls = toolUseBlocks.filter(b => b.name !== 'respond_to_user');
 
-      // QA C4: Execute each tool individually, wrap failures
+      // QA C4: Execute each data tool individually, wrap failures
       const toolResults: Anthropic.Messages.ToolResultBlockParam[] = [];
 
-      for (const toolCall of toolUseBlocks) {
-        logger.info({ tool: toolCall.name, params: toolCall.input }, 'Executing tool');
+      for (const toolCall of dataToolCalls) {
+        logger.info({ tool: toolCall.name, iteration }, 'Executing tool');
 
         try {
           const result = await handleToolCall(
@@ -368,6 +365,19 @@ async function runAgentLoop(
         }
       }
 
+      // If respond_to_user was included, return its content after executing sibling tools
+      if (respondCall) {
+        const input = respondCall.input as {
+          message: string;
+          ui_components?: UIComponent[];
+        };
+        return {
+          message: input.message,
+          ui_components: input.ui_components,
+          contentBlocks: response.content,
+        };
+      }
+
       // Persist intermediate messages
       await saveStructuredMessage(conversationId, 'assistant', response.content, undefined, undefined, user.id);
       await saveStructuredMessage(conversationId, 'user', toolResults, undefined, undefined, user.id);
@@ -397,7 +407,7 @@ async function runAgentLoop(
     exhaustionResponse.ui_components = [{
       type: 'confirmation_card',
       data: {
-        action_id: lastPendingActionId,
+        pending_action_id: lastPendingActionId,
         summary: 'An action is awaiting your confirmation',
         details: {},
       },

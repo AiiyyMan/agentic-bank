@@ -86,7 +86,7 @@ export const getLoanStatus: ToolDef = {
 // Write tools — require user confirmation
 export const sendPayment: ToolDef = {
   name: 'send_payment',
-  description: 'Send a payment to a beneficiary. Requires user confirmation before execution. The amount must be between £0.01 and £10,000.',
+  description: 'Send a payment to a beneficiary. Requires user confirmation before execution. The amount must be between £0.01 and £25,000.',
   input_schema: {
     type: 'object' as const,
     properties: {
@@ -654,8 +654,6 @@ export const READ_ONLY_TOOLS = new Set([
   // Onboarding tools (EXO)
   'get_value_prop_info',
   'get_onboarding_checklist',
-  'verify_identity',
-  'provision_account',
 ]);
 
 // Write tools need confirmation
@@ -677,6 +675,8 @@ export const ONBOARDING_IMMEDIATE_TOOLS = new Set([
   'collect_name',
   'collect_dob',
   'collect_address',
+  'verify_identity',
+  'provision_account',
   'update_checklist_item',
   'complete_onboarding',
 ]);
@@ -721,13 +721,6 @@ export const ONBOARDING_TOOL_DEFS: ToolDef[] = [
   getOnboardingChecklist,
   updateChecklistItem,
   completeOnboarding,
-];
-
-// All tool definitions (full set, for backward compatibility)
-export const ALL_TOOLS: ToolDef[] = [
-  ...BANKING_TOOLS,
-  ...ONBOARDING_TOOL_DEFS,
-  respondToUser,
 ];
 
 /**

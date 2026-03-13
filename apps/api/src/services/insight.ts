@@ -276,11 +276,13 @@ export class InsightService {
     // Compute from transactions
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
+    // Only debit transactions for spending averages (exclude income)
     const { data: txns } = await this.supabase
       .from('transactions')
       .select('amount, primary_category')
       .eq('user_id', userId)
-      .gte('posted_at', thirtyDaysAgo) as any;
+      .gte('posted_at', thirtyDaysAgo)
+      .lt('amount', 0) as any;
 
     const transactions = (txns as any[]) || [];
     if (transactions.length === 0) return [];
@@ -306,13 +308,14 @@ export class InsightService {
     );
 
     // Update cache
-    await this.supabase
+    const { error: cacheError } = await this.supabase
       .from('user_insights_cache')
       .upsert({
         user_id: userId,
         category_averages: averages,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'user_id' }) as any;
+    if (cacheError) logger.warn({ error: cacheError.message, userId }, 'Failed to update insights cache');
 
     return averages;
   }
@@ -323,8 +326,8 @@ export class InsightService {
   async getProactiveCards(userId: string): Promise<ProactiveCard[]> {
     const cards: ProactiveCard[] = [];
 
+    // 1. Spending spikes (priority 2 — actionable)
     try {
-      // 1. Spending spikes (priority 2 — actionable)
       const spikes = await this.detectSpendingSpikes(userId);
       for (const spike of spikes.slice(0, 2)) {
         cards.push({
@@ -339,8 +342,12 @@ export class InsightService {
           ],
         });
       }
+    } catch (err: any) {
+      logger.warn({ err: err.message, userId }, 'Failed to compute spending spikes for proactive cards');
+    }
 
-      // 2. Upcoming recurring bills (priority 1 — time-sensitive)
+    // 2. Upcoming recurring bills (priority 1 — time-sensitive)
+    try {
       const bills = await this.getUpcomingBills(userId, 2);
       for (const bill of bills.slice(0, 2)) {
         cards.push({
@@ -354,8 +361,12 @@ export class InsightService {
           ],
         });
       }
+    } catch (err: any) {
+      logger.warn({ err: err.message, userId }, 'Failed to fetch upcoming bills for proactive cards');
+    }
 
-      // 3. Savings pot milestones (priority 4 — celebratory)
+    // 3. Savings pot milestones (priority 4 — celebratory)
+    try {
       const { data: pots } = await this.supabase
         .from('pots')
         .select('name, balance, goal, emoji')
@@ -386,93 +397,91 @@ export class InsightService {
           });
         }
       }
+    } catch (err: any) {
+      logger.warn({ err: err.message, userId }, 'Failed to check pot milestones for proactive cards');
+    }
 
-      // 4. Weekly summary (if Monday, priority 3 — informational)
-      const now = new Date();
-      if (now.getDay() === 1) { // Monday
-        try {
-          const weekly = await this.getWeeklySummary(userId);
-          if (weekly.total_spent > 0 && weekly.comparison) {
-            const dir = weekly.comparison.direction === 'up' ? 'more' : 'less';
-            cards.push({
-              type: 'weekly_summary',
-              priority: 3,
-              title: 'Last week\'s spending',
-              message: `You spent £${weekly.total_spent.toFixed(2)} last week — ${Math.abs(weekly.comparison.change_percent)}% ${dir} than the week before.`,
-              data: weekly,
-              quick_replies: [
-                { label: 'Show breakdown', value: 'Show my spending breakdown for last week' },
-              ],
-            });
-          }
-        } catch {
-          // Non-critical
+    // 4. Weekly summary (if Monday, priority 3 — informational)
+    const now = new Date();
+    if (now.getDay() === 1) { // Monday
+      try {
+        const weekly = await this.getWeeklySummary(userId);
+        if (weekly.total_spent > 0 && weekly.comparison) {
+          const dir = weekly.comparison.direction === 'up' ? 'more' : 'less';
+          cards.push({
+            type: 'weekly_summary',
+            priority: 3,
+            title: 'Last week\'s spending',
+            message: `You spent £${weekly.total_spent.toFixed(2)} last week — ${Math.abs(weekly.comparison.change_percent)}% ${dir} than the week before.`,
+            data: weekly,
+            quick_replies: [
+              { label: 'Show breakdown', value: 'Show my spending breakdown for last week' },
+            ],
+          });
         }
+      } catch (err: any) {
+        logger.warn({ err: err.message, userId }, 'Failed to compute weekly summary for proactive cards');
       }
+    }
 
-      // 5. Check for zero-balance / low balance (priority 2 — actionable)
+    // 5-6. Profile-dependent cards (pots funding, checklist progress)
+    try {
       const { data: profile } = await this.supabase
         .from('profiles')
-        .select('griffin_account_url, onboarding_step')
+        .select('griffin_account_url, onboarding_step, checklist_add_money, checklist_create_pot, checklist_add_payee')
         .eq('id', userId)
         .single() as any;
 
       if (profile?.onboarding_step === 'ONBOARDING_COMPLETE') {
-        // Check pots for zero balance (funding reminder)
-        const { data: potsList } = await this.supabase
-          .from('pots')
-          .select('name')
-          .eq('user_id', userId)
-          .eq('is_closed', false)
-          .eq('balance', 0) as any;
+        // 5. Check pots for zero balance (funding reminder, priority 3)
+        try {
+          const { data: potsList } = await this.supabase
+            .from('pots')
+            .select('name')
+            .eq('user_id', userId)
+            .eq('is_closed', false)
+            .eq('balance', 0) as any;
 
-        if (((potsList as any[]) || []).length > 0) {
-          const emptyPot = (potsList as any[])[0];
+          if (((potsList as any[]) || []).length > 0) {
+            const emptyPot = (potsList as any[])[0];
+            cards.push({
+              type: 'funding_reminder',
+              priority: 3,
+              title: `${emptyPot.name} is empty`,
+              message: 'Add some funds to start saving towards your goal.',
+              data: { pot_name: emptyPot.name },
+              quick_replies: [
+                { label: 'Add funds', value: `Add money to my ${emptyPot.name} pot` },
+              ],
+            });
+          }
+        } catch (err: any) {
+          logger.warn({ err: err.message, userId }, 'Failed to check empty pots for proactive cards');
+        }
+
+        // 6. Onboarding checklist progress (priority 2)
+        const items = [
+          profile.checklist_add_money,
+          profile.checklist_create_pot,
+          profile.checklist_add_payee,
+        ];
+        const completed = items.filter(Boolean).length;
+        const total = items.length;
+        if (completed < total) {
           cards.push({
-            type: 'funding_reminder',
-            priority: 3,
-            title: `${emptyPot.name} is empty`,
-            message: 'Add some funds to start saving towards your goal.',
-            data: { pot_name: emptyPot.name },
+            type: 'onboarding_checklist',
+            priority: 2,
+            title: `Getting started: ${completed + 2}/${total + 2} complete`,
+            message: 'Complete your setup to get the most from Agentic Bank.',
+            data: { completed: completed + 2, total: total + 2 },
             quick_replies: [
-              { label: 'Add funds', value: `Add money to my ${emptyPot.name} pot` },
+              { label: 'Show checklist', value: 'Show my getting started checklist' },
             ],
           });
         }
       }
-
-      // 6. Onboarding checklist progress for new users (priority 2)
-      if (profile?.onboarding_step === 'ONBOARDING_COMPLETE') {
-        const { data: checklistData } = await this.supabase
-          .from('profiles')
-          .select('checklist_add_money, checklist_create_pot, checklist_add_payee')
-          .eq('id', userId)
-          .single() as any;
-
-        if (checklistData) {
-          const items = [
-            checklistData.checklist_add_money,
-            checklistData.checklist_create_pot,
-            checklistData.checklist_add_payee,
-          ];
-          const completed = items.filter(Boolean).length;
-          const total = items.length;
-          if (completed < total) {
-            cards.push({
-              type: 'onboarding_checklist',
-              priority: 2,
-              title: `Getting started: ${completed + 2}/${total + 2} complete`,
-              message: 'Complete your setup to get the most from Agentic Bank.',
-              data: { completed: completed + 2, total: total + 2 },
-              quick_replies: [
-                { label: 'Show checklist', value: 'Show my getting started checklist' },
-              ],
-            });
-          }
-        }
-      }
     } catch (err: any) {
-      logger.error({ err: err.message, userId }, 'Proactive card computation error');
+      logger.warn({ err: err.message, userId }, 'Failed to fetch profile for proactive cards');
     }
 
     // Rank by priority (lowest number = highest priority), limit to 3
@@ -533,7 +542,8 @@ export class InsightService {
   // ---------------------------------------------------------------------------
 
   private async getSpendingTotal(userId: string, startDate: string, endDate: string): Promise<number> {
-    const { data: txns } = await this.supabase
+    // Debits (negative amounts)
+    const { data: debits } = await this.supabase
       .from('transactions')
       .select('amount')
       .eq('user_id', userId)
@@ -541,10 +551,27 @@ export class InsightService {
       .lte('posted_at', endDate)
       .lt('amount', 0) as any;
 
-    return ((txns as any[]) || []).reduce(
+    let total = ((debits as any[]) || []).reduce(
       (sum: number, tx: any) => sum + Math.abs(Number(tx.amount)),
       0,
     );
+
+    // Outbound transfers (positive amounts in spending categories)
+    const { data: outbound } = await this.supabase
+      .from('transactions')
+      .select('amount')
+      .eq('user_id', userId)
+      .gte('posted_at', startDate)
+      .lte('posted_at', endDate)
+      .in('primary_category', ['TRANSFER_OUT', 'LOAN_PAYMENTS', 'BANK_FEES'])
+      .gt('amount', 0) as any;
+
+    total += ((outbound as any[]) || []).reduce(
+      (sum: number, tx: any) => sum + Math.abs(Number(tx.amount)),
+      0,
+    );
+
+    return total;
   }
 
   private computeComparison(

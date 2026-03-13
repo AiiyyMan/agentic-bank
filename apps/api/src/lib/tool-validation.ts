@@ -57,7 +57,7 @@ const TOOL_PARAM_SPECS: Record<string, Record<string, ParamSpec>> = {
       type: 'number',
       validate: (v) => {
         const n = v as number;
-        if (!Number.isInteger(n) || n < 1 || n > 60) return 'Term must be 1-60 months';
+        if (!Number.isInteger(n) || n < 3 || n > 60) return 'Term must be 3-60 months';
         return null;
       },
     },
@@ -135,6 +135,56 @@ const TOOL_PARAM_SPECS: Record<string, Record<string, ParamSpec>> = {
         return result.valid ? null : result.error!;
       },
     },
+  },
+  // Onboarding tools
+  collect_name: {
+    display_name: {
+      required: true,
+      type: 'string',
+      validate: (v) => {
+        const s = (v as string).trim();
+        if (s.length < 1 || s.length > 50) return 'Name must be 1-50 characters';
+        return null;
+      },
+    },
+  },
+  collect_dob: {
+    date_of_birth: {
+      required: true,
+      type: 'string',
+      validate: (v) => {
+        const s = v as string;
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return 'Date must be in YYYY-MM-DD format';
+        const d = new Date(s);
+        if (isNaN(d.getTime())) return 'Invalid date';
+        return null;
+      },
+    },
+  },
+  collect_address: {
+    line_1: { required: true, type: 'string' },
+    city: { required: true, type: 'string' },
+    postcode: {
+      required: true,
+      type: 'string',
+      validate: (v) => {
+        const s = (v as string).trim();
+        if (!/^[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}$/i.test(s)) return 'Invalid UK postcode';
+        return null;
+      },
+    },
+  },
+  update_checklist_item: {
+    key: {
+      required: true,
+      type: 'string',
+      validate: (v) => {
+        const valid = ['checklist_add_money', 'checklist_create_pot', 'checklist_add_payee', 'checklist_explore'];
+        if (!valid.includes(v as string)) return `Invalid checklist key. Must be one of: ${valid.join(', ')}`;
+        return null;
+      },
+    },
+    completed: { required: true, type: 'boolean' },
   },
 };
 
