@@ -1,10 +1,10 @@
 import { useState, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity,
+  View, Text, StyleSheet, FlatList, ScrollView, TouchableOpacity,
   RefreshControl, ActivityIndicator,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
-import { getTransactions as fetchTransactions } from '../../lib/api';
+import { getTransactions as fetchTransactions, getBeneficiaries } from '../../lib/api';
 
 interface PaymentItem {
   amount: string;
@@ -13,19 +13,35 @@ interface PaymentItem {
   date: string;
 }
 
+interface Beneficiary {
+  id: string;
+  name: string;
+  account_number?: string;
+  sort_code?: string;
+}
+
 export default function PaymentsScreen() {
   const [payments, setPayments] = useState<PaymentItem[]>([]);
+  const [beneficiaries, setBeneficiaries] = useState<Beneficiary[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const loadPayments = useCallback(async () => {
     try {
-      const response = await fetchTransactions(20);
-      if (response.transactions) {
+      const [txRes, benRes] = await Promise.allSettled([
+        fetchTransactions(20),
+        getBeneficiaries(),
+      ]);
+
+      if (txRes.status === 'fulfilled' && txRes.value.transactions) {
         // Filter to outgoing payments only
         setPayments(
-          response.transactions.filter((tx: PaymentItem) => tx.direction === 'debit' && tx.type === 'payment')
+          txRes.value.transactions.filter((tx: PaymentItem) => tx.direction === 'debit' && tx.type === 'payment')
         );
+      }
+
+      if (benRes.status === 'fulfilled' && benRes.value.beneficiaries) {
+        setBeneficiaries(benRes.value.beneficiaries);
       }
     } catch {
       // Silently fail
@@ -60,6 +76,38 @@ export default function PaymentsScreen() {
           <Text style={styles.sendSubtitle}>Ask your banking assistant</Text>
         </View>
       </TouchableOpacity>
+
+      {/* Send to... Beneficiaries */}
+      {beneficiaries.length > 0 && (
+        <View style={styles.beneficiariesSection}>
+          <View style={styles.beneficiariesHeader}>
+            <Text style={styles.sectionTitle}>Send to...</Text>
+            {beneficiaries.length > 6 && (
+              <TouchableOpacity onPress={openChat}>
+                <Text style={styles.seeAll}>See all</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.beneficiariesScroll}>
+            {beneficiaries.slice(0, 6).map((ben) => (
+              <TouchableOpacity
+                key={ben.id}
+                style={styles.beneficiaryItem}
+                onPress={openChat}
+              >
+                <View style={styles.avatarCircle}>
+                  <Text style={styles.avatarLetter}>
+                    {ben.name.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+                <Text style={styles.beneficiaryName} numberOfLines={1}>
+                  {ben.name.slice(0, 8)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
 
       <Text style={styles.sectionTitle}>Recent Payments</Text>
 
@@ -127,4 +175,21 @@ const styles = StyleSheet.create({
   emptyIcon: { fontSize: 48, marginBottom: 16 },
   emptyText: { color: '#fff', fontSize: 18, fontWeight: '600', marginBottom: 8 },
   emptySubtext: { color: '#8b8ba7', fontSize: 14 },
+
+  beneficiariesSection: { marginBottom: 20 },
+  beneficiariesHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  seeAll: { color: '#6c5ce7', fontSize: 13, fontWeight: '500' },
+  beneficiariesScroll: { marginHorizontal: -4 },
+  beneficiaryItem: { alignItems: 'center', marginHorizontal: 8, width: 56 },
+  avatarCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#6c5ce7',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  avatarLetter: { color: '#fff', fontSize: 18, fontWeight: '700' },
+  beneficiaryName: { color: '#8b8ba7', fontSize: 11, textAlign: 'center' },
 });

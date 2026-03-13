@@ -124,7 +124,22 @@ export async function rejectAction(pendingActionId: string): Promise<ConfirmResp
   });
 }
 
-// Onboarding
+// Onboarding — mock-compatible bulk flow (uses BankingPort, works with USE_MOCK_BANKING=true)
+export async function startOnboarding(data: {
+  givenName: string;
+  surname: string;
+  dateOfBirth: string;
+  addressLine1: string;
+  city: string;
+  postalCode: string;
+}): Promise<{ success: boolean; profile: any }> {
+  return apiRequest('/api/onboarding/start', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+// Griffin-backed onboarding (USE_MOCK_BANKING=false only)
 export async function submitOnboarding(data: {
   givenName: string;
   surname: string;
@@ -196,4 +211,14 @@ export async function getWeeklySummary(): Promise<any> {
 
 export async function getProactiveCards(): Promise<any> {
   return apiRequest('/api/insights/proactive');
+}
+
+// Pots
+export async function getPots(): Promise<any> {
+  return apiRequest('/api/pots');
+}
+
+// Beneficiaries
+export async function getBeneficiaries(): Promise<any> {
+  return apiRequest('/api/beneficiaries');
 }

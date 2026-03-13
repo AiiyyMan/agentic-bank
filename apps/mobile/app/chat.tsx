@@ -4,27 +4,15 @@ import {
   FlatList,
   Text,
   TouchableOpacity,
-  ActivityIndicator,
   SafeAreaView,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useChatStore } from '../stores/chat';
 import { MessageBubble } from '../components/chat/MessageBubble';
 import { ChatInput } from '../components/chat/ChatInput';
+import { TypingIndicator } from '../components/chat/TypingIndicator';
 import { sendChatMessage } from '../lib/api';
 import { useTokens } from '../theme/tokens';
-
-function TypingIndicator({ message }: { message: string }) {
-  const t = useTokens();
-  return (
-    <View className="px-4 py-1 items-start">
-      <View className="bg-surface-raised border border-border-default rounded-2xl rounded-tl-sm px-4 py-3 flex-row items-center gap-2">
-        <ActivityIndicator size="small" color={t.brand.default} />
-        <Text className="text-text-secondary text-sm">{message || 'Thinking...'}</Text>
-      </View>
-    </View>
-  );
-}
 
 export default function ChatScreen() {
   const { messages, status, progressMessage, conversationId, addUserMessage, addAssistantMessage, addErrorMessage, setStatus } = useChatStore();
@@ -120,7 +108,7 @@ export default function ChatScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         ListHeaderComponent={
-          isLoading ? <TypingIndicator message={progressMessage} /> : null
+          isLoading ? <TypingIndicator /> : null
         }
       />
 

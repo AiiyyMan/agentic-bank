@@ -12,7 +12,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { router } from 'expo-router';
-import { submitOnboarding } from '../../lib/api';
+import { startOnboarding } from '../../lib/api';
 
 export default function OnboardingScreen() {
   const [givenName, setGivenName] = useState('');
@@ -31,16 +31,17 @@ export default function OnboardingScreen() {
 
     setLoading(true);
     try {
-      await submitOnboarding({
+      await startOnboarding({
         givenName,
         surname,
         dateOfBirth,
         addressLine1,
         city,
         postalCode,
-        countryCode: 'GB',
       });
+      // Navigate to tabs then open chat to show welcome + checklist
       router.replace('/(tabs)');
+      setTimeout(() => router.push('/chat'), 400);
     } catch (err: any) {
       Alert.alert('Onboarding Failed', err.message || 'Please try again');
     } finally {

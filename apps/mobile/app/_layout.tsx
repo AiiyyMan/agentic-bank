@@ -100,6 +100,7 @@ export default function RootLayout() {
             gestureEnabled: true,
           }}
         />
+        <Stack.Screen name="account/[id]" options={{ headerShown: false }} />
       </Stack>
     </NetworkGuard>
   );

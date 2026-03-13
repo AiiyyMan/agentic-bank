@@ -15,6 +15,8 @@ import { ChecklistCard } from './ChecklistCard';
 import { CreditScoreCard } from './CreditScoreCard';
 import { FlexPlanCard } from './FlexPlanCard';
 import { PaymentHistoryCard } from './PaymentHistoryCard';
+import { AccountDetailsCard } from './AccountDetailsCard';
+import { InputCard } from './InputCard';
 import type { UIComponent } from '@agentic-bank/shared';
 
 interface UIComponentRendererProps {
@@ -195,6 +197,32 @@ export function UIComponentRenderer({ components, onRefresh, onQuickReply }: UIC
                 key={index}
                 payments={data.payments}
                 summary={data.summary}
+              />
+            );
+
+          case 'account_details_card':
+            return (
+              <AccountDetailsCard
+                key={index}
+                accountName={data.account_name || data.accountName}
+                sortCode={data.sort_code || data.sortCode}
+                accountNumber={data.account_number || data.accountNumber}
+                iban={data.iban}
+              />
+            );
+
+          case 'input_card':
+            return (
+              <InputCard
+                key={index}
+                title={data.title}
+                subtitle={data.subtitle}
+                fields={data.fields || []}
+                submitLabel={data.submit_label || data.submitLabel}
+                onSubmit={onQuickReply ? (values) => {
+                  // Serialize form values as JSON string for the agent
+                  onQuickReply(JSON.stringify(values));
+                } : undefined}
               />
             );
 

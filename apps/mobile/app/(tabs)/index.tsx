@@ -4,7 +4,7 @@ import {
   RefreshControl, ActivityIndicator,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
-import { getBalance as fetchBalance, getTransactions as fetchTransactions, getLoans } from '../../lib/api';
+import { getBalance as fetchBalance, getTransactions as fetchTransactions, getLoans, getPots } from '../../lib/api';
 import { DashboardSkeleton } from '../../components/Skeleton';
 
 interface BalanceData {
@@ -30,10 +30,20 @@ interface LoanSummary {
   status: string;
 }
 
+interface Pot {
+  id: string;
+  name: string;
+  balance: number;
+  goal_amount: number | null;
+  emoji: string | null;
+  progress_percent: number | null;
+}
+
 export default function DashboardScreen() {
   const [balance, setBalance] = useState<BalanceData | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loans, setLoans] = useState<LoanSummary[]>([]);
+  const [pots, setPots] = useState<Pot[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -42,11 +52,12 @@ export default function DashboardScreen() {
     try {
       setError('');
 
-      // Fetch balance, transactions, and loans directly (no agent loop)
-      const [balanceRes, txRes, loansRes] = await Promise.allSettled([
+      // Fetch balance, transactions, loans, and pots directly (no agent loop)
+      const [balanceRes, txRes, loansRes, potsRes] = await Promise.allSettled([
         fetchBalance(),
         fetchTransactions(5),
         getLoans(),
+        getPots(),
       ]);
 
       if (balanceRes.status === 'fulfilled') {
@@ -59,6 +70,10 @@ export default function DashboardScreen() {
 
       if (loansRes.status === 'fulfilled' && loansRes.value.loans) {
         setLoans(loansRes.value.loans);
+      }
+
+      if (potsRes.status === 'fulfilled' && potsRes.value.pots) {
+        setPots(potsRes.value.pots);
       }
     } catch (err: any) {
       setError(err.message || 'Failed to load data');
@@ -109,6 +124,57 @@ export default function DashboardScreen() {
         )}
         {balance?.account_number && (
           <Text style={styles.accountNumber}>{balance.account_number}</Text>
+        )}
+      </View>
+
+      {/* Pots Section */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Savings Pots</Text>
+          <TouchableOpacity onPress={() => router.push('/(tabs)/chat')}>
+            <Text style={styles.seeAll}>+ New pot</Text>
+          </TouchableOpacity>
+        </View>
+        {pots.length === 0 ? (
+          <TouchableOpacity
+            style={styles.createPotCta}
+            onPress={() => router.push('/(tabs)/chat')}
+          >
+            <Text style={styles.createPotIcon}>🏦</Text>
+            <View style={styles.createPotText}>
+              <Text style={styles.createPotTitle}>Create a pot</Text>
+              <Text style={styles.createPotSubtitle}>Save towards a goal</Text>
+            </View>
+            <Text style={styles.createPotArrow}>→</Text>
+          </TouchableOpacity>
+        ) : (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.potsScroll}>
+            {pots.slice(0, 3).map((pot) => (
+              <View key={pot.id} style={styles.potCard}>
+                <Text style={styles.potEmoji}>{pot.emoji || '🏦'}</Text>
+                <Text style={styles.potName} numberOfLines={1}>{pot.name}</Text>
+                <Text style={styles.potBalance}>
+                  £{pot.balance.toLocaleString('en-GB', { minimumFractionDigits: 2 })}
+                </Text>
+                {pot.goal_amount != null && pot.goal_amount > 0 && (
+                  <View style={styles.potProgressBar}>
+                    <View
+                      style={[
+                        styles.potProgressFill,
+                        { width: `${Math.min(100, pot.progress_percent ?? 0)}%` },
+                      ]}
+                    />
+                  </View>
+                )}
+              </View>
+            ))}
+            <TouchableOpacity
+              style={[styles.potCard, styles.potCardAdd]}
+              onPress={() => router.push('/(tabs)/chat')}
+            >
+              <Text style={styles.potAddIcon}>+</Text>
+            </TouchableOpacity>
+          </ScrollView>
         )}
       </View>
 
@@ -301,4 +367,53 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   chatCtaText: { color: '#fff', fontSize: 14, fontWeight: '500' },
+
+  potsScroll: { marginHorizontal: -4 },
+  potCard: {
+    width: 120,
+    backgroundColor: '#1a1a2e',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#2d2d44',
+    padding: 14,
+    marginRight: 8,
+    marginHorizontal: 4,
+  },
+  potCardAdd: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderStyle: 'dashed',
+  },
+  potEmoji: { fontSize: 22, marginBottom: 6 },
+  potName: { color: '#8b8ba7', fontSize: 12, marginBottom: 4 },
+  potBalance: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  potProgressBar: {
+    height: 3,
+    backgroundColor: '#2d2d44',
+    borderRadius: 2,
+    overflow: 'hidden',
+    marginTop: 8,
+  },
+  potProgressFill: {
+    height: '100%',
+    backgroundColor: '#6c5ce7',
+    borderRadius: 2,
+  },
+  potAddIcon: { color: '#6c5ce7', fontSize: 24, fontWeight: '300' },
+
+  createPotCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1a1a2e',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#2d2d44',
+    padding: 16,
+    gap: 12,
+  },
+  createPotIcon: { fontSize: 24 },
+  createPotText: { flex: 1 },
+  createPotTitle: { color: '#fff', fontSize: 14, fontWeight: '500' },
+  createPotSubtitle: { color: '#8b8ba7', fontSize: 12, marginTop: 2 },
+  createPotArrow: { color: '#6c5ce7', fontSize: 18 },
 });

@@ -50,7 +50,8 @@ export type UIComponentType =
   | 'credit_score_card'
   | 'payment_history_card'
   | 'date_picker_card'
-  | 'address_input_card';
+  | 'address_input_card'
+  | 'account_details_card';
 
 export interface UIComponent {
   type: UIComponentType;

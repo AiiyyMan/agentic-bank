@@ -38,6 +38,54 @@ export function Skeleton({ width, height, borderRadius = 8, style }: SkeletonPro
   );
 }
 
+export function BalanceCardSkeleton() {
+  return (
+    <View style={{ margin: 16, padding: 20, backgroundColor: '#1a1a2e', borderRadius: 16, borderWidth: 1, borderColor: '#2d2d44' }}>
+      <Skeleton width={100} height={12} style={{ marginBottom: 10 }} />
+      <Skeleton width={180} height={40} style={{ marginBottom: 8 }} />
+      <Skeleton width={140} height={12} />
+    </View>
+  );
+}
+
+export function TransactionRowSkeleton() {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 }}>
+      <Skeleton width={36} height={36} borderRadius={18} style={{ marginRight: 12 }} />
+      <View style={{ flex: 1 }}>
+        <Skeleton width={120} height={14} style={{ marginBottom: 6 }} />
+        <Skeleton width={80} height={11} />
+      </View>
+      <Skeleton width={60} height={14} />
+    </View>
+  );
+}
+
+export function PotCardSkeleton() {
+  return (
+    <View style={{ width: 140, padding: 14, backgroundColor: '#1a1a2e', borderRadius: 14, borderWidth: 1, borderColor: '#2d2d44', marginRight: 10 }}>
+      <Skeleton width={32} height={32} borderRadius={16} style={{ marginBottom: 10 }} />
+      <Skeleton width={90} height={12} style={{ marginBottom: 8 }} />
+      <Skeleton width={70} height={18} style={{ marginBottom: 8 }} />
+      <Skeleton width="100%" height={4} borderRadius={2} />
+    </View>
+  );
+}
+
+export function ChatMessageSkeleton() {
+  return (
+    <View style={{ paddingHorizontal: 16, paddingVertical: 6 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8 }}>
+        <Skeleton width={28} height={28} borderRadius={14} />
+        <View>
+          <Skeleton width={200} height={14} borderRadius={12} style={{ marginBottom: 6 }} />
+          <Skeleton width={150} height={14} borderRadius={12} />
+        </View>
+      </View>
+    </View>
+  );
+}
+
 export function DashboardSkeleton() {
   return (
     <View style={styles.container}>
