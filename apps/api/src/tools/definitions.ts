@@ -134,7 +134,7 @@ export const addBeneficiary: ToolDef = {
 
 export const applyForLoan: ToolDef = {
   name: 'apply_for_loan',
-  description: 'Apply for a personal loan. Requires amount (£100-£25,000), term in months (3-60), and purpose.',
+  description: 'Apply for a personal loan. Requires amount (£100-£25,000), term in months (3-60), and purpose. Include apr if known from a prior eligibility check.',
   input_schema: {
     type: 'object' as const,
     properties: {
@@ -149,6 +149,10 @@ export const applyForLoan: ToolDef = {
       purpose: {
         type: 'string',
         description: 'Purpose of the loan',
+      },
+      apr: {
+        type: 'number',
+        description: 'Annual percentage rate (e.g. 12.9). Pass if known from eligibility check.',
       },
     },
     required: ['amount', 'term_months', 'purpose'],

@@ -436,15 +436,32 @@ function buildConfirmationSummary(
         },
       };
 
-    case 'apply_for_loan':
+    case 'apply_for_loan': {
+      const loanAmount = Number(params.amount);
+      const termMonths = Number(params.term_months);
+      const apr = params.apr ? Number(params.apr) : null;
+      // Compute monthly EMI if APR known
+      let monthlyStr: string | null = null;
+      let totalStr: string | null = null;
+      if (apr !== null && apr > 0) {
+        const monthlyRate = apr / 100 / 12;
+        const emi = loanAmount * monthlyRate * Math.pow(1 + monthlyRate, termMonths)
+          / (Math.pow(1 + monthlyRate, termMonths) - 1);
+        monthlyStr = `£${emi.toFixed(2)}/mo`;
+        totalStr = `£${(emi * termMonths).toFixed(2)}`;
+      }
       return {
-        text: `Apply for a £${Number(params.amount).toFixed(2)} loan`,
+        text: `Apply for a £${loanAmount.toFixed(2)} loan`,
         details: {
-          'Amount': `£${Number(params.amount).toFixed(2)}`,
-          'Term': `${params.term_months} months`,
+          'Amount': `£${loanAmount.toFixed(2)}`,
+          'Term': `${termMonths} months`,
+          ...(apr !== null ? { 'APR': `${apr}%` } : {}),
+          ...(monthlyStr ? { 'Monthly Payment': monthlyStr } : {}),
+          ...(totalStr ? { 'Total Repayable': totalStr } : {}),
           'Purpose': String(params.purpose),
         },
       };
+    }
 
     case 'make_loan_payment':
       return {
