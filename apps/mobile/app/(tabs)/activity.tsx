@@ -9,12 +9,15 @@ import { Skeleton } from '../../components/Skeleton';
 import { useTokens } from '../../theme/tokens';
 
 interface Transaction {
-  amount: string;
-  currency: string;
-  direction: string;
-  type: string;
-  date: string;
-  balance_after?: string;
+  id: string;
+  merchant_name: string;
+  amount: number;           // signed: negative = debit, positive = credit
+  primary_category: string;
+  detailed_category?: string;
+  category_icon?: string;
+  is_recurring?: boolean;
+  posted_at: string;
+  reference?: string;
 }
 
 interface TransactionSection {
@@ -62,7 +65,7 @@ export default function ActivityScreen() {
 
         const grouped = new Map<string, Transaction[]>();
         for (const tx of txs) {
-          const dateKey = new Date(tx.date).toLocaleDateString('en-GB', {
+          const dateKey = new Date(tx.posted_at).toLocaleDateString('en-GB', {
             weekday: 'long', day: 'numeric', month: 'long',
           });
           if (!grouped.has(dateKey)) grouped.set(dateKey, []);
@@ -104,11 +107,13 @@ export default function ActivityScreen() {
     );
   }
 
+  const isCredit = (tx: Transaction) => tx.amount >= 0;
+
   return (
     <View className="flex-1 bg-background-primary">
       <SectionList
         sections={sections}
-        keyExtractor={(item, index) => `${item.date}-${index}`}
+        keyExtractor={(item) => item.id}
         renderSectionHeader={({ section: { title } }) => (
           <View className="px-4 pt-4 pb-1.5 bg-background-primary">
             <Text className="text-text-tertiary text-xs font-semibold uppercase tracking-wide">{title}</Text>
@@ -121,22 +126,22 @@ export default function ActivityScreen() {
           >
             <View
               className="w-9 h-9 rounded-full justify-center items-center mr-3"
-              style={item.direction === 'credit' ? styles.txIconCredit : styles.txIconDebit}
+              style={isCredit(item) ? styles.txIconCredit : styles.txIconDebit}
             >
               <Text className="text-brand-default text-base font-bold">
-                {item.direction === 'credit' ? '↓' : '↑'}
+                {isCredit(item) ? '↓' : '↑'}
               </Text>
             </View>
             <View className="flex-1">
-              <Text className="text-text-primary text-sm">{item.type}</Text>
+              <Text className="text-text-primary text-sm">{item.merchant_name}</Text>
               <Text className="text-text-tertiary text-xs mt-0.5">
-                {new Date(item.date).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                {new Date(item.posted_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
               </Text>
             </View>
             <Text
-              className={`text-sm font-semibold ${item.direction === 'credit' ? 'text-money-positive' : 'text-money-negative'}`}
+              className={`text-sm font-semibold ${isCredit(item) ? 'text-money-positive' : 'text-money-negative'}`}
             >
-              {item.direction === 'credit' ? '+' : '-'}£{Math.abs(parseFloat(item.amount)).toFixed(2)}
+              {isCredit(item) ? '+' : '-'}£{Math.abs(item.amount).toFixed(2)}
             </Text>
           </TouchableOpacity>
         )}
@@ -171,29 +176,35 @@ export default function ActivityScreen() {
           {selectedTx && (
             <View className="px-6 pt-4">
               <View className="flex-row justify-between py-3 border-b border-border-primary">
-                <Text className="text-text-tertiary text-sm">Type</Text>
-                <Text className="text-text-primary text-sm font-medium">{selectedTx.type}</Text>
+                <Text className="text-text-tertiary text-sm">Merchant</Text>
+                <Text className="text-text-primary text-sm font-medium">{selectedTx.merchant_name}</Text>
               </View>
+              {selectedTx.primary_category && (
+                <View className="flex-row justify-between py-3 border-b border-border-primary">
+                  <Text className="text-text-tertiary text-sm">Category</Text>
+                  <Text className="text-text-primary text-sm font-medium">
+                    {selectedTx.category_icon ? `${selectedTx.category_icon} ` : ''}{selectedTx.primary_category}
+                  </Text>
+                </View>
+              )}
               <View className="flex-row justify-between py-3 border-b border-border-primary">
                 <Text className="text-text-tertiary text-sm">Amount</Text>
                 <Text
-                  className={`text-sm font-medium ${selectedTx.direction === 'credit' ? 'text-money-positive' : 'text-money-negative'}`}
+                  className={`text-sm font-medium ${isCredit(selectedTx) ? 'text-money-positive' : 'text-money-negative'}`}
                 >
-                  {selectedTx.direction === 'credit' ? '+' : '-'}£{Math.abs(parseFloat(selectedTx.amount)).toFixed(2)}
+                  {isCredit(selectedTx) ? '+' : '-'}£{Math.abs(selectedTx.amount).toFixed(2)}
                 </Text>
               </View>
               <View className="flex-row justify-between py-3 border-b border-border-primary">
                 <Text className="text-text-tertiary text-sm">Date</Text>
                 <Text className="text-text-primary text-sm font-medium">
-                  {new Date(selectedTx.date).toLocaleString('en-GB')}
+                  {new Date(selectedTx.posted_at).toLocaleString('en-GB')}
                 </Text>
               </View>
-              {selectedTx.balance_after && (
+              {selectedTx.reference && (
                 <View className="flex-row justify-between py-3 border-b border-border-primary">
-                  <Text className="text-text-tertiary text-sm">Balance After</Text>
-                  <Text className="text-text-primary text-sm font-medium">
-                    £{parseFloat(selectedTx.balance_after).toFixed(2)}
-                  </Text>
+                  <Text className="text-text-tertiary text-sm">Reference</Text>
+                  <Text className="text-text-primary text-sm font-medium">{selectedTx.reference}</Text>
                 </View>
               )}
               <TouchableOpacity

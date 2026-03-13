@@ -217,7 +217,7 @@ describe('GET /api/pots', () => {
     expect(res.statusCode).toBe(200);
     expect(body.pots).toHaveLength(1);
     expect(body.pots[0].name).toBe('Holiday');
-    expect(body.pots[0].progress_pct).toBe(43);
+    expect(body.pots[0].progress_percent).toBe(43);
   });
 });
 

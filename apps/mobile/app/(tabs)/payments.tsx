@@ -9,10 +9,12 @@ import { Skeleton } from '../../components/Skeleton';
 import { useTokens } from '../../theme/tokens';
 
 interface PaymentItem {
-  amount: string;
-  direction: string;
-  type: string;
-  date: string;
+  id: string;
+  merchant_name: string;
+  amount: number;           // signed: negative = debit, positive = credit
+  primary_category: string;
+  posted_at: string;
+  reference?: string;
 }
 
 interface Beneficiary {
@@ -70,7 +72,7 @@ export default function PaymentsScreen() {
 
       if (txRes.status === 'fulfilled' && txRes.value.transactions) {
         setPayments(
-          txRes.value.transactions.filter((tx: PaymentItem) => tx.direction === 'debit' && tx.type === 'payment')
+          txRes.value.transactions.filter((tx: PaymentItem) => tx.amount < 0)
         );
       }
 
@@ -197,18 +199,18 @@ export default function PaymentsScreen() {
       ) : (
         <FlatList
           data={payments}
-          keyExtractor={(_, i) => `payment-${i}`}
+          keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <View className="flex-row items-center py-3.5 border-b border-surface-primary">
               <View className="w-9 h-9 rounded-full bg-surface-primary justify-center items-center mr-3">
                 <Text className="text-status-error text-base font-bold">↑</Text>
               </View>
               <View className="flex-1">
-                <Text className="text-text-primary text-sm">{item.type}</Text>
-                <Text className="text-text-tertiary text-xs mt-0.5">{new Date(item.date).toLocaleDateString('en-GB')}</Text>
+                <Text className="text-text-primary text-sm">{item.merchant_name}</Text>
+                <Text className="text-text-tertiary text-xs mt-0.5">{new Date(item.posted_at).toLocaleDateString('en-GB')}</Text>
               </View>
               <Text className="text-status-error text-sm font-semibold">
-                -£{Math.abs(parseFloat(item.amount)).toFixed(2)}
+                -£{Math.abs(item.amount).toFixed(2)}
               </Text>
             </View>
           )}
