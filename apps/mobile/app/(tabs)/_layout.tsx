@@ -2,6 +2,7 @@ import { View } from 'react-native';
 import { Tabs } from 'expo-router';
 import { ChatFAB } from '../../components/ChatFAB';
 import { useTokens } from '../../theme/tokens';
+import { NotificationBell } from '../../components/NotificationBell';
 
 function HomeIcon({ focused }: { focused: boolean }) {
   return <View style={{ opacity: focused ? 1 : 0.45 }}><View style={{ width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: focused ? '#6c5ce7' : '#8b8ba7' }} /></View>;
@@ -43,6 +44,7 @@ export default function TabsLayout() {
           options={{
             title: 'Home',
             headerTitle: 'Agentic Bank',
+            headerRight: () => <NotificationBell />,
             tabBarIcon: ({ focused, color }) => (
               <View style={{ width: 24, height: 24, alignItems: 'center', justifyContent: 'center' }}>
                 <View style={{ width: 18, height: 14, borderWidth: 1.5, borderColor: color, borderRadius: 3, marginTop: 4 }} />
@@ -87,6 +89,20 @@ export default function TabsLayout() {
               <View style={{ alignItems: 'center', justifyContent: 'center', width: 24, height: 24 }}>
                 <View style={{ width: 12, height: 12, borderRadius: 6, borderWidth: 1.5, borderColor: color, marginBottom: 2 }} />
                 <View style={{ width: 18, height: 6, borderRadius: 6, borderWidth: 1.5, borderColor: color, borderBottomWidth: 0 }} />
+              </View>
+            ),
+          }}
+        />
+
+        <Tabs.Screen
+          name="loans"
+          options={{
+            title: 'Loans',
+            headerTitle: 'Loans & Credit',
+            tabBarIcon: ({ color }) => (
+              <View style={{ alignItems: 'center', justifyContent: 'center', width: 24, height: 24 }}>
+                <View style={{ width: 18, height: 12, borderWidth: 1.5, borderColor: color, borderRadius: 3 }} />
+                <View style={{ width: 10, height: 4, backgroundColor: color, borderRadius: 1, marginTop: 2 }} />
               </View>
             ),
           }}

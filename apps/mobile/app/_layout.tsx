@@ -15,6 +15,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { useAuthStore } from "../stores/auth";
 import { NetworkGuard } from "../components/NetworkGuard";
 import { useTokens } from "../theme/tokens";
+import { useKnock } from "../hooks/useKnock";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -24,6 +25,9 @@ export default function RootLayout() {
   const initialize = useAuthStore((s) => s.initialize);
   const session = useAuthStore((s) => s.session);
   const t = useTokens();
+
+  // Knock: identify user + register push token on sign-in, clear on sign-out.
+  useKnock();
 
   const [fontsLoaded] = useFonts({
     Inter_400Regular,

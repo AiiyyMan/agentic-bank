@@ -169,6 +169,14 @@ export async function getLoans(): Promise<any> {
   return apiRequest('/api/loans');
 }
 
+export async function getLoan(id: string): Promise<any> {
+  return apiRequest(`/api/loans/${id}`);
+}
+
+export async function getCreditScore(): Promise<any> {
+  return apiRequest('/api/loans/credit-score');
+}
+
 export async function getLoanApplications(): Promise<any> {
   return apiRequest('/api/loans/applications');
 }

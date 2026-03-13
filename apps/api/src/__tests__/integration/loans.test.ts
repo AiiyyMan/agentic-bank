@@ -452,3 +452,47 @@ describe('GET /api/flex/eligible', () => {
     expect(res.statusCode).toBe(401);
   });
 });
+
+describe('GET /api/loans/credit-score', () => {
+  it('returns credit score for authenticated user', async () => {
+    setupAuthMock();
+    setupFromMock({
+      profiles: { data: mockUser, error: null },
+      loans: { data: [], error: null },
+      loan_applications: { data: [], error: null },
+      credit_scores: { data: null, error: null },
+    });
+
+    const res = await injectAuth(app, 'GET', '/api/loans/credit-score');
+    const body = JSON.parse(res.body);
+
+    expect(res.statusCode).toBe(200);
+    expect(body).toHaveProperty('score');
+    expect(typeof body.score).toBe('number');
+    expect(body.score).toBeGreaterThanOrEqual(300);
+    expect(body.score).toBeLessThanOrEqual(999);
+  });
+
+  it('returns 401 for unauthenticated requests', async () => {
+    const res = await injectUnauth(app, 'GET', '/api/loans/credit-score');
+    expect(res.statusCode).toBe(401);
+  });
+});
+
+describe('GET /api/loans/:id', () => {
+  it('returns 404 for unknown loan', async () => {
+    setupAuthMock();
+    setupFromMock({
+      profiles: { data: mockUser, error: null },
+      loans: { data: [], error: null },
+    });
+
+    const res = await injectAuth(app, 'GET', '/api/loans/nonexistent-id');
+    expect(res.statusCode).toBe(404);
+  });
+
+  it('returns 401 for unauthenticated requests', async () => {
+    const res = await injectUnauth(app, 'GET', '/api/loans/loan-1');
+    expect(res.statusCode).toBe(401);
+  });
+});

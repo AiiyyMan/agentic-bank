@@ -17,6 +17,20 @@ export const loanRoutes: FastifyPluginAsync = async (app) => {
     return reply.send(result);
   });
 
+  // GET /api/loans/credit-score — credit score (must be registered before /:id)
+  app.get('/loans/credit-score', {
+    preHandler: authMiddleware,
+  }, async (request, reply) => {
+    const req = request as AuthenticatedRequest;
+    try {
+      const service = new LendingService(getSupabase(), getBankingAdapter());
+      const result = await service.checkCreditScore(req.userId);
+      return reply.send(result);
+    } catch (err) {
+      return handleLendingError(err, reply, req.userId, 'check credit score');
+    }
+  });
+
   // GET /api/loans — user's active loans
   app.get('/loans', {
     preHandler: authMiddleware,
@@ -51,6 +65,25 @@ export const loanRoutes: FastifyPluginAsync = async (app) => {
       return reply.send(result);
     } catch (err) {
       return handleLendingError(err, reply, req.userId, 'check eligibility');
+    }
+  });
+
+  // GET /api/loans/:id — single loan with amortisation schedule
+  app.get<{ Params: { id: string } }>('/loans/:id', {
+    preHandler: authMiddleware,
+  }, async (request, reply) => {
+    const req = request as AuthenticatedRequest;
+    try {
+      const service = new LendingService(getSupabase(), getBankingAdapter());
+      const schedule = await service.getLoanSchedule(req.userId, request.params.id);
+      const loans = await service.getUserLoans(req.userId);
+      const loan = (loans.loans as any[]).find((l: any) => l.id === request.params.id);
+      if (!loan) {
+        return reply.status(404).send({ error: 'Loan not found' });
+      }
+      return reply.send({ ...loan, amortisation_schedule: schedule });
+    } catch (err) {
+      return handleLendingError(err, reply, req.userId, 'fetch loan');
     }
   });
 
