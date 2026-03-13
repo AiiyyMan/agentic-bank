@@ -197,8 +197,13 @@ export async function processChat(
     }
   }
 
+  // Detect first-ever app open for a freshly onboarded user (no prior messages in conversation)
+  const isFirstOpen = isAppOpen && history.length === 0 && user.onboarding_step === 'ONBOARDING_COMPLETE';
+
   const userContent = isAppOpen
-    ? 'The user just opened the app. Greet them with a personalised greeting and show their balance. If there are proactive insights, weave them into the greeting naturally.'
+    ? isFirstOpen
+      ? 'The user just completed onboarding and opened the app for the first time. Greet them warmly by name. Show their account details using account_details_card (sort code 04-00-04, call check_balance to get their account name). Then show a getting started checklist using get_onboarding_checklist. Keep the message short and celebratory.'
+      : 'The user just opened the app. Greet them with a personalised greeting and show their balance. If there are proactive insights, weave them into the greeting naturally.'
     : cleanMessage;
 
   const messages: Anthropic.Messages.MessageParam[] = [
@@ -211,6 +216,21 @@ export async function processChat(
 
     if (response.contentBlocks) {
       await saveStructuredMessage(convId, 'assistant', response.contentBlocks, response.message, response.ui_components, user.id);
+
+      // QA C1: Persist synthetic tool_result for respond_to_user to maintain Anthropic API contract.
+      // Without this, history reconstruction on reload includes a tool_use block with no matching
+      // tool_result, which causes API errors on the next turn.
+      const respondToolUse = response.contentBlocks.find(
+        (b): b is Anthropic.Messages.ToolUseBlock => b.type === 'tool_use' && 'name' in b && b.name === 'respond_to_user'
+      );
+      if (respondToolUse) {
+        const syntheticResult: Anthropic.Messages.ToolResultBlockParam[] = [{
+          type: 'tool_result',
+          tool_use_id: respondToolUse.id,
+          content: 'Response delivered to user.',
+        }];
+        await saveStructuredMessage(convId, 'user', syntheticResult, '[respond_to_user]', undefined, user.id);
+      }
     } else {
       await saveMessage(convId, 'assistant', response.message, user.id, undefined, response.ui_components);
     }

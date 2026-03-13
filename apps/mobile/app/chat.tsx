@@ -79,7 +79,7 @@ export default function ChatScreen() {
         className="flex-row items-center px-4 py-3 border-b border-border-default"
         style={{ backgroundColor: t.surface.raised }}
       >
-        <TouchableOpacity onPress={() => router.back()} className="w-10 h-10 items-center justify-center -ml-2">
+        <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)')} className="w-10 h-10 items-center justify-center -ml-2">
           <Text className="text-brand-default text-base font-medium">✕</Text>
         </TouchableOpacity>
         <View className="flex-1 items-center">

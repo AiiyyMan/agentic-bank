@@ -4,6 +4,7 @@ import { getSupabase } from '../lib/supabase.js';
 import { authMiddleware, type AuthenticatedRequest } from '../middleware/auth.js';
 import { OnboardingService } from '../services/onboarding.js';
 import { DomainError } from '../lib/domain-errors.js';
+import { writeAudit } from '../lib/audit.js';
 import { logger } from '../logger.js';
 
 /**
@@ -58,6 +59,15 @@ export const onboardingRoutes: FastifyPluginAsync = async (app) => {
         logger.error({ err: updateError.message, userId: req.userId }, 'Failed to update profile during bulk onboarding');
         return reply.status(502).send({ error: 'Failed to save profile details' });
       }
+
+      // ADR-17: Audit log for the bulk profile update (bypasses service step machine)
+      await writeAudit(supabase, req.userId, 'profile', req.userId, 'onboarding.bulk_start', null, {
+        display_name: displayName,
+        date_of_birth: dateOfBirth,
+        postcode: postalCode.trim().toUpperCase(),
+        city,
+        onboarding_step: 'ADDRESS_COLLECTED',
+      });
 
       const service = new OnboardingService(supabase, getBankingAdapter());
 

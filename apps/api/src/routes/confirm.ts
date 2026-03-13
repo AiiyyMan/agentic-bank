@@ -4,10 +4,17 @@ import { executeConfirmedAction } from '../tools/handlers.js';
 import { getSupabase } from '../lib/supabase.js';
 import { logger } from '../logger.js';
 
+const CONFIRM_RATE_LIMIT = {
+  max: 20,
+  timeWindow: '1 minute',
+  keyGenerator: (request: any) => (request as AuthenticatedRequest).userId || request.ip,
+};
+
 export const confirmRoutes: FastifyPluginAsync = async (app) => {
   // Confirm a pending action (idempotent)
   app.post<{ Params: { actionId: string } }>('/confirm/:actionId', {
     preHandler: authMiddleware,
+    config: { rateLimit: CONFIRM_RATE_LIMIT },
   }, async (request, reply) => {
     const req = request as AuthenticatedRequest;
     const { actionId } = request.params;
@@ -26,6 +33,7 @@ export const confirmRoutes: FastifyPluginAsync = async (app) => {
   // Reject/cancel a pending action
   app.post<{ Params: { actionId: string } }>('/confirm/:actionId/reject', {
     preHandler: authMiddleware,
+    config: { rateLimit: CONFIRM_RATE_LIMIT },
   }, async (request, reply) => {
     const req = request as AuthenticatedRequest;
     const { actionId } = request.params;

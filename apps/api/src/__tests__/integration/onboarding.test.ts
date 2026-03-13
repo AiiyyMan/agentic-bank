@@ -129,6 +129,88 @@ beforeEach(() => {
   mockAdapter.healthCheck.mockResolvedValue(true);
 });
 
+describe('POST /api/onboarding/start', () => {
+  const validBody = {
+    givenName: 'Alex',
+    surname: 'Johnson',
+    dateOfBirth: '1990-01-15',
+    addressLine1: '10 Downing Street',
+    city: 'London',
+    postalCode: 'SW1A 2AA',
+  };
+
+  it('completes full onboarding pipeline and returns profile', async () => {
+    setupAuthMock();
+
+    // Profile is read multiple times: auth middleware + each service step check + final fetch
+    const steps = [
+      'ADDRESS_COLLECTED',     // 1. auth middleware profile lookup
+      'ADDRESS_COLLECTED',     // 2. verifyIdentity: assertStep
+      'VERIFICATION_COMPLETE', // 3. provisionAccount: assertStep
+      'ACCOUNT_PROVISIONED',   // 4. completeOnboarding: reads step to check eligibility
+      'ONBOARDING_COMPLETE',   // 5. final profile fetch at end of route
+    ];
+    let stepIndex = 0;
+
+    mockSupabaseFrom.mockImplementation((table: string) => {
+      const chain: Record<string, any> = {};
+      const chainMethods = [
+        'select', 'eq', 'single', 'update', 'insert', 'order', 'limit',
+        'upsert', 'gte', 'lte', 'neq', 'ilike', 'range', 'lt', 'gt', 'in', 'not',
+      ];
+      for (const m of chainMethods) {
+        chain[m] = vi.fn().mockReturnValue(chain);
+      }
+
+      if (table === 'profiles') {
+        chain.single = vi.fn().mockImplementation(() => {
+          const step = steps[stepIndex] || 'ONBOARDING_COMPLETE';
+          stepIndex++;
+          return Promise.resolve({
+            data: { ...mockUser, onboarding_step: step },
+            error: null,
+          });
+        });
+        // For update chains: select('id') returns success
+        chain.select = vi.fn().mockImplementation(() => {
+          const result = { ...chain };
+          result.then = (resolve: any) => resolve({ data: [{ id: 'mock' }], error: null });
+          return result;
+        });
+      } else {
+        // audit_log, other tables
+        chain.single = vi.fn().mockResolvedValue({ data: null, error: null });
+        chain.select = vi.fn().mockReturnValue(chain);
+      }
+
+      return chain;
+    });
+
+    const res = await injectAuth(app, 'POST', '/api/onboarding/start', validBody);
+    const body = JSON.parse(res.body);
+
+    expect(res.statusCode).toBe(200);
+    expect(body).toHaveProperty('success', true);
+    expect(body).toHaveProperty('profile');
+  });
+
+  it('returns 400 when required fields are missing', async () => {
+    setupAuthMock();
+    setupFromMock({ profiles: { data: mockUser, error: null } });
+
+    const res = await injectAuth(app, 'POST', '/api/onboarding/start', {
+      givenName: 'Alex',
+      // missing all other fields
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it('returns 401 for unauthenticated requests', async () => {
+    const res = await injectUnauth(app, 'POST', '/api/onboarding/start', validBody);
+    expect(res.statusCode).toBe(401);
+  });
+});
+
 describe('GET /api/onboarding/status', () => {
   it('returns onboarding status for authenticated user', async () => {
     setupAuthMock();

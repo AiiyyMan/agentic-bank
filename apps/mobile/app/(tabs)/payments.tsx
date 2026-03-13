@@ -68,14 +68,20 @@ export default function PaymentsScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Send payment CTA */}
-      <TouchableOpacity style={styles.sendButton} onPress={openChat}>
-        <Text style={styles.sendIcon}>↑</Text>
-        <View>
-          <Text style={styles.sendTitle}>Send money</Text>
-          <Text style={styles.sendSubtitle}>Ask your banking assistant</Text>
-        </View>
-      </TouchableOpacity>
+      {/* Action buttons */}
+      <View style={styles.actionRow}>
+        <TouchableOpacity style={[styles.actionButton, styles.actionButtonPrimary]} onPress={openChat}>
+          <Text style={styles.actionIcon}>↑</Text>
+          <Text style={styles.actionLabel}>Send money</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.actionButton, styles.actionButtonSecondary]}
+          onPress={() => router.push('/chat')}
+        >
+          <Text style={[styles.actionIcon, styles.actionIconSecondary]}>+</Text>
+          <Text style={[styles.actionLabel, styles.actionLabelSecondary]}>Add payee</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Send to... Beneficiaries */}
       {beneficiaries.length > 0 && (
@@ -149,18 +155,14 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0f0f23', padding: 16 },
   centered: { justifyContent: 'center', alignItems: 'center', padding: 24, marginTop: 40 },
 
-  sendButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#6c5ce7',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 24,
-    gap: 16,
-  },
-  sendIcon: { fontSize: 24, color: '#fff', width: 36, textAlign: 'center' },
-  sendTitle: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  sendSubtitle: { color: 'rgba(255,255,255,0.7)', fontSize: 13, marginTop: 2 },
+  actionRow: { flexDirection: 'row', gap: 12, marginBottom: 24 },
+  actionButton: { flex: 1, borderRadius: 14, paddingVertical: 16, alignItems: 'center', gap: 6 },
+  actionButtonPrimary: { backgroundColor: '#6c5ce7' },
+  actionButtonSecondary: { backgroundColor: '#1a1a2e', borderWidth: 1, borderColor: '#2d2d44' },
+  actionIcon: { fontSize: 22, color: '#fff' },
+  actionIconSecondary: { color: '#6c5ce7' },
+  actionLabel: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  actionLabelSecondary: { color: '#8b8ba7' },
 
   sectionTitle: { color: '#8b8ba7', fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 },
 

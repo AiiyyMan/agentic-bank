@@ -14,6 +14,23 @@ import {
 import { router } from 'expo-router';
 import { startOnboarding } from '../../lib/api';
 
+const UK_POSTCODE_REGEX = /^[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}$/i;
+const DOB_REGEX = /^\d{2}\/\d{2}\/\d{4}$/;
+
+function parseDob(display: string): string {
+  // Convert DD/MM/YYYY → YYYY-MM-DD for API
+  const [day, month, year] = display.split('/');
+  return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+}
+
+function formatDobInput(raw: string): string {
+  // Auto-insert slashes: 01/01/1990
+  const digits = raw.replace(/\D/g, '').slice(0, 8);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+}
+
 export default function OnboardingScreen() {
   const [givenName, setGivenName] = useState('');
   const [surname, setSurname] = useState('');
@@ -21,25 +38,62 @@ export default function OnboardingScreen() {
   const [addressLine1, setAddressLine1] = useState('');
   const [city, setCity] = useState('');
   const [postalCode, setPostalCode] = useState('');
+  const [postcodeError, setPostcodeError] = useState('');
+  const [dobError, setDobError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const handlePostcodeChange = (val: string) => {
+    setPostalCode(val.toUpperCase());
+    if (val.length > 3) {
+      setPostcodeError(UK_POSTCODE_REGEX.test(val.trim()) ? '' : 'Enter a valid UK postcode (e.g. SW1A 2AA)');
+    } else {
+      setPostcodeError('');
+    }
+  };
+
+  const handleDobChange = (val: string) => {
+    const formatted = formatDobInput(val);
+    setDateOfBirth(formatted);
+    if (formatted.length === 10) {
+      if (!DOB_REGEX.test(formatted)) {
+        setDobError('Use DD/MM/YYYY format');
+      } else {
+        const apiDate = parseDob(formatted);
+        const dob = new Date(apiDate);
+        const age = Math.floor((Date.now() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+        setDobError(age < 18 ? 'You must be 18 or over to open an account' : '');
+      }
+    } else {
+      setDobError('');
+    }
+  };
 
   const handleSubmit = async () => {
     if (!givenName || !surname || !dateOfBirth || !addressLine1 || !city || !postalCode) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
+    if (!DOB_REGEX.test(dateOfBirth)) {
+      Alert.alert('Error', 'Please enter date of birth as DD/MM/YYYY');
+      return;
+    }
+    if (!UK_POSTCODE_REGEX.test(postalCode.trim())) {
+      Alert.alert('Error', 'Please enter a valid UK postcode');
+      return;
+    }
+    if (dobError || postcodeError) return;
 
     setLoading(true);
     try {
       await startOnboarding({
         givenName,
         surname,
-        dateOfBirth,
+        dateOfBirth: parseDob(dateOfBirth),
         addressLine1,
         city,
         postalCode,
       });
-      // Navigate to tabs then open chat to show welcome + checklist
+      // Navigate to tabs then open chat to show welcome + account details
       router.replace('/(tabs)');
       setTimeout(() => router.push('/chat'), 400);
     } catch (err: any) {
@@ -55,6 +109,14 @@ export default function OnboardingScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        {/* Progress indicator */}
+        <View style={styles.progress}>
+          {[1, 2, 3].map((step) => (
+            <View key={step} style={[styles.progressStep, step === 2 && styles.progressStepActive]} />
+          ))}
+        </View>
+        <Text style={styles.progressLabel}>Step 2 of 3 — Identity</Text>
+
         <Text style={styles.title}>Identity Verification</Text>
         <Text style={styles.subtitle}>We need a few details to open your account</Text>
 
@@ -85,13 +147,15 @@ export default function OnboardingScreen() {
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Date of Birth</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, dobError ? styles.inputError : null]}
               value={dateOfBirth}
-              onChangeText={setDateOfBirth}
-              placeholder="1990-01-15"
+              onChangeText={handleDobChange}
+              placeholder="DD/MM/YYYY"
               placeholderTextColor="#555"
               keyboardType="numbers-and-punctuation"
+              maxLength={10}
             />
+            {dobError ? <Text style={styles.errorText}>{dobError}</Text> : null}
           </View>
 
           <View style={styles.inputGroup}>
@@ -119,13 +183,14 @@ export default function OnboardingScreen() {
             <View style={[styles.inputGroup, { flex: 1 }]}>
               <Text style={styles.label}>Post Code</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, postcodeError ? styles.inputError : null]}
                 value={postalCode}
-                onChangeText={setPostalCode}
+                onChangeText={handlePostcodeChange}
                 placeholder="SW1A 2AA"
                 placeholderTextColor="#555"
                 autoCapitalize="characters"
               />
+              {postcodeError ? <Text style={styles.errorText}>{postcodeError}</Text> : null}
             </View>
           </View>
         </View>
@@ -178,4 +243,10 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: { opacity: 0.6 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  inputError: { borderColor: '#e74c3c' },
+  errorText: { color: '#e74c3c', fontSize: 12, marginTop: 4 },
+  progress: { flexDirection: 'row', gap: 6, marginBottom: 4 },
+  progressStep: { flex: 1, height: 3, borderRadius: 2, backgroundColor: '#2d2d44' },
+  progressStepActive: { backgroundColor: '#6c5ce7' },
+  progressLabel: { color: '#555', fontSize: 12, marginBottom: 24 },
 });

@@ -54,10 +54,10 @@ export function UIComponentRenderer({ components, onRefresh, onQuickReply }: UIC
             return (
               <ConfirmationCard
                 key={index}
-                pendingActionId={data.pending_action_id || data.pendingActionId}
+                pendingActionId={data.pending_action_id}
                 summary={data.summary}
                 details={data.details}
-                postTransactionBalance={data.post_transaction_balance || data.postTransactionBalance}
+                postTransactionBalance={data.post_transaction_balance}
                 onConfirmed={onRefresh}
               />
             );

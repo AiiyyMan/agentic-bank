@@ -131,14 +131,14 @@ export default function DashboardScreen() {
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Savings Pots</Text>
-          <TouchableOpacity onPress={() => router.push('/(tabs)/chat')}>
+          <TouchableOpacity onPress={() => router.push('/chat')}>
             <Text style={styles.seeAll}>+ New pot</Text>
           </TouchableOpacity>
         </View>
         {pots.length === 0 ? (
           <TouchableOpacity
             style={styles.createPotCta}
-            onPress={() => router.push('/(tabs)/chat')}
+            onPress={() => router.push('/chat')}
           >
             <Text style={styles.createPotIcon}>🏦</Text>
             <View style={styles.createPotText}>
@@ -170,7 +170,7 @@ export default function DashboardScreen() {
             ))}
             <TouchableOpacity
               style={[styles.potCard, styles.potCardAdd]}
-              onPress={() => router.push('/(tabs)/chat')}
+              onPress={() => router.push('/chat')}
             >
               <Text style={styles.potAddIcon}>+</Text>
             </TouchableOpacity>
@@ -182,7 +182,7 @@ export default function DashboardScreen() {
       <View style={styles.quickActions}>
         <TouchableOpacity
           style={styles.actionButton}
-          onPress={() => router.push('/(tabs)/chat')}
+          onPress={() => router.push('/chat')}
         >
           <Text style={styles.actionIcon}>💬</Text>
           <Text style={styles.actionLabel}>Ask Agent</Text>
@@ -196,7 +196,7 @@ export default function DashboardScreen() {
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.actionButton}
-          onPress={() => router.push('/(tabs)/chat')}
+          onPress={() => router.push('/chat')}
         >
           <Text style={styles.actionIcon}>💸</Text>
           <Text style={styles.actionLabel}>Send</Text>
@@ -252,7 +252,7 @@ export default function DashboardScreen() {
       {/* CTA to chat */}
       <TouchableOpacity
         style={styles.chatCta}
-        onPress={() => router.push('/(tabs)/chat')}
+        onPress={() => router.push('/chat')}
       >
         <Text style={styles.chatCtaText}>Need help? Chat with your banking assistant</Text>
       </TouchableOpacity>

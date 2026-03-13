@@ -20,7 +20,7 @@ export const chatRoutes: FastifyPluginAsync = async (app) => {
   }, async (request, reply) => {
     const req = request as AuthenticatedRequest;
     const { message, conversation_id } = request.body;
-    const isAppOpen = (request.body as any).is_app_open === true;
+    const isAppOpen = message === '__app_open__';
 
     if (!message || typeof message !== 'string') {
       return reply.status(400).send({ error: 'Message is required' });

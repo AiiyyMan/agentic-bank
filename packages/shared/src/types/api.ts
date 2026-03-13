@@ -87,10 +87,31 @@ export interface TransactionListData {
 }
 
 export interface ConfirmationCardData {
-  action_id: string;
+  pending_action_id: string;
   summary: string;
   details: Record<string, string>;
   post_transaction_balance?: number;
+}
+
+export interface FlexPlanCardData {
+  plans?: Array<{
+    months: number;
+    monthly_payment: number;
+    total_repayable: number;
+    apr: number;
+  }>;
+  merchant_name?: string;
+  original_amount?: number;
+  monthly_payment?: number;
+  plan_months?: number;
+  apr?: number;
+}
+
+export interface AccountDetailsCardData {
+  account_name: string;
+  sort_code: string;
+  account_number: string;
+  iban?: string;
 }
 
 export interface SuccessCardData {
