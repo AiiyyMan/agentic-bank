@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -36,6 +36,13 @@ function formatDobInput(raw: string): string {
 }
 
 export default function OnboardingScreen() {
+  // This form screen is bypassed: new users are now routed to /(tabs) after registration
+  // and Claude guides them through conversational onboarding via the chat screen.
+  // This redirect handles any residual deep-links or bookmarks that point here.
+  useEffect(() => {
+    router.replace('/(tabs)');
+  }, []);
+
   const [givenName, setGivenName] = useState('');
   const [surname, setSurname] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');

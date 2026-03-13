@@ -37,7 +37,9 @@ export default function RegisterScreen() {
     setError('');
     try {
       await signUp(email, password, displayName);
-      router.replace('/(auth)/onboarding');
+      // Navigate to the main app — the backend agent detects onboarding_step = 'STARTED'
+      // and Claude guides the user through conversational onboarding via the chat screen.
+      router.replace('/(tabs)');
     } catch (err: any) {
       setError(err.message || 'Please try again');
     } finally {
