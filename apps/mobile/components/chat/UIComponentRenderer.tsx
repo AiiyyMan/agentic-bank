@@ -178,7 +178,11 @@ export function UIComponentRenderer({ components, onRefresh, onQuickReply }: UIC
                 key={index}
                 score={data.score}
                 rating={data.rating}
-                factors={data.factors}
+                factors={data.factors
+                  ? (Array.isArray(data.factors)
+                    ? { positive: data.factors, improve: data.improvement_tips || [] }
+                    : data.factors)
+                  : undefined}
                 lastUpdated={data.last_updated || data.lastUpdated}
               />
             );

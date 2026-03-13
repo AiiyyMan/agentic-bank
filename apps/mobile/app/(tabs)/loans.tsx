@@ -38,10 +38,10 @@ interface FlexPlan {
 }
 
 function bandToRating(band: string): 'poor' | 'fair' | 'good' | 'excellent' {
-  switch (band) {
-    case 'Excellent': return 'excellent';
-    case 'Good': return 'good';
-    case 'Fair': return 'fair';
+  switch (band.toLowerCase()) {
+    case 'excellent': return 'excellent';
+    case 'good': return 'good';
+    case 'fair': return 'fair';
     default: return 'poor';
   }
 }

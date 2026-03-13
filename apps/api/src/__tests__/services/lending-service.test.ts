@@ -114,7 +114,7 @@ describe('LendingService', () => {
 
   describe('checkCreditScore', () => {
     it('returns deterministic score for Alex', async () => {
-      const result = await service.checkCreditScore('alex-uuid-1234');
+      const result = await service.checkCreditScore('00000000-0000-0000-0000-000000000001');
       expect(result.score).toBe(742);
       expect(result.rating).toBe('good');
       expect(result.factors).toBeDefined();
@@ -135,7 +135,7 @@ describe('LendingService', () => {
 
     it('assigns correct rating tiers', async () => {
       // Test via Alex's known score of 742 → 'good'
-      const result = await service.checkCreditScore('alex-uuid-1234');
+      const result = await service.checkCreditScore('00000000-0000-0000-0000-000000000001');
       expect(result.rating).toBe('good');
     });
   });
@@ -146,7 +146,7 @@ describe('LendingService', () => {
 
   describe('checkEligibility', () => {
     it('returns eligible for user with good score and balance', async () => {
-      const result = await service.checkEligibility('alex-uuid-1234');
+      const result = await service.checkEligibility('00000000-0000-0000-0000-000000000001');
       expect(result.eligible).toBe(true);
       expect(result.max_amount).toBeGreaterThan(0);
       expect(result.apr).toBeDefined();
@@ -165,7 +165,7 @@ describe('LendingService', () => {
         configurable: true,
       });
 
-      const result = await service.checkEligibility('alex-uuid-1234');
+      const result = await service.checkEligibility('00000000-0000-0000-0000-000000000001');
       expect(result.eligible).toBe(false);
       expect(result.decline_reason).toMatch(/1 active loan/);
     });
@@ -177,7 +177,7 @@ describe('LendingService', () => {
 
   describe('applyForLoan', () => {
     it('creates loan with valid params', async () => {
-      const result = await service.applyForLoan('alex-uuid-1234', 5000, 12, 'Home improvement');
+      const result = await service.applyForLoan('00000000-0000-0000-0000-000000000001', 5000, 12, 'Home improvement');
       expect(result.success).toBe(true);
       expect(result.data!.amount).toBe(5000);
       expect(result.data!.term).toBe(12);
@@ -186,22 +186,22 @@ describe('LendingService', () => {
     });
 
     it('rejects amount below £100', async () => {
-      await expect(service.applyForLoan('alex-uuid-1234', 50, 12, 'Test'))
+      await expect(service.applyForLoan('00000000-0000-0000-0000-000000000001', 50, 12, 'Test'))
         .rejects.toThrow(ValidationError);
     });
 
     it('rejects amount above £25,000', async () => {
-      await expect(service.applyForLoan('alex-uuid-1234', 30000, 12, 'Test'))
+      await expect(service.applyForLoan('00000000-0000-0000-0000-000000000001', 30000, 12, 'Test'))
         .rejects.toThrow(ValidationError);
     });
 
     it('rejects term below 3 months', async () => {
-      await expect(service.applyForLoan('alex-uuid-1234', 1000, 2, 'Test'))
+      await expect(service.applyForLoan('00000000-0000-0000-0000-000000000001', 1000, 2, 'Test'))
         .rejects.toThrow(ValidationError);
     });
 
     it('rejects term above 60 months', async () => {
-      await expect(service.applyForLoan('alex-uuid-1234', 1000, 61, 'Test'))
+      await expect(service.applyForLoan('00000000-0000-0000-0000-000000000001', 1000, 61, 'Test'))
         .rejects.toThrow(ValidationError);
     });
   });

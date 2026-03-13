@@ -14,13 +14,13 @@ export function BalanceCard({ balance, currency, accountName, accountNumber }: B
   })}`;
 
   return (
-    <View className="bg-brand-default rounded-2xl p-5 my-2 mx-1">
-      <Text className="text-white/70 text-sm font-medium mb-1">Available Balance</Text>
-      <Text className="text-white text-3xl font-bold mb-3">{formattedBalance}</Text>
+    <View className="bg-surface-raised border border-border-default rounded-2xl p-5 my-2 mx-1 shadow-sm">
+      <Text className="text-text-tertiary text-sm font-medium mb-1">Available Balance</Text>
+      <Text className="text-brand-default text-3xl font-bold mb-3">{formattedBalance}</Text>
       <View className="flex-row justify-between">
-        <Text className="text-white/80 text-sm">{accountName}</Text>
+        <Text className="text-text-secondary text-sm">{accountName}</Text>
         {accountNumber && (
-          <Text className="text-white/60 text-sm">{accountNumber}</Text>
+          <Text className="text-text-tertiary text-sm">{accountNumber}</Text>
         )}
       </View>
     </View>

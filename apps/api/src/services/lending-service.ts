@@ -512,15 +512,15 @@ export class LendingService {
   // -----------------------------------------------------------------------
 
   async getFlexEligibleTransactions(userId: string): Promise<FlexEligibleTransaction[]> {
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const fourteenDaysAgo = new Date();
+    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
 
     const { data: txns } = await this.supabase
       .from('transactions')
       .select('*')
       .eq('user_id', userId)
-      .gte('posted_at', thirtyDaysAgo.toISOString())
-      .gte('amount', 50)
+      .gte('posted_at', fourteenDaysAgo.toISOString())
+      .gte('amount', 30)
       .lte('amount', 2000)
       .order('posted_at', { ascending: false }) as any;
 
@@ -577,8 +577,8 @@ export class LendingService {
     }
 
     const amount = Number(tx.amount);
-    if (amount < 50 || amount > 2000) {
-      throw new FlexIneligibleError('Transaction amount must be £50-£2,000 for Flex');
+    if (amount < 30 || amount > 2000) {
+      throw new FlexIneligibleError('Transaction amount must be £30-£2,000 for Flex');
     }
 
     // Check not already flexed
@@ -857,7 +857,7 @@ export class LendingService {
 
   private hashToScore(userId: string): number {
     // Alex hardcoded to 742
-    if (userId === 'alex-uuid-1234') return 742;
+    if (userId === '00000000-0000-0000-0000-000000000001') return 742; // Alex demo user
 
     let hash = 0;
     for (let i = 0; i < userId.length; i++) {

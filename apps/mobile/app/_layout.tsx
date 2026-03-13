@@ -13,6 +13,7 @@ import {
 } from "@expo-google-fonts/inter";
 import * as SplashScreen from "expo-splash-screen";
 import { useAuthStore } from "../stores/auth";
+import { useChatStore } from "../stores/chat";
 import { NetworkGuard } from "../components/NetworkGuard";
 import { useTokens } from "../theme/tokens";
 import { useKnock } from "../hooks/useKnock";
@@ -54,9 +55,9 @@ export default function RootLayout() {
       ) {
         const elapsed = Date.now() - backgroundedAt.current;
         if (elapsed >= APP_OPEN_BACKGROUND_THRESHOLD_MS) {
-          // Reset chat store so next chat open sends __app_open__ again
-          // The actual greeting is sent when chat.tsx mounts via sendGreeting()
-          // We signal this by clearing the hasGreeted ref indirectly via store reset
+          // Reset chat store — chat.tsx checks messages.length === 0 on mount
+          // and will fire sendGreeting() → __app_open__ on next open
+          useChatStore.getState().reset();
         }
         backgroundedAt.current = null;
       }
