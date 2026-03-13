@@ -73,7 +73,7 @@ export const bankingRoutes: FastifyPluginAsync = async (app) => {
 
     try {
       let query = getSupabase()
-        .from('transactions' as any)
+        .from('transactions')
         .select('*', { count: 'exact' })
         .eq('user_id', req.userId);
 
@@ -123,7 +123,7 @@ export const bankingRoutes: FastifyPluginAsync = async (app) => {
     const req = request as AuthenticatedRequest;
     try {
       const { data: pots } = await getSupabase()
-        .from('pots' as any)
+        .from('pots')
         .select('*')
         .eq('user_id', req.userId)
         .eq('is_closed', false)

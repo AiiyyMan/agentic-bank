@@ -1,29 +1,16 @@
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, ActivityIndicator } from 'react-native';
+import { useTokens } from '../../theme/tokens';
 
 interface ProgressIndicatorProps {
   message?: string;
 }
 
 export function ProgressIndicator({ message = 'Thinking...' }: ProgressIndicatorProps) {
+  const t = useTokens();
   return (
-    <View style={styles.container}>
-      <ActivityIndicator size="small" color="#6c5ce7" />
-      <Text style={styles.text}>{message}</Text>
+    <View className="flex-row items-center gap-2 py-2 px-3">
+      <ActivityIndicator size="small" color={t.brand.default} />
+      <Text className="text-text-tertiary text-sm italic">{message}</Text>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-  },
-  text: {
-    color: '#8b8ba7',
-    fontSize: 14,
-    fontStyle: 'italic',
-  },
-});

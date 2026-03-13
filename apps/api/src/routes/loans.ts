@@ -1,6 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { authMiddleware, type AuthenticatedRequest } from '../middleware/auth.js';
-import { getLoanApplications, getLoanProducts } from '../services/lending.js';
 import { getBankingAdapter } from '../adapters/index.js';
 import { getSupabase } from '../lib/supabase.js';
 import { LendingService } from '../services/lending-service.js';
@@ -13,7 +12,8 @@ import { logger } from '../logger.js';
 export const loanRoutes: FastifyPluginAsync = async (app) => {
   // GET /api/loans/products — public
   app.get('/loans/products', async (_request, reply) => {
-    const result = await getLoanProducts();
+    const service = new LendingService(getSupabase(), getBankingAdapter());
+    const result = await service.getLoanProducts();
     return reply.send(result);
   });
 
@@ -50,8 +50,13 @@ export const loanRoutes: FastifyPluginAsync = async (app) => {
     preHandler: authMiddleware,
   }, async (request, reply) => {
     const req = request as AuthenticatedRequest;
-    const result = await getLoanApplications(req.userId);
-    return reply.send(result);
+    try {
+      const service = new LendingService(getSupabase(), getBankingAdapter());
+      const result = await service.getLoanApplications(req.userId);
+      return reply.send(result);
+    } catch (err) {
+      return handleLendingError(err, reply, req.userId, 'fetch loan applications');
+    }
   });
 
   // POST /api/loans/eligibility — check eligibility

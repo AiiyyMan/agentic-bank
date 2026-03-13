@@ -4,18 +4,22 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  StyleSheet,
 } from 'react-native';
 import { router } from 'expo-router';
 import { startOnboarding } from '../../lib/api';
+import { useTokens } from '../../theme/tokens';
 
 const UK_POSTCODE_REGEX = /^[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}$/i;
 const DOB_REGEX = /^\d{2}\/\d{2}\/\d{4}$/;
+
+const TOTAL_STEPS = 3;
+const CURRENT_STEP = 2;
 
 function parseDob(display: string): string {
   // Convert DD/MM/YYYY → YYYY-MM-DD for API
@@ -41,6 +45,7 @@ export default function OnboardingScreen() {
   const [postcodeError, setPostcodeError] = useState('');
   const [dobError, setDobError] = useState('');
   const [loading, setLoading] = useState(false);
+  const t = useTokens();
 
   const handlePostcodeChange = (val: string) => {
     setPostalCode(val.toUpperCase());
@@ -93,7 +98,8 @@ export default function OnboardingScreen() {
         city,
         postalCode,
       });
-      // Navigate to tabs then open chat to show welcome + account details
+      // Route to tabs — the __app_open__ greeting in chat.tsx (triggered when messages.length === 0)
+      // will show the welcome card + onboarding checklist automatically when the user opens the Chat tab.
       router.replace('/(tabs)');
       setTimeout(() => router.push('/chat'), 400);
     } catch (err: any) {
@@ -105,110 +111,123 @@ export default function OnboardingScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      className="flex-1 bg-background-primary"
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        keyboardShouldPersistTaps="handled"
+      >
         {/* Progress indicator */}
-        <View style={styles.progress}>
-          {[1, 2, 3].map((step) => (
-            <View key={step} style={[styles.progressStep, step === 2 && styles.progressStepActive]} />
+        <View className="flex-row gap-1.5 mb-1">
+          {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
+            <View
+              key={i}
+              className={`flex-1 h-0.5 rounded-full ${i + 1 === CURRENT_STEP ? 'bg-brand-default' : 'bg-border-primary'}`}
+            />
           ))}
         </View>
-        <Text style={styles.progressLabel}>Step 2 of 3 — Identity</Text>
+        <Text className="text-text-tertiary text-xs mb-6">
+          Step {CURRENT_STEP} of {TOTAL_STEPS} — Your Details
+        </Text>
 
-        <Text style={styles.title}>Identity Verification</Text>
-        <Text style={styles.subtitle}>We need a few details to open your account</Text>
+        <Text className="text-text-primary text-3xl font-bold mb-2">Identity Verification</Text>
+        <Text className="text-text-tertiary text-base mb-8">We need a few details to open your account</Text>
 
         <View style={styles.form}>
-          <View style={styles.row}>
-            <View style={[styles.inputGroup, { flex: 1 }]}>
-              <Text style={styles.label}>First Name</Text>
+          <View className="flex-row gap-3">
+            <View style={styles.inputGroup} className="flex-1">
+              <Text className="text-text-tertiary text-sm font-medium mb-2">First Name</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: t.surface.default, borderColor: t.border.default, color: t.text.primary }]}
                 value={givenName}
                 onChangeText={setGivenName}
                 placeholder="John"
-                placeholderTextColor="#555"
+                placeholderTextColor={t.text.tertiary}
               />
             </View>
-            <View style={[styles.inputGroup, { flex: 1 }]}>
-              <Text style={styles.label}>Last Name</Text>
+            <View style={styles.inputGroup} className="flex-1">
+              <Text className="text-text-tertiary text-sm font-medium mb-2">Last Name</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: t.surface.default, borderColor: t.border.default, color: t.text.primary }]}
                 value={surname}
                 onChangeText={setSurname}
                 placeholder="Smith"
-                placeholderTextColor="#555"
+                placeholderTextColor={t.text.tertiary}
               />
             </View>
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Date of Birth</Text>
+            <Text className="text-text-tertiary text-sm font-medium mb-2">Date of Birth</Text>
             <TextInput
-              style={[styles.input, dobError ? styles.inputError : null]}
+              style={[
+                styles.input,
+                { backgroundColor: t.surface.default, borderColor: dobError ? t.border.error : t.border.default, color: t.text.primary },
+              ]}
               value={dateOfBirth}
               onChangeText={handleDobChange}
               placeholder="DD/MM/YYYY"
-              placeholderTextColor="#555"
+              placeholderTextColor={t.text.tertiary}
               keyboardType="numbers-and-punctuation"
               maxLength={10}
             />
-            {dobError ? <Text style={styles.errorText}>{dobError}</Text> : null}
+            {dobError ? <Text className="text-status-error text-xs mt-1">{dobError}</Text> : null}
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Address</Text>
+            <Text className="text-text-tertiary text-sm font-medium mb-2">Address</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: t.surface.default, borderColor: t.border.default, color: t.text.primary }]}
               value={addressLine1}
               onChangeText={setAddressLine1}
               placeholder="10 Downing Street"
-              placeholderTextColor="#555"
+              placeholderTextColor={t.text.tertiary}
             />
           </View>
 
-          <View style={styles.row}>
-            <View style={[styles.inputGroup, { flex: 1 }]}>
-              <Text style={styles.label}>City</Text>
+          <View className="flex-row gap-3">
+            <View style={styles.inputGroup} className="flex-1">
+              <Text className="text-text-tertiary text-sm font-medium mb-2">City</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: t.surface.default, borderColor: t.border.default, color: t.text.primary }]}
                 value={city}
                 onChangeText={setCity}
                 placeholder="London"
-                placeholderTextColor="#555"
+                placeholderTextColor={t.text.tertiary}
               />
             </View>
-            <View style={[styles.inputGroup, { flex: 1 }]}>
-              <Text style={styles.label}>Post Code</Text>
+            <View style={styles.inputGroup} className="flex-1">
+              <Text className="text-text-tertiary text-sm font-medium mb-2">Post Code</Text>
               <TextInput
-                style={[styles.input, postcodeError ? styles.inputError : null]}
+                style={[
+                  styles.input,
+                  { backgroundColor: t.surface.default, borderColor: postcodeError ? t.border.error : t.border.default, color: t.text.primary },
+                ]}
                 value={postalCode}
                 onChangeText={handlePostcodeChange}
                 placeholder="SW1A 2AA"
-                placeholderTextColor="#555"
+                placeholderTextColor={t.text.tertiary}
                 autoCapitalize="characters"
               />
-              {postcodeError ? <Text style={styles.errorText}>{postcodeError}</Text> : null}
+              {postcodeError ? <Text className="text-status-error text-xs mt-1">{postcodeError}</Text> : null}
             </View>
           </View>
         </View>
 
         <TouchableOpacity
-          style={[styles.button, loading && styles.buttonDisabled]}
+          className={`py-4 rounded-2xl items-center mb-6 ${loading ? 'opacity-60' : ''}`}
+          style={{ backgroundColor: t.brand.default }}
           onPress={handleSubmit}
           disabled={loading}
         >
           {loading ? (
-            <View>
+            <View className="items-center gap-1">
               <ActivityIndicator color="#fff" />
-              <Text style={[styles.buttonText, { marginTop: 4, fontSize: 12 }]}>
-                Setting up your account...
-              </Text>
+              <Text className="text-white text-xs mt-1">Setting up your account...</Text>
             </View>
           ) : (
-            <Text style={styles.buttonText}>Open Account</Text>
+            <Text className="text-white text-base font-semibold">Open Account</Text>
           )}
         </TouchableOpacity>
       </ScrollView>
@@ -217,36 +236,13 @@ export default function OnboardingScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f0f23' },
   scroll: { padding: 24, paddingTop: 60 },
-  title: { fontSize: 28, fontWeight: '700', color: '#fff', marginBottom: 8 },
-  subtitle: { fontSize: 16, color: '#8b8ba7', marginBottom: 32 },
   form: { gap: 20, marginBottom: 32 },
-  row: { flexDirection: 'row', gap: 12 },
-  inputGroup: { gap: 8 },
-  label: { fontSize: 14, color: '#8b8ba7', fontWeight: '500' },
+  inputGroup: { gap: 0 },
   input: {
-    backgroundColor: '#1a1a2e',
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
-    color: '#fff',
     borderWidth: 1,
-    borderColor: '#2d2d44',
   },
-  button: {
-    backgroundColor: '#6c5ce7',
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  buttonDisabled: { opacity: 0.6 },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  inputError: { borderColor: '#e74c3c' },
-  errorText: { color: '#e74c3c', fontSize: 12, marginTop: 4 },
-  progress: { flexDirection: 'row', gap: 6, marginBottom: 4 },
-  progressStep: { flex: 1, height: 3, borderRadius: 2, backgroundColor: '#2d2d44' },
-  progressStepActive: { backgroundColor: '#6c5ce7' },
-  progressLabel: { color: '#555', fontSize: 12, marginBottom: 24 },
 });

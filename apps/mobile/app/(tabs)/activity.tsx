@@ -1,10 +1,12 @@
 import { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, SectionList, TouchableOpacity,
-  RefreshControl, ActivityIndicator, Modal,
+  RefreshControl, Modal,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { getTransactions as fetchTransactions } from '../../lib/api';
+import { Skeleton } from '../../components/Skeleton';
+import { useTokens } from '../../theme/tokens';
 
 interface Transaction {
   amount: string;
@@ -20,11 +22,36 @@ interface TransactionSection {
   data: Transaction[];
 }
 
+function ActivitySkeleton() {
+  return (
+    <View>
+      {[1, 2].map((section) => (
+        <View key={section}>
+          <View className="px-4 pt-4 pb-1.5">
+            <Skeleton width={120} height={12} />
+          </View>
+          {[1, 2, 3].map((i) => (
+            <View key={i} className="flex-row items-center px-4 py-3.5">
+              <Skeleton width={36} height={36} borderRadius={18} style={{ marginRight: 12 }} />
+              <View className="flex-1">
+                <Skeleton width={120} height={14} style={{ marginBottom: 6 }} />
+                <Skeleton width={80} height={11} />
+              </View>
+              <Skeleton width={60} height={14} />
+            </View>
+          ))}
+        </View>
+      ))}
+    </View>
+  );
+}
+
 export default function ActivityScreen() {
   const [sections, setSections] = useState<TransactionSection[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
+  const t = useTokens();
 
   const loadTransactions = useCallback(async () => {
     try {
@@ -61,85 +88,122 @@ export default function ActivityScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator size="large" color="#6c5ce7" />
-        <Text style={styles.loadingText}>Loading activity...</Text>
+      <View className="flex-1 bg-background-primary">
+        <ActivitySkeleton />
       </View>
     );
   }
 
   if (sections.length === 0) {
     return (
-      <View style={[styles.container, styles.centered]}>
+      <View className="flex-1 bg-background-primary justify-center items-center p-6">
         <Text style={styles.emptyIcon}>📋</Text>
-        <Text style={styles.emptyText}>No transactions yet</Text>
-        <Text style={styles.emptySubtext}>Your transactions will appear here</Text>
+        <Text className="text-text-primary text-lg font-semibold mb-2">No transactions yet</Text>
+        <Text className="text-text-tertiary text-sm text-center">Your transactions will appear here</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View className="flex-1 bg-background-primary">
       <SectionList
         sections={sections}
         keyExtractor={(item, index) => `${item.date}-${index}`}
         renderSectionHeader={({ section: { title } }) => (
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>{title}</Text>
+          <View className="px-4 pt-4 pb-1.5 bg-background-primary">
+            <Text className="text-text-tertiary text-xs font-semibold uppercase tracking-wide">{title}</Text>
           </View>
         )}
         renderItem={({ item }) => (
-          <TouchableOpacity style={styles.txRow} onPress={() => setSelectedTx(item)}>
-            <View style={[styles.txIcon, item.direction === 'credit' ? styles.txIconCredit : styles.txIconDebit]}>
-              <Text style={styles.txIconText}>{item.direction === 'credit' ? '↓' : '↑'}</Text>
+          <TouchableOpacity
+            className="flex-row items-center px-4 py-3.5 border-b border-surface-primary"
+            onPress={() => setSelectedTx(item)}
+          >
+            <View
+              className="w-9 h-9 rounded-full justify-center items-center mr-3"
+              style={item.direction === 'credit' ? styles.txIconCredit : styles.txIconDebit}
+            >
+              <Text className="text-brand-default text-base font-bold">
+                {item.direction === 'credit' ? '↓' : '↑'}
+              </Text>
             </View>
-            <View style={styles.txInfo}>
-              <Text style={styles.txType}>{item.type}</Text>
-              <Text style={styles.txTime}>
+            <View className="flex-1">
+              <Text className="text-text-primary text-sm">{item.type}</Text>
+              <Text className="text-text-tertiary text-xs mt-0.5">
                 {new Date(item.date).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
               </Text>
             </View>
-            <Text style={[styles.txAmount, item.direction === 'credit' ? styles.credit : styles.debit]}>
+            <Text
+              className={`text-sm font-semibold ${item.direction === 'credit' ? 'text-money-positive' : 'text-money-negative'}`}
+            >
               {item.direction === 'credit' ? '+' : '-'}£{Math.abs(parseFloat(item.amount)).toFixed(2)}
             </Text>
           </TouchableOpacity>
         )}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadTransactions(); }} tintColor="#6c5ce7" />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => { setRefreshing(true); loadTransactions(); }}
+            tintColor={t.brand.default}
+          />
+        }
         contentContainerStyle={{ paddingBottom: 100 }}
       />
 
-      <Modal visible={!!selectedTx} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Transaction Details</Text>
-            {selectedTx && (
-              <>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Type</Text>
-                  <Text style={styles.detailValue}>{selectedTx.type}</Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Amount</Text>
-                  <Text style={[styles.detailValue, selectedTx.direction === 'credit' ? styles.credit : styles.debit]}>
-                    {selectedTx.direction === 'credit' ? '+' : '-'}£{Math.abs(parseFloat(selectedTx.amount)).toFixed(2)}
-                  </Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Date</Text>
-                  <Text style={styles.detailValue}>{new Date(selectedTx.date).toLocaleString('en-GB')}</Text>
-                </View>
-                {selectedTx.balance_after && (
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Balance After</Text>
-                    <Text style={styles.detailValue}>£{parseFloat(selectedTx.balance_after).toFixed(2)}</Text>
-                  </View>
-                )}
-              </>
-            )}
-            <TouchableOpacity style={styles.closeButton} onPress={() => setSelectedTx(null)}>
-              <Text style={styles.closeText}>Close</Text>
+      {/* Transaction detail modal — pageSheet enables swipe-to-dismiss on iOS */}
+      <Modal
+        visible={!!selectedTx}
+        transparent
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setSelectedTx(null)}
+      >
+        <View className="flex-1 bg-background-primary">
+          <View className="flex-row justify-between items-center px-6 pt-6 pb-4 border-b border-border-primary">
+            <Text className="text-text-primary text-xl font-bold">Transaction Details</Text>
+            <TouchableOpacity
+              className="w-8 h-8 rounded-full bg-surface-secondary items-center justify-center"
+              onPress={() => setSelectedTx(null)}
+            >
+              <Text className="text-text-secondary text-sm font-semibold">✕</Text>
             </TouchableOpacity>
           </View>
+          {selectedTx && (
+            <View className="px-6 pt-4">
+              <View className="flex-row justify-between py-3 border-b border-border-primary">
+                <Text className="text-text-tertiary text-sm">Type</Text>
+                <Text className="text-text-primary text-sm font-medium">{selectedTx.type}</Text>
+              </View>
+              <View className="flex-row justify-between py-3 border-b border-border-primary">
+                <Text className="text-text-tertiary text-sm">Amount</Text>
+                <Text
+                  className={`text-sm font-medium ${selectedTx.direction === 'credit' ? 'text-money-positive' : 'text-money-negative'}`}
+                >
+                  {selectedTx.direction === 'credit' ? '+' : '-'}£{Math.abs(parseFloat(selectedTx.amount)).toFixed(2)}
+                </Text>
+              </View>
+              <View className="flex-row justify-between py-3 border-b border-border-primary">
+                <Text className="text-text-tertiary text-sm">Date</Text>
+                <Text className="text-text-primary text-sm font-medium">
+                  {new Date(selectedTx.date).toLocaleString('en-GB')}
+                </Text>
+              </View>
+              {selectedTx.balance_after && (
+                <View className="flex-row justify-between py-3 border-b border-border-primary">
+                  <Text className="text-text-tertiary text-sm">Balance After</Text>
+                  <Text className="text-text-primary text-sm font-medium">
+                    £{parseFloat(selectedTx.balance_after).toFixed(2)}
+                  </Text>
+                </View>
+              )}
+              <TouchableOpacity
+                className="mt-6 bg-brand-default py-3.5 rounded-xl items-center"
+                onPress={() => setSelectedTx(null)}
+              >
+                <Text className="text-white text-base font-semibold">Close</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       </Modal>
     </View>
@@ -147,35 +211,7 @@ export default function ActivityScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f0f23' },
-  centered: { justifyContent: 'center', alignItems: 'center', padding: 24 },
-  loadingText: { color: '#8b8ba7', marginTop: 12, fontSize: 14 },
   emptyIcon: { fontSize: 48, marginBottom: 16 },
-  emptyText: { color: '#fff', fontSize: 18, fontWeight: '600', marginBottom: 8 },
-  emptySubtext: { color: '#8b8ba7', fontSize: 14, textAlign: 'center' },
-  sectionHeader: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 6, backgroundColor: '#0f0f23' },
-  sectionTitle: { color: '#8b8ba7', fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
-  txRow: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 14,
-    borderBottomWidth: 1, borderBottomColor: '#1a1a2e',
-  },
-  txIcon: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  txIconCredit: { backgroundColor: '#1a3a2a' },
-  txIconDebit: { backgroundColor: '#1a1a2e' },
-  txIconText: { color: '#6c5ce7', fontSize: 16, fontWeight: '700' },
-  txInfo: { flex: 1 },
-  txType: { color: '#fff', fontSize: 15 },
-  txTime: { color: '#555', fontSize: 12, marginTop: 2 },
-  txAmount: { fontSize: 15, fontWeight: '600' },
-  credit: { color: '#2ecc71' },
-  debit: { color: '#e74c3c' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: '#1a1a2e', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40 },
-  modalTitle: { color: '#fff', fontSize: 20, fontWeight: '700', marginBottom: 20 },
-  detailRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#2d2d44' },
-  detailLabel: { color: '#8b8ba7', fontSize: 14 },
-  detailValue: { color: '#fff', fontSize: 14, fontWeight: '500' },
-  closeButton: { marginTop: 24, backgroundColor: '#6c5ce7', paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
-  closeText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  txIconCredit: { backgroundColor: 'rgba(52, 211, 153, 0.12)' },
+  txIconDebit: { backgroundColor: 'rgba(15, 23, 42, 0.08)' },
 });

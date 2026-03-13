@@ -198,8 +198,14 @@ export async function processChat(
     }
   }
 
-  // Detect first-ever app open for a freshly onboarded user (no prior messages in conversation)
-  const isFirstOpen = isAppOpen && history.length === 0 && user.onboarding_step === 'ONBOARDING_COMPLETE';
+  // Detect first-ever app open for a freshly onboarded user.
+  // history may contain 2 synthetic summary messages even on a fresh conversation;
+  // use the DB message count as the true signal (no real user/assistant messages yet).
+  const realMessageCount = history.filter(
+    m => !(typeof m.content === 'string' && m.content.startsWith('[Previous conversation summary:')) &&
+         !(typeof m.content === 'string' && m.content === 'I understand the context from our previous conversation. How can I help you?')
+  ).length;
+  const isFirstOpen = isAppOpen && realMessageCount === 0 && user.onboarding_step === 'ONBOARDING_COMPLETE';
 
   const userContent = isAppOpen
     ? isFirstOpen
@@ -236,11 +242,20 @@ export async function processChat(
       await saveMessage(convId, 'assistant', response.message, user.id, undefined, response.ui_components);
     }
 
-    // QA U6: Queue summarisation check as background job (non-blocking)
+    // QA U6: Queue summarisation check as background job (non-blocking, with retry)
     setImmediate(() => {
-      checkAndSummarise(convId).catch((err) => {
-        logger.error({ err: err.message, conversationId: convId }, 'Background summarisation failed');
-      });
+      const attempt = async (tries: number): Promise<void> => {
+        try {
+          await checkAndSummarise(convId);
+        } catch (err: unknown) {
+          if (tries > 0) {
+            await new Promise((r) => setTimeout(r, 2000 * (3 - tries)));
+            return attempt(tries - 1);
+          }
+          logger.error({ err: err instanceof Error ? err.message : String(err), conversationId: convId }, 'Summarisation failed after retries');
+        }
+      };
+      attempt(2).catch(() => {/* already logged */});
     });
 
     return { ...response, conversation_id: convId };

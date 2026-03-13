@@ -217,7 +217,7 @@ describe('idempotency key uniqueness', () => {
     chainData = null;
   });
 
-  it('generates unique idempotency keys (not Date.now-based)', async () => {
+  it('generates deterministic idempotency keys — same params produce same key (retry idempotency)', async () => {
     const keys: string[] = [];
     mockSingle.mockImplementation(async () => {
       return { data: { id: 'pending-1' }, error: null };
@@ -229,10 +229,15 @@ describe('idempotency key uniqueness', () => {
       return mockSupabase;
     });
 
+    // Same params twice — keys should be identical (idempotent retry)
     await handleToolCall('send_payment', { beneficiary_name: 'Alice', amount: 10 }, user as any);
     await handleToolCall('send_payment', { beneficiary_name: 'Alice', amount: 10 }, user as any);
 
     expect(keys.length).toBeGreaterThanOrEqual(2);
-    expect(keys[0]).not.toBe(keys[1]);
+    expect(keys[0]).toBe(keys[1]); // deterministic — same params = same key
+
+    // Different params should produce different keys
+    await handleToolCall('send_payment', { beneficiary_name: 'Bob', amount: 20 }, user as any);
+    expect(keys[2]).not.toBe(keys[0]);
   });
 });

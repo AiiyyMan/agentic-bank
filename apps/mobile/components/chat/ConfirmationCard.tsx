@@ -1,6 +1,7 @@
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useState } from 'react';
 import { confirmAction, rejectAction } from '../../lib/api';
+import { useTokens } from '../../theme/tokens';
 
 interface ConfirmationCardProps {
   pendingActionId: string;
@@ -23,6 +24,7 @@ export function ConfirmationCard({
 }: ConfirmationCardProps) {
   const [status, setStatus] = useState<ConfirmationStatus>('pending');
   const [errorMessage, setErrorMessage] = useState('');
+  const t = useTokens();
 
   const handleConfirm = async () => {
     setStatus('confirming');
@@ -65,26 +67,29 @@ export function ConfirmationCard({
   };
 
   const isExpired = status === 'expired';
-  const cardStyle = isExpired
-    ? [styles.card, styles.cardExpired]
-    : styles.card;
 
   return (
-    <View style={cardStyle}>
-      <Text style={[styles.title, isExpired && styles.titleExpired]}>Confirm Action</Text>
-      <Text style={[styles.summary, isExpired && styles.summaryExpired]}>{summary}</Text>
+    <View
+      className={`rounded-2xl p-4 my-2 mx-1 border ${isExpired ? 'bg-surface-primary border-border-primary opacity-75' : 'bg-surface-primary border-brand-default'}`}
+    >
+      <Text className={`text-xs font-semibold uppercase mb-2 ${isExpired ? 'text-text-tertiary' : 'text-brand-default'}`}>
+        Confirm Action
+      </Text>
+      <Text className={`text-base font-semibold mb-3 ${isExpired ? 'text-text-tertiary' : 'text-text-primary'}`}>
+        {summary}
+      </Text>
 
-      <View style={styles.details}>
+      <View className="mb-4">
         {Object.entries(details).map(([key, value]) => (
-          <View key={key} style={styles.detailRow}>
-            <Text style={[styles.detailKey, isExpired && styles.textDimmed]}>{key}</Text>
-            <Text style={[styles.detailValue, isExpired && styles.textDimmed]}>{value}</Text>
+          <View key={key} className="flex-row justify-between py-1.5 border-b border-border-primary">
+            <Text className={`text-sm ${isExpired ? 'text-text-disabled' : 'text-text-tertiary'}`}>{key}</Text>
+            <Text className={`text-sm font-medium ${isExpired ? 'text-text-disabled' : 'text-text-primary'}`}>{value}</Text>
           </View>
         ))}
         {postTransactionBalance && (
-          <View style={styles.detailRow}>
-            <Text style={[styles.detailKey, isExpired && styles.textDimmed]}>Balance after</Text>
-            <Text style={[styles.detailValue, styles.balanceValue, isExpired && styles.textDimmed]}>
+          <View className="flex-row justify-between py-1.5 border-b border-border-primary">
+            <Text className={`text-sm ${isExpired ? 'text-text-disabled' : 'text-text-tertiary'}`}>Balance after</Text>
+            <Text className={`text-sm font-medium ${isExpired ? 'text-text-disabled' : 'text-text-tertiary'}`}>
               {postTransactionBalance}
             </Text>
           </View>
@@ -92,166 +97,64 @@ export function ConfirmationCard({
       </View>
 
       {status === 'pending' && (
-        <View style={styles.actions}>
-          <TouchableOpacity style={styles.rejectButton} onPress={handleReject}>
-            <Text style={styles.rejectText}>Cancel</Text>
+        <View className="flex-row gap-3">
+          <TouchableOpacity
+            className="flex-1 py-3 rounded-xl items-center border border-border-primary"
+            onPress={handleReject}
+          >
+            <Text className="text-text-tertiary font-semibold">Cancel</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.confirmButton} onPress={handleConfirm}>
-            <Text style={styles.confirmText}>Confirm</Text>
+          <TouchableOpacity
+            className="flex-1 py-3 rounded-xl items-center bg-brand-default"
+            onPress={handleConfirm}
+          >
+            <Text className="text-white font-semibold">Confirm</Text>
           </TouchableOpacity>
         </View>
       )}
 
       {status === 'confirming' && (
-        <View style={styles.statusRow}>
-          <ActivityIndicator color="#6c5ce7" />
-          <Text style={styles.statusText}>Processing...</Text>
+        <View className="flex-row items-center justify-center gap-2 py-2">
+          <ActivityIndicator color={t.brand.default} />
+          <Text className="text-text-tertiary text-sm">Processing...</Text>
         </View>
       )}
 
       {status === 'confirmed' && (
-        <View style={styles.statusRow}>
-          <Text style={styles.successText}>Confirmed</Text>
+        <View className="items-center justify-center py-2">
+          <Text className="text-status-success text-sm font-semibold">Confirmed</Text>
         </View>
       )}
 
       {status === 'rejected' && (
-        <View style={styles.statusRow}>
-          <Text style={styles.rejectedText}>Cancelled</Text>
+        <View className="items-center justify-center py-2">
+          <Text className="text-text-tertiary text-sm font-semibold">Cancelled</Text>
         </View>
       )}
 
       {status === 'expired' && (
-        <View style={styles.expiredContainer}>
-          <Text style={styles.expiredIcon}>⏱</Text>
-          <Text style={styles.expiredText}>
+        <View className="items-center gap-2 py-3">
+          <Text className="text-2xl">⏱</Text>
+          <Text className="text-text-tertiary text-sm text-center leading-5">
             This action has expired. Ask the assistant to try again.
           </Text>
         </View>
       )}
 
       {status === 'error' && (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>{errorMessage || 'Something went wrong'}</Text>
+        <View className="items-center gap-3 py-2">
+          <Text className="text-status-error text-sm">{errorMessage || 'Something went wrong'}</Text>
           <TouchableOpacity
-            style={styles.retryButton}
+            className="py-2.5 px-6 rounded-xl border border-brand-default"
             onPress={() => {
               setStatus('pending');
               setErrorMessage('');
             }}
           >
-            <Text style={styles.retryText}>Retry</Text>
+            <Text className="text-brand-default font-semibold text-sm">Retry</Text>
           </TouchableOpacity>
         </View>
       )}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: '#1a1a2e',
-    borderRadius: 16,
-    padding: 16,
-    marginVertical: 8,
-    marginHorizontal: 4,
-    borderWidth: 1,
-    borderColor: '#6c5ce7',
-  },
-  cardExpired: {
-    borderColor: '#3d3d55',
-    opacity: 0.85,
-  },
-  title: {
-    color: '#6c5ce7',
-    fontSize: 13,
-    fontWeight: '600',
-    marginBottom: 8,
-    textTransform: 'uppercase',
-  },
-  titleExpired: {
-    color: '#5a5a72',
-  },
-  summary: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 12,
-  },
-  summaryExpired: {
-    color: '#6b6b82',
-  },
-  details: {
-    marginBottom: 16,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: '#2d2d44',
-  },
-  detailKey: { color: '#8b8ba7', fontSize: 14 },
-  detailValue: { color: '#fff', fontSize: 14, fontWeight: '500' },
-  balanceValue: { color: '#8b8ba7' },
-  textDimmed: { color: '#4a4a5e' },
-  actions: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  rejectButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#2d2d44',
-  },
-  confirmButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-    backgroundColor: '#6c5ce7',
-  },
-  rejectText: { color: '#8b8ba7', fontWeight: '600' },
-  confirmText: { color: '#fff', fontWeight: '600' },
-  statusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 8,
-  },
-  statusText: { color: '#8b8ba7', fontSize: 14 },
-  successText: { color: '#2ecc71', fontSize: 14, fontWeight: '600' },
-  rejectedText: { color: '#8b8ba7', fontSize: 14, fontWeight: '600' },
-  expiredContainer: {
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 12,
-  },
-  expiredIcon: {
-    fontSize: 24,
-  },
-  expiredText: {
-    color: '#5a5a72',
-    fontSize: 14,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  errorText: { color: '#e74c3c', fontSize: 14 },
-  errorContainer: {
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 8,
-  },
-  retryButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 24,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#6c5ce7',
-  },
-  retryText: { color: '#6c5ce7', fontWeight: '600', fontSize: 14 },
-});

@@ -2,7 +2,6 @@ import { useState, useCallback } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   TouchableOpacity,
   Clipboard,
@@ -13,6 +12,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { getBalance, getTransactions } from '../../lib/api';
 import { TransactionRow } from '../../components/banking/TransactionRow';
 import { DateGroupHeader } from '../../components/banking/DateGroupHeader';
+import { useTokens } from '../../theme/tokens';
 
 interface AccountDetail {
   balance: string;
@@ -59,6 +59,7 @@ export default function AccountDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const t = useTokens();
 
   const loadData = useCallback(async () => {
     try {
@@ -99,8 +100,8 @@ export default function AccountDetailScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator size="large" color="#6c5ce7" />
+      <View className="flex-1 bg-background-primary justify-center items-center">
+        <ActivityIndicator size="large" color={t.brand.default} />
       </View>
     );
   }
@@ -109,42 +110,46 @@ export default function AccountDetailScreen() {
 
   return (
     <ScrollView
-      style={styles.container}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6c5ce7" />}
+      className="flex-1 bg-background-primary"
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={t.brand.default} />
+      }
     >
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backArrow}>←</Text>
-          <Text style={styles.backText}>Back</Text>
+      <View className="flex-row items-center justify-between px-4 pt-14 pb-4">
+        <TouchableOpacity className="flex-row items-center w-20" onPress={() => router.back()}>
+          <Text className="text-brand-default text-xl mr-1">←</Text>
+          <Text className="text-brand-default text-sm font-medium">Back</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Account Details</Text>
-        <View style={styles.backButton} />
+        <Text className="text-text-primary text-base font-semibold">Account Details</Text>
+        <View className="w-20" />
       </View>
 
       {/* Account Card */}
-      <View style={styles.accountCard}>
-        <Text style={styles.accountName}>{account?.account_name || 'Current Account'}</Text>
-        <Text style={styles.balanceAmount}>
+      <View className="mx-4 p-6 bg-surface-primary border border-brand-default rounded-2xl mb-4">
+        <Text className="text-text-tertiary text-sm mb-2">{account?.account_name || 'Current Account'}</Text>
+        <Text className="text-text-primary text-4xl font-bold mb-1">
           {account
             ? `£${parseFloat(account.balance).toLocaleString('en-GB', { minimumFractionDigits: 2 })}`
             : '—'}
         </Text>
-        <Text style={styles.balanceCurrency}>{account?.currency || 'GBP'}</Text>
+        <Text className="text-text-tertiary text-sm">{account?.currency || 'GBP'}</Text>
 
-        <View style={styles.divider} />
+        <View className="h-px bg-border-primary my-5" />
 
         {/* Sort Code */}
         {account?.sort_code && (
           <TouchableOpacity
-            style={styles.detailRow}
+            className="flex-row justify-between items-center py-3 border-b border-border-primary"
             onPress={() => copyToClipboard(account.sort_code!, 'sort_code')}
           >
             <View>
-              <Text style={styles.detailLabel}>Sort code</Text>
-              <Text style={styles.detailValue}>{formatSortCode(account.sort_code)}</Text>
+              <Text className="text-text-tertiary text-xs mb-1">Sort code</Text>
+              <Text className="text-text-primary text-base font-semibold tracking-wide">
+                {formatSortCode(account.sort_code)}
+              </Text>
             </View>
-            <Text style={styles.copyHint}>
+            <Text className="text-brand-default text-xs">
               {copiedField === 'sort_code' ? '✓ Copied' : 'Tap to copy'}
             </Text>
           </TouchableOpacity>
@@ -153,14 +158,16 @@ export default function AccountDetailScreen() {
         {/* Account Number */}
         {account?.account_number && (
           <TouchableOpacity
-            style={styles.detailRow}
+            className="flex-row justify-between items-center py-3 border-b border-border-primary"
             onPress={() => copyToClipboard(account.account_number!, 'account_number')}
           >
             <View>
-              <Text style={styles.detailLabel}>Account number</Text>
-              <Text style={styles.detailValue}>{account.account_number}</Text>
+              <Text className="text-text-tertiary text-xs mb-1">Account number</Text>
+              <Text className="text-text-primary text-base font-semibold tracking-wide">
+                {account.account_number}
+              </Text>
             </View>
-            <Text style={styles.copyHint}>
+            <Text className="text-brand-default text-xs">
               {copiedField === 'account_number' ? '✓ Copied' : 'Tap to copy'}
             </Text>
           </TouchableOpacity>
@@ -168,11 +175,13 @@ export default function AccountDetailScreen() {
       </View>
 
       {/* Transactions */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Recent Transactions</Text>
+      <View className="px-4 mb-6">
+        <Text className="text-text-tertiary text-xs font-semibold uppercase tracking-wide mb-2 mt-2">
+          Recent Transactions
+        </Text>
         {transactions.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>No transactions yet</Text>
+          <View className="p-6 items-center bg-surface-primary border border-border-primary rounded-xl">
+            <Text className="text-text-tertiary text-sm">No transactions yet</Text>
           </View>
         ) : (
           groups.map((group, gi) => (
@@ -194,80 +203,7 @@ export default function AccountDetailScreen() {
         )}
       </View>
 
-      <View style={{ height: 40 }} />
+      <View className="h-10" />
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f0f23' },
-  centered: { justifyContent: 'center', alignItems: 'center' },
-
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 56,
-    paddingBottom: 16,
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: 80,
-  },
-  backArrow: { color: '#6c5ce7', fontSize: 20, marginRight: 4 },
-  backText: { color: '#6c5ce7', fontSize: 15, fontWeight: '500' },
-  headerTitle: { color: '#fff', fontSize: 17, fontWeight: '600' },
-
-  accountCard: {
-    margin: 16,
-    padding: 24,
-    backgroundColor: '#1a1a2e',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#6c5ce7',
-  },
-  accountName: { color: '#8b8ba7', fontSize: 13, marginBottom: 8 },
-  balanceAmount: { color: '#fff', fontSize: 40, fontWeight: '700', marginBottom: 4 },
-  balanceCurrency: { color: '#8b8ba7', fontSize: 13 },
-
-  divider: {
-    height: 1,
-    backgroundColor: '#2d2d44',
-    marginVertical: 20,
-  },
-
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#2d2d44',
-  },
-  detailLabel: { color: '#8b8ba7', fontSize: 12, marginBottom: 4 },
-  detailValue: { color: '#fff', fontSize: 16, fontWeight: '600', letterSpacing: 0.5 },
-  copyHint: { color: '#6c5ce7', fontSize: 12 },
-
-  section: { paddingHorizontal: 16, marginBottom: 24 },
-  sectionTitle: {
-    color: '#8b8ba7',
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 8,
-    marginTop: 8,
-  },
-
-  emptyState: {
-    padding: 24,
-    alignItems: 'center',
-    backgroundColor: '#1a1a2e',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#2d2d44',
-  },
-  emptyText: { color: '#8b8ba7', fontSize: 14 },
-});

@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { useAuthStore } from '../../stores/auth';
 import { getProfile } from '../../lib/api';
@@ -29,134 +29,80 @@ export default function SettingsScreen() {
     ]);
   };
 
+  const initials = profile?.display_name?.[0]?.toUpperCase()
+    ?? session?.user?.email?.[0]?.toUpperCase()
+    ?? '?';
+
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView className="flex-1 bg-background-primary p-4">
       {/* Profile Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Profile</Text>
-        <View style={styles.card}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
-              {profile?.display_name?.[0]?.toUpperCase() || session?.user?.email?.[0]?.toUpperCase() || '?'}
-            </Text>
+      <View className="mb-6">
+        <Text className="text-text-tertiary text-xs font-medium uppercase tracking-wide mb-2.5">Profile</Text>
+        <View className="bg-surface-primary border border-border-primary rounded-xl p-4 items-center">
+          <View className="w-14 h-14 rounded-full bg-brand-default justify-center items-center mb-3">
+            <Text className="text-white text-2xl font-bold">{initials}</Text>
           </View>
           {profile?.display_name && (
-            <Text style={styles.name}>{profile.display_name}</Text>
+            <Text className="text-text-primary text-lg font-semibold mb-1">{profile.display_name}</Text>
           )}
-          <Text style={styles.email}>{session?.user?.email || 'Not signed in'}</Text>
+          <Text className="text-text-tertiary text-sm">{session?.user?.email ?? 'Not signed in'}</Text>
         </View>
       </View>
 
       {/* Account Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Bank Account</Text>
-        <View style={styles.card}>
+      <View className="mb-6">
+        <Text className="text-text-tertiary text-xs font-medium uppercase tracking-wide mb-2.5">Bank Account</Text>
+        <View className="bg-surface-primary border border-border-primary rounded-xl overflow-hidden">
           {profile?.griffin_account_url ? (
             <>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Status</Text>
-                <View style={styles.statusBadge}>
-                  <Text style={styles.statusText}>Active</Text>
+              <View className="flex-row justify-between items-center px-4 py-3.5 border-b border-border-primary">
+                <Text className="text-text-tertiary text-sm">Status</Text>
+                <View className="bg-status-success-subtle px-2.5 py-1 rounded-full">
+                  <Text className="text-status-success-text text-xs font-semibold">Active</Text>
                 </View>
               </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Account</Text>
-                <Text style={styles.infoValue}>
+              <View className="flex-row justify-between items-center px-4 py-3.5">
+                <Text className="text-text-tertiary text-sm">Account</Text>
+                <Text className="text-text-primary text-sm font-medium">
                   {profile.griffin_account_url.split('/').pop()?.slice(0, 8)}...
                 </Text>
               </View>
             </>
           ) : (
-            <Text style={styles.notOnboarded}>
-              Account not yet set up. Complete onboarding to get started.
-            </Text>
+            <View className="px-4 py-4">
+              <Text className="text-text-tertiary text-sm leading-5">
+                Account not yet set up. Complete onboarding to get started.
+              </Text>
+            </View>
           )}
         </View>
       </View>
 
       {/* App Info */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>About</Text>
-        <View style={styles.card}>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>App Version</Text>
-            <Text style={styles.infoValue}>0.1.0</Text>
+      <View className="mb-6">
+        <Text className="text-text-tertiary text-xs font-medium uppercase tracking-wide mb-2.5">About</Text>
+        <View className="bg-surface-primary border border-border-primary rounded-xl overflow-hidden">
+          <View className="flex-row justify-between items-center px-4 py-3.5 border-b border-border-primary">
+            <Text className="text-text-tertiary text-sm">App Version</Text>
+            <Text className="text-text-primary text-sm font-medium">0.1.0</Text>
           </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Environment</Text>
-            <Text style={styles.infoValue}>Sandbox</Text>
+          <View className="flex-row justify-between items-center px-4 py-3.5">
+            <Text className="text-text-tertiary text-sm">Environment</Text>
+            <Text className="text-text-primary text-sm font-medium">Sandbox</Text>
           </View>
         </View>
       </View>
 
-      {/* Logout */}
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-        <Text style={styles.logoutText}>Log Out</Text>
+      {/* Log out */}
+      <TouchableOpacity
+        className="border border-status-error rounded-xl py-4 items-center"
+        style={{ backgroundColor: 'rgba(244, 63, 94, 0.08)' }}
+        onPress={handleLogout}
+      >
+        <Text className="text-status-error text-base font-semibold">Log Out</Text>
       </TouchableOpacity>
 
-      <View style={{ height: 40 }} />
+      <View className="h-10" />
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f0f23', padding: 16 },
-  section: { marginBottom: 24 },
-  sectionTitle: {
-    color: '#8b8ba7',
-    fontSize: 13,
-    fontWeight: '500',
-    marginBottom: 10,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  card: {
-    backgroundColor: '#1a1a2e',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#2d2d44',
-  },
-  avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#6c5ce7',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-    alignSelf: 'center',
-  },
-  avatarText: { color: '#fff', fontSize: 24, fontWeight: '700' },
-  name: { color: '#fff', fontSize: 18, fontWeight: '600', textAlign: 'center', marginBottom: 4 },
-  email: { color: '#8b8ba7', fontSize: 14, textAlign: 'center' },
-
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#2d2d44',
-  },
-  infoLabel: { color: '#8b8ba7', fontSize: 14 },
-  infoValue: { color: '#fff', fontSize: 14, fontWeight: '500' },
-
-  statusBadge: {
-    backgroundColor: '#1a3a2a',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  statusText: { color: '#2ecc71', fontSize: 12, fontWeight: '600' },
-
-  notOnboarded: { color: '#8b8ba7', fontSize: 14, lineHeight: 20 },
-
-  logoutButton: {
-    backgroundColor: '#e74c3c',
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  logoutText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-});

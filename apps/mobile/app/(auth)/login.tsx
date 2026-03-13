@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { useAuthStore } from '../../stores/auth';
+import { useTokens } from '../../theme/tokens';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -18,6 +19,7 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const signIn = useAuthStore((s) => s.signIn);
+  const t = useTokens();
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -39,56 +41,59 @@ export default function LoginScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      className="flex-1 bg-background-primary"
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <View style={styles.content}>
-        <Text style={styles.title}>Welcome Back</Text>
-        <Text style={styles.subtitle}>Log in to your account</Text>
+      <View className="flex-1 p-6 pt-20">
+        <Text className="text-text-primary text-3xl font-bold mb-2">Welcome Back</Text>
+        <Text className="text-text-tertiary text-base mb-8">Log in to your account</Text>
 
         <View style={styles.form}>
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email</Text>
+            <Text className="text-text-tertiary text-sm font-medium mb-2">Email</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: t.surface.default, borderColor: t.border.default, color: t.text.primary }]}
               value={email}
               onChangeText={(v) => { setEmail(v); setError(''); }}
               placeholder="john@example.com"
-              placeholderTextColor="#555"
+              placeholderTextColor={t.text.tertiary}
               keyboardType="email-address"
               autoCapitalize="none"
             />
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Password</Text>
+            <Text className="text-text-tertiary text-sm font-medium mb-2">Password</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: t.surface.default, borderColor: t.border.default, color: t.text.primary }]}
               value={password}
               onChangeText={(v) => { setPassword(v); setError(''); }}
               placeholder="Your password"
-              placeholderTextColor="#555"
+              placeholderTextColor={t.text.tertiary}
               secureTextEntry
             />
           </View>
         </View>
 
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        {error ? (
+          <Text className="text-status-error text-sm text-center mb-3">{error}</Text>
+        ) : null}
 
         <TouchableOpacity
-          style={[styles.button, loading && styles.buttonDisabled]}
+          className={`py-4 rounded-2xl items-center mb-4 ${loading ? 'opacity-60' : ''}`}
+          style={{ backgroundColor: t.brand.default }}
           onPress={handleLogin}
           disabled={loading}
         >
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.buttonText}>Log In</Text>
+            <Text className="text-white text-base font-semibold">Log In</Text>
           )}
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
-          <Text style={styles.linkText}>Don't have an account? Register</Text>
+          <Text className="text-brand-default text-sm text-center">Don't have an account? Register</Text>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -96,36 +101,12 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f0f23' },
-  content: { flex: 1, padding: 24, paddingTop: 80 },
-  title: { fontSize: 28, fontWeight: '700', color: '#fff', marginBottom: 8 },
-  subtitle: { fontSize: 16, color: '#8b8ba7', marginBottom: 32 },
   form: { gap: 20, marginBottom: 16 },
-  inputGroup: { gap: 8 },
-  label: { fontSize: 14, color: '#8b8ba7', fontWeight: '500' },
+  inputGroup: { gap: 0 },
   input: {
-    backgroundColor: '#1a1a2e',
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
-    color: '#fff',
     borderWidth: 1,
-    borderColor: '#2d2d44',
   },
-  errorText: {
-    color: '#e74c3c',
-    fontSize: 13,
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  button: {
-    backgroundColor: '#6c5ce7',
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  buttonDisabled: { opacity: 0.6 },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  linkText: { color: '#6c5ce7', textAlign: 'center', fontSize: 14 },
 });

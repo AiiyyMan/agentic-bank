@@ -10,6 +10,7 @@ export default function ProfileScreen() {
   const session = useAuthStore((s) => s.session);
   const resetChat = useChatStore((s) => s.reset);
   const [profile, setProfile] = useState<any>(null);
+  const [copied, setCopied] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -32,9 +33,10 @@ export default function ProfileScreen() {
     ]);
   };
 
-  const copyToClipboard = (value: string) => {
+  const copyToClipboard = (value: string, label: string) => {
     Clipboard.setString(value);
-    Alert.alert('Copied', 'Copied to clipboard');
+    setCopied(label);
+    setTimeout(() => setCopied(null), 2000);
   };
 
   const initials = profile?.display_name?.[0]?.toUpperCase()
@@ -42,40 +44,51 @@ export default function ProfileScreen() {
     ?? '?';
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView className="flex-1 bg-background-primary p-4">
       {/* Avatar + name */}
-      <View style={styles.profileHeader}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{initials}</Text>
+      <View className="items-center py-6">
+        <View className="w-18 h-18 rounded-full bg-brand-default justify-center items-center mb-3" style={styles.avatar}>
+          <Text className="text-white text-3xl font-bold">{initials}</Text>
         </View>
         {profile?.display_name && (
-          <Text style={styles.displayName}>{profile.display_name}</Text>
+          <Text className="text-text-primary text-xl font-semibold mb-1">{profile.display_name}</Text>
         )}
-        <Text style={styles.email}>{session?.user?.email ?? ''}</Text>
+        <Text className="text-text-tertiary text-sm">{session?.user?.email ?? ''}</Text>
       </View>
+
+      {/* Inline copy toast */}
+      {copied && (
+        <Text className="text-status-success text-xs text-center mb-2">{copied} copied!</Text>
+      )}
 
       {/* Bank account */}
       {(profile?.sort_code || profile?.account_number) && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Bank Account</Text>
-          <View style={styles.card}>
+        <View className="mb-6">
+          <Text className="text-text-tertiary text-xs font-semibold uppercase tracking-wide mb-2.5">Bank Account</Text>
+          <View className="bg-surface-primary border border-border-primary rounded-xl overflow-hidden">
             {profile.sort_code && (
-              <TouchableOpacity style={styles.row} onPress={() => copyToClipboard(profile.sort_code)}>
-                <Text style={styles.rowLabel}>Sort Code</Text>
-                <View style={styles.rowRight}>
-                  <Text style={styles.rowValue}>
+              <TouchableOpacity
+                className="flex-row justify-between items-center px-4 py-3.5 border-b border-border-primary"
+                onPress={() => copyToClipboard(profile.sort_code, 'Sort code')}
+              >
+                <Text className="text-text-tertiary text-sm">Sort Code</Text>
+                <View className="flex-row items-center gap-2">
+                  <Text className="text-text-primary text-sm font-medium">
                     {profile.sort_code.replace(/(\d{2})(\d{2})(\d{2})/, '$1-$2-$3')}
                   </Text>
-                  <Text style={styles.copyHint}>Copy</Text>
+                  <Text className="text-brand-default text-xs">Copy</Text>
                 </View>
               </TouchableOpacity>
             )}
             {profile.account_number && (
-              <TouchableOpacity style={[styles.row, { borderBottomWidth: 0 }]} onPress={() => copyToClipboard(profile.account_number)}>
-                <Text style={styles.rowLabel}>Account No.</Text>
-                <View style={styles.rowRight}>
-                  <Text style={styles.rowValue}>{profile.account_number}</Text>
-                  <Text style={styles.copyHint}>Copy</Text>
+              <TouchableOpacity
+                className="flex-row justify-between items-center px-4 py-3.5"
+                onPress={() => copyToClipboard(profile.account_number, 'Account number')}
+              >
+                <Text className="text-text-tertiary text-sm">Account No.</Text>
+                <View className="flex-row items-center gap-2">
+                  <Text className="text-text-primary text-sm font-medium">{profile.account_number}</Text>
+                  <Text className="text-brand-default text-xs">Copy</Text>
                 </View>
               </TouchableOpacity>
             )}
@@ -84,61 +97,34 @@ export default function ProfileScreen() {
       )}
 
       {/* App info */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>About</Text>
-        <View style={styles.card}>
-          <View style={styles.row}>
-            <Text style={styles.rowLabel}>App Version</Text>
-            <Text style={styles.rowValue}>0.1.0</Text>
+      <View className="mb-6">
+        <Text className="text-text-tertiary text-xs font-semibold uppercase tracking-wide mb-2.5">About</Text>
+        <View className="bg-surface-primary border border-border-primary rounded-xl overflow-hidden">
+          <View className="flex-row justify-between items-center px-4 py-3.5 border-b border-border-primary">
+            <Text className="text-text-tertiary text-sm">App Version</Text>
+            <Text className="text-text-primary text-sm font-medium">0.1.0</Text>
           </View>
-          <View style={[styles.row, { borderBottomWidth: 0 }]}>
-            <Text style={styles.rowLabel}>Environment</Text>
-            <Text style={styles.rowValue}>Sandbox</Text>
+          <View className="flex-row justify-between items-center px-4 py-3.5">
+            <Text className="text-text-tertiary text-sm">Environment</Text>
+            <Text className="text-text-primary text-sm font-medium">Sandbox</Text>
           </View>
         </View>
       </View>
 
-      <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-        <Text style={styles.signOutText}>Sign Out</Text>
+      <TouchableOpacity
+        className="border border-status-error rounded-xl py-4 items-center"
+        style={styles.signOutButton}
+        onPress={handleSignOut}
+      >
+        <Text className="text-status-error text-base font-semibold">Sign Out</Text>
       </TouchableOpacity>
 
-      <View style={{ height: 100 }} />
+      <View className="h-24" />
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f0f23', padding: 16 },
-
-  profileHeader: { alignItems: 'center', paddingVertical: 24 },
-  avatar: {
-    width: 72, height: 72, borderRadius: 36,
-    backgroundColor: '#6c5ce7', justifyContent: 'center', alignItems: 'center', marginBottom: 12,
-  },
-  avatarText: { color: '#fff', fontSize: 28, fontWeight: '700' },
-  displayName: { color: '#fff', fontSize: 20, fontWeight: '600', marginBottom: 4 },
-  email: { color: '#8b8ba7', fontSize: 14 },
-
-  section: { marginBottom: 24 },
-  sectionTitle: {
-    color: '#8b8ba7', fontSize: 12, fontWeight: '600',
-    textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10,
-  },
-  card: { backgroundColor: '#1a1a2e', borderRadius: 12, borderWidth: 1, borderColor: '#2d2d44', overflow: 'hidden' },
-
-  row: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 14,
-    borderBottomWidth: 1, borderBottomColor: '#2d2d44',
-  },
-  rowRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  rowLabel: { color: '#8b8ba7', fontSize: 14 },
-  rowValue: { color: '#fff', fontSize: 14, fontWeight: '500' },
-  copyHint: { color: '#6c5ce7', fontSize: 12 },
-
-  signOutButton: {
-    backgroundColor: 'rgba(231, 76, 60, 0.1)', borderWidth: 1, borderColor: '#e74c3c',
-    paddingVertical: 16, borderRadius: 12, alignItems: 'center',
-  },
-  signOutText: { color: '#e74c3c', fontSize: 16, fontWeight: '600' },
+  avatar: { width: 72, height: 72 },
+  signOutButton: { backgroundColor: 'rgba(244, 63, 94, 0.08)' },
 });

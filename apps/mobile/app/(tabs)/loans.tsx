@@ -3,9 +3,10 @@ import {
   View, Text, ScrollView, TouchableOpacity, RefreshControl,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
-import { getLoans, getCreditScore } from '../../lib/api';
+import { getLoans, getCreditScore, getFlexPlans } from '../../lib/api';
 import { LoanStatusCard } from '../../components/chat/LoanStatusCard';
 import { CreditScoreCard } from '../../components/chat/CreditScoreCard';
+import { FlexPlanCard } from '../../components/chat/FlexPlanCard';
 import { Skeleton } from '../../components/Skeleton';
 
 interface Loan {
@@ -22,6 +23,18 @@ interface CreditScoreData {
   score: number;
   rating: 'poor' | 'fair' | 'good' | 'excellent';
   factors?: { positive: string[]; improve: string[] };
+}
+
+interface FlexPlan {
+  id: string;
+  merchant_name: string;
+  original_amount: number;
+  remaining: number;
+  monthly_payment: number;
+  plan_months: number;
+  payments_made: number;
+  apr: number;
+  status: string;
 }
 
 function bandToRating(band: string): 'poor' | 'fair' | 'good' | 'excellent' {
@@ -45,6 +58,7 @@ function LoansSkeleton() {
 export default function LoansScreen() {
   const [loans, setLoans] = useState<Loan[]>([]);
   const [creditScore, setCreditScore] = useState<CreditScoreData | null>(null);
+  const [flexPlans, setFlexPlans] = useState<FlexPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
@@ -52,9 +66,10 @@ export default function LoansScreen() {
   const fetchData = useCallback(async () => {
     try {
       setError('');
-      const [loansRes, scoreRes] = await Promise.allSettled([
+      const [loansRes, scoreRes, flexRes] = await Promise.allSettled([
         getLoans(),
         getCreditScore(),
+        getFlexPlans(),
       ]);
 
       if (loansRes.status === 'fulfilled' && loansRes.value?.loans) {
@@ -77,6 +92,10 @@ export default function LoansScreen() {
               }
             : undefined,
         });
+      }
+
+      if (flexRes.status === 'fulfilled' && flexRes.value?.plans) {
+        setFlexPlans(flexRes.value.plans.filter((p: FlexPlan) => p.status === 'active'));
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to load lending data');
@@ -162,6 +181,18 @@ export default function LoansScreen() {
               status={loan.status}
             />
           ))
+        )}
+      </View>
+
+      {/* Flex Plans */}
+      <View className="px-4 mt-4">
+        <Text className="text-text-tertiary text-xs font-medium uppercase mb-2">Flex Plans</Text>
+        {flexPlans.length === 0 ? (
+          <View className="bg-surface-primary border border-border-primary rounded-2xl p-6 items-center">
+            <Text className="text-text-tertiary text-sm text-center">No active Flex plans</Text>
+          </View>
+        ) : (
+          <FlexPlanCard plans={flexPlans} />
         )}
       </View>
 

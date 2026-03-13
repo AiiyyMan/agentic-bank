@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text } from 'react-native';
 
 interface LoanStatusCardProps {
   principal: string;
@@ -21,85 +21,42 @@ export function LoanStatusCard({
   const progress = principalNum > 0 ? 1 - parseFloat(remaining) / principalNum : 0;
 
   return (
-    <View style={styles.card}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Active Loan</Text>
-        <Text style={[styles.badge, status === 'active' && styles.activeBadge]}>
-          {status}
-        </Text>
+    <View className="bg-surface-primary border border-border-primary rounded-2xl p-4 my-2 mx-1">
+      <View className="flex-row justify-between items-center mb-3">
+        <Text className="text-text-tertiary text-xs font-medium uppercase">Active Loan</Text>
+        <View className={`px-2 py-0.5 rounded-full overflow-hidden ${status === 'active' ? 'bg-status-success/15' : 'bg-surface-secondary'}`}>
+          <Text className={`text-xs capitalize ${status === 'active' ? 'text-status-success' : 'text-text-tertiary'}`}>
+            {status}
+          </Text>
+        </View>
       </View>
 
-      <View style={styles.progressContainer}>
-        <View style={[styles.progressBar, { width: `${Math.max(progress * 100, 2)}%` }]} />
+      {/* Progress bar */}
+      <View className="h-1.5 bg-border-primary rounded-full overflow-hidden mb-2">
+        <View
+          className="h-full bg-brand-default rounded-full"
+          style={{ width: `${Math.max(progress * 100, 2)}%` }}
+        />
       </View>
-      <Text style={styles.progressText}>
+      <Text className="text-text-tertiary text-xs mb-3">
         £{parseFloat(remaining).toFixed(2)} remaining of £{parseFloat(principal).toFixed(2)}
       </Text>
 
-      <View style={styles.details}>
-        <View style={styles.detailRow}>
-          <Text style={styles.detailKey}>Monthly Payment</Text>
-          <Text style={styles.detailValue}>£{parseFloat(monthlyPayment).toFixed(2)}</Text>
+      <View>
+        <View className="flex-row justify-between py-1.5">
+          <Text className="text-text-tertiary text-sm">Monthly Payment</Text>
+          <Text className="text-text-primary text-sm font-medium">£{parseFloat(monthlyPayment).toFixed(2)}</Text>
         </View>
-        <View style={styles.detailRow}>
-          <Text style={styles.detailKey}>Interest Rate</Text>
-          <Text style={styles.detailValue}>{rate}% APR</Text>
+        <View className="flex-row justify-between py-1.5">
+          <Text className="text-text-tertiary text-sm">Interest Rate</Text>
+          <Text className="text-text-primary text-sm font-medium">{rate}% APR</Text>
         </View>
-        <View style={styles.detailRow}>
-          <Text style={styles.detailKey}>Next Payment</Text>
-          <Text style={styles.detailValue}>{nextDate}</Text>
+        <View className="flex-row justify-between py-1.5">
+          <Text className="text-text-tertiary text-sm">Next Payment</Text>
+          <Text className="text-text-primary text-sm font-medium">{nextDate}</Text>
         </View>
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: '#1a1a2e',
-    borderRadius: 16,
-    padding: 16,
-    marginVertical: 8,
-    marginHorizontal: 4,
-    borderWidth: 1,
-    borderColor: '#2d2d44',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  title: { color: '#8b8ba7', fontSize: 13, fontWeight: '500', textTransform: 'uppercase' },
-  badge: {
-    color: '#8b8ba7',
-    fontSize: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
-    backgroundColor: '#2d2d44',
-    overflow: 'hidden',
-    textTransform: 'capitalize',
-  },
-  activeBadge: { color: '#2ecc71', backgroundColor: 'rgba(46,204,113,0.15)' },
-  progressContainer: {
-    height: 6,
-    backgroundColor: '#2d2d44',
-    borderRadius: 3,
-    marginBottom: 8,
-  },
-  progressBar: {
-    height: 6,
-    backgroundColor: '#6c5ce7',
-    borderRadius: 3,
-  },
-  progressText: { color: '#8b8ba7', fontSize: 12, marginBottom: 12 },
-  details: {},
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 6,
-  },
-  detailKey: { color: '#8b8ba7', fontSize: 14 },
-  detailValue: { color: '#fff', fontSize: 14, fontWeight: '500' },
-});

@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, FlatList } from 'react-native';
+import { View, Text } from 'react-native';
 
 interface Transaction {
   amount: string;
@@ -26,17 +26,22 @@ export function TransactionListCard({ transactions }: TransactionListCardProps) 
   };
 
   return (
-    <View style={styles.card}>
-      <Text style={styles.title}>Recent Transactions</Text>
+    <View className="bg-surface-primary border border-border-primary rounded-2xl p-4 my-2 mx-1">
+      <Text className="text-text-tertiary text-xs font-medium uppercase mb-3">Recent Transactions</Text>
       {transactions.map((tx, index) => (
-        <View key={index} style={[styles.row, index < transactions.length - 1 && styles.rowBorder]}>
-          <View style={styles.left}>
-            <Text style={styles.type}>
+        <View
+          key={index}
+          className={`flex-row justify-between items-center py-2.5 ${index < transactions.length - 1 ? 'border-b border-border-primary' : ''}`}
+        >
+          <View className="flex-1">
+            <Text className="text-text-primary text-sm font-medium">
               {tx.description || tx.type || 'Transaction'}
             </Text>
-            <Text style={styles.date}>{formatDate(tx.date)}</Text>
+            <Text className="text-text-tertiary text-xs mt-0.5">{formatDate(tx.date)}</Text>
           </View>
-          <Text style={[styles.amount, tx.direction === 'credit' ? styles.credit : styles.debit]}>
+          <Text
+            className={`text-sm font-semibold ${tx.direction === 'credit' ? 'text-money-positive' : 'text-money-negative'}`}
+          >
             {formatAmount(tx.amount, tx.direction)}
           </Text>
         </View>
@@ -44,38 +49,3 @@ export function TransactionListCard({ transactions }: TransactionListCardProps) 
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: '#1a1a2e',
-    borderRadius: 16,
-    padding: 16,
-    marginVertical: 8,
-    marginHorizontal: 4,
-    borderWidth: 1,
-    borderColor: '#2d2d44',
-  },
-  title: {
-    color: '#8b8ba7',
-    fontSize: 13,
-    fontWeight: '500',
-    marginBottom: 12,
-    textTransform: 'uppercase',
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 10,
-  },
-  rowBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#2d2d44',
-  },
-  left: { flex: 1 },
-  type: { color: '#fff', fontSize: 15, fontWeight: '500' },
-  date: { color: '#8b8ba7', fontSize: 12, marginTop: 2 },
-  amount: { fontSize: 15, fontWeight: '600' },
-  credit: { color: '#2ecc71' },
-  debit: { color: '#e74c3c' },
-});

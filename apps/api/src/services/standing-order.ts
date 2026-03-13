@@ -64,7 +64,7 @@ export class StandingOrderService {
    */
   async getStandingOrders(userId: string): Promise<{ orders: StandingOrder[] }> {
     const { data, error } = await this.supabase
-      .from('standing_orders' as any)
+      .from('standing_orders')
       .select('*')
       .eq('user_id', userId)
       .eq('status', 'active')
@@ -118,7 +118,7 @@ export class StandingOrderService {
 
     // Resolve beneficiary by name
     const { data: bens, error: benError } = await this.supabase
-      .from('beneficiaries' as any)
+      .from('beneficiaries')
       .select('id, name')
       .eq('user_id', userId) as any;
 
@@ -126,18 +126,21 @@ export class StandingOrderService {
       throw new DomainError('PROVIDER_UNAVAILABLE', 'Failed to look up beneficiaries');
     }
 
-    const matches = ((bens as any[]) || []).filter(
+    // Try exact match first, then fall back to partial (case-insensitive contains)
+    const exactMatches = ((bens as any[]) || []).filter(
       (b: any) => b.name.toLowerCase() === params.beneficiary_name.toLowerCase(),
     );
+    const partialMatches = exactMatches.length > 0
+      ? exactMatches
+      : ((bens as any[]) || []).filter(
+          (b: any) => b.name.toLowerCase().includes(params.beneficiary_name.toLowerCase()),
+        );
+    // If multiple partial matches, sort alphabetically and use first
+    const matches = partialMatches.sort((a: any, b: any) => a.name.localeCompare(b.name));
 
     if (matches.length === 0) {
       throw new ValidationError(
         `No beneficiary found with name "${params.beneficiary_name}". Please add them first.`,
-      );
-    }
-    if (matches.length > 1) {
-      throw new ValidationError(
-        `Multiple beneficiaries match "${params.beneficiary_name}". Please use a more specific name.`,
       );
     }
 
@@ -147,7 +150,7 @@ export class StandingOrderService {
     const nextRunDate = this.calculateNextRunDate(params.frequency, params.day_of_month);
 
     const { data: row, error } = await this.supabase
-      .from('standing_orders' as any)
+      .from('standing_orders')
       .insert({
         user_id: userId,
         beneficiary_id: beneficiary.id,
@@ -208,7 +211,7 @@ export class StandingOrderService {
   ): Promise<ServiceResult<{ standing_order_id: string; cancelled: true }>> {
     // Fetch the order
     const { data: existing, error: fetchError } = await this.supabase
-      .from('standing_orders' as any)
+      .from('standing_orders')
       .select('*')
       .eq('id', standingOrderId)
       .eq('user_id', userId)
@@ -223,7 +226,7 @@ export class StandingOrderService {
     }
 
     const { error } = await this.supabase
-      .from('standing_orders' as any)
+      .from('standing_orders')
       .update({
         status: 'cancelled',
         cancelled_at: new Date().toISOString(),

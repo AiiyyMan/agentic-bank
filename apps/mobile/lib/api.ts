@@ -28,10 +28,27 @@ async function refreshAndGetHeaders(): Promise<Record<string, string>> {
 const REQUEST_TIMEOUT_MS = 15_000;
 const CHAT_TIMEOUT_MS = 45_000; // Agent loop can take 30s+ for multi-tool turns
 
-async function apiRequest<T>(path: string, options: RequestInit = {}, retried = false): Promise<T> {
+// Serialise concurrent 401 refreshes — only one refresh in flight at a time
+let _refreshPromise: Promise<Record<string, string>> | null = null;
+
+async function refreshAndRetry(): Promise<Record<string, string>> {
+  if (!_refreshPromise) {
+    _refreshPromise = refreshAndGetHeaders().finally(() => {
+      _refreshPromise = null;
+    });
+  }
+  return _refreshPromise;
+}
+
+async function apiRequest<T>(
+  path: string,
+  options: RequestInit = {},
+  retried = false,
+  timeoutMs = REQUEST_TIMEOUT_MS,
+): Promise<T> {
   const headers = await getAuthHeaders();
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const response = await fetch(`${API_URL}${path}`, {
@@ -40,12 +57,12 @@ async function apiRequest<T>(path: string, options: RequestInit = {}, retried = 
       signal: controller.signal,
     });
 
-    // 401 — token expired; refresh once and retry
+    // 401 — token expired; refresh once and retry (serialised via _refreshPromise)
     if (response.status === 401 && !retried) {
-      const refreshedHeaders = await refreshAndGetHeaders();
+      const refreshedHeaders = await refreshAndRetry();
       clearTimeout(timeout);
       const retryController = new AbortController();
-      const retryTimeout = setTimeout(() => retryController.abort(), REQUEST_TIMEOUT_MS);
+      const retryTimeout = setTimeout(() => retryController.abort(), timeoutMs);
       try {
         const retryResponse = await fetch(`${API_URL}${path}`, {
           ...options,
@@ -85,29 +102,17 @@ export async function healthCheck(): Promise<HealthCheck> {
   }
 }
 
-// Chat
+// Chat — routes through apiRequest for 401 refresh + serialised lock
 export async function sendChatMessage(request: ChatRequest): Promise<AgentResponse> {
-  const headers = await getAuthHeaders();
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), CHAT_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(`${API_URL}/api/chat`, {
+  return apiRequest<AgentResponse>(
+    '/api/chat',
+    {
       method: 'POST',
-      headers,
       body: JSON.stringify(request),
-      signal: controller.signal,
-    });
-
-    if (!response.ok) {
-      const errorBody = await response.text();
-      throw new Error(`API error ${response.status}: ${errorBody}`);
-    }
-
-    return response.json() as Promise<AgentResponse>;
-  } finally {
-    clearTimeout(timeout);
-  }
+    },
+    false,
+    CHAT_TIMEOUT_MS,
+  );
 }
 
 // Confirm pending action
@@ -229,4 +234,9 @@ export async function getPots(): Promise<any> {
 // Beneficiaries
 export async function getBeneficiaries(): Promise<any> {
   return apiRequest('/api/beneficiaries');
+}
+
+// Flex plans
+export async function getFlexPlans(): Promise<any> {
+  return apiRequest('/api/flex/plans');
 }

@@ -1,11 +1,13 @@
 import { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  RefreshControl, ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
-import { getBalance as fetchBalance, getTransactions as fetchTransactions, getLoans, getPots } from '../../lib/api';
+import { getBalance as fetchBalance, getTransactions as fetchTransactions, getLoans, getPots, getProactiveCards } from '../../lib/api';
 import { DashboardSkeleton } from '../../components/Skeleton';
+import { InsightCard } from '../../components/chat/InsightCard';
+import { useTokens } from '../../theme/tokens';
 
 interface BalanceData {
   balance: string;
@@ -39,25 +41,35 @@ interface Pot {
   progress_percent: number | null;
 }
 
+interface InsightItem {
+  title: string;
+  message: string;
+  category?: string;
+  change_percent?: number;
+  period?: string;
+}
+
 export default function DashboardScreen() {
   const [balance, setBalance] = useState<BalanceData | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loans, setLoans] = useState<LoanSummary[]>([]);
   const [pots, setPots] = useState<Pot[]>([]);
+  const [insights, setInsights] = useState<InsightItem[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const t = useTokens();
 
   const fetchData = useCallback(async () => {
     try {
       setError('');
 
-      // Fetch balance, transactions, loans, and pots directly (no agent loop)
-      const [balanceRes, txRes, loansRes, potsRes] = await Promise.allSettled([
+      const [balanceRes, txRes, loansRes, potsRes, insightsRes] = await Promise.allSettled([
         fetchBalance(),
         fetchTransactions(5),
         getLoans(),
         getPots(),
+        getProactiveCards(),
       ]);
 
       if (balanceRes.status === 'fulfilled') {
@@ -74,6 +86,10 @@ export default function DashboardScreen() {
 
       if (potsRes.status === 'fulfilled' && potsRes.value.pots) {
         setPots(potsRes.value.pots);
+      }
+
+      if (insightsRes.status === 'fulfilled' && insightsRes.value?.cards) {
+        setInsights(insightsRes.value.cards.slice(0, 2));
       }
     } catch (err: any) {
       setError(err.message || 'Failed to load data');
@@ -101,319 +117,212 @@ export default function DashboardScreen() {
 
   return (
     <ScrollView
-      style={styles.container}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6c5ce7" />}
+      className="flex-1 bg-background-primary"
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor={t.brand.default}
+        />
+      }
     >
       {error ? (
-        <View style={styles.errorBanner}>
-          <Text style={styles.errorText}>{error}</Text>
+        <View className="mx-4 mt-4 p-3 bg-status-error/10 rounded-xl flex-row justify-between items-center">
+          <Text className="text-status-error text-sm flex-1">{error}</Text>
           <TouchableOpacity onPress={onRefresh}>
-            <Text style={styles.retryText}>Retry</Text>
+            <Text className="text-brand-default font-semibold ml-3">Retry</Text>
           </TouchableOpacity>
         </View>
       ) : null}
 
       {/* Balance Card */}
-      <View style={styles.balanceCard}>
-        <Text style={styles.balanceLabel}>Available Balance</Text>
-        <Text style={styles.balanceAmount}>
+      <View className="m-4 p-6 bg-brand-default rounded-2xl">
+        <Text className="text-white/70 text-sm font-medium mb-2">Available Balance</Text>
+        <Text className="text-white text-4xl font-bold">
           {balance ? `£${parseFloat(balance.balance).toLocaleString('en-GB', { minimumFractionDigits: 2 })}` : '—'}
         </Text>
         {balance?.account_name && (
-          <Text style={styles.accountInfo}>{balance.account_name}</Text>
+          <Text className="text-white/80 text-sm mt-2">{balance.account_name}</Text>
         )}
         {balance?.account_number && (
-          <Text style={styles.accountNumber}>{balance.account_number}</Text>
+          <Text className="text-white/50 text-xs mt-1">{balance.account_number}</Text>
         )}
       </View>
 
+      {/* Proactive Insights (max 2, hidden when empty) */}
+      {insights.length > 0 && (
+        <View className="px-4 mb-2">
+          {insights.map((insight, index) => (
+            <InsightCard
+              key={index}
+              title={insight.title}
+              message={insight.message}
+              category={insight.category}
+              changePercent={insight.change_percent}
+              period={insight.period}
+            />
+          ))}
+        </View>
+      )}
+
       {/* Pots Section */}
-      <View style={styles.section}>
+      <View className="px-4 mb-6">
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Savings Pots</Text>
+          <Text className="text-text-tertiary text-xs font-medium uppercase tracking-wide">Savings Pots</Text>
           <TouchableOpacity onPress={() => router.push('/chat')}>
-            <Text style={styles.seeAll}>+ New pot</Text>
+            <Text className="text-brand-default text-sm font-medium">+ New pot</Text>
           </TouchableOpacity>
         </View>
         {pots.length === 0 ? (
           <TouchableOpacity
-            style={styles.createPotCta}
+            className="flex-row items-center bg-surface-primary border border-border-primary rounded-xl p-4 gap-3"
             onPress={() => router.push('/chat')}
           >
             <Text style={styles.createPotIcon}>🏦</Text>
-            <View style={styles.createPotText}>
-              <Text style={styles.createPotTitle}>Create a pot</Text>
-              <Text style={styles.createPotSubtitle}>Save towards a goal</Text>
+            <View className="flex-1">
+              <Text className="text-text-primary text-sm font-medium">Create a pot</Text>
+              <Text className="text-text-tertiary text-xs mt-0.5">Save towards a goal</Text>
             </View>
-            <Text style={styles.createPotArrow}>→</Text>
+            <Text className="text-brand-default text-lg">→</Text>
           </TouchableOpacity>
         ) : (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.potsScroll}>
             {pots.slice(0, 3).map((pot) => (
-              <View key={pot.id} style={styles.potCard}>
+              <View key={pot.id} className="w-28 bg-surface-primary border border-border-primary rounded-xl p-3.5 mr-2">
                 <Text style={styles.potEmoji}>{pot.emoji || '🏦'}</Text>
-                <Text style={styles.potName} numberOfLines={1}>{pot.name}</Text>
-                <Text style={styles.potBalance}>
+                <Text className="text-text-tertiary text-xs mb-1" numberOfLines={1}>{pot.name}</Text>
+                <Text className="text-text-primary text-sm font-semibold">
                   £{pot.balance.toLocaleString('en-GB', { minimumFractionDigits: 2 })}
                 </Text>
                 {pot.goal_amount != null && pot.goal_amount > 0 && (
-                  <View style={styles.potProgressBar}>
+                  <View className="h-0.5 bg-border-primary rounded mt-2 overflow-hidden">
                     <View
-                      style={[
-                        styles.potProgressFill,
-                        { width: `${Math.min(100, pot.progress_percent ?? 0)}%` },
-                      ]}
+                      className="h-full bg-brand-default rounded"
+                      style={{ width: `${Math.min(100, pot.progress_percent ?? 0)}%` }}
                     />
                   </View>
                 )}
               </View>
             ))}
             <TouchableOpacity
-              style={[styles.potCard, styles.potCardAdd]}
+              className="w-28 bg-surface-primary border border-border-primary rounded-xl p-3.5 mr-2 justify-center items-center"
               onPress={() => router.push('/chat')}
             >
-              <Text style={styles.potAddIcon}>+</Text>
+              <Text className="text-brand-default text-2xl font-light">+</Text>
             </TouchableOpacity>
           </ScrollView>
         )}
       </View>
 
       {/* Quick Actions */}
-      <View style={styles.quickActions}>
+      <View className="flex-row justify-around px-4 mb-6">
         <TouchableOpacity
-          style={styles.actionButton}
+          className="items-center bg-surface-primary border border-border-primary rounded-xl p-4 w-24"
           onPress={() => router.push('/chat')}
         >
           <Text style={styles.actionIcon}>💬</Text>
-          <Text style={styles.actionLabel}>Ask Agent</Text>
+          <Text className="text-text-primary text-xs font-medium mt-2">Ask Agent</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={styles.actionButton}
+          className="items-center bg-surface-primary border border-border-primary rounded-xl p-4 w-24"
           onPress={() => router.push('/(tabs)/transactions')}
         >
           <Text style={styles.actionIcon}>📋</Text>
-          <Text style={styles.actionLabel}>History</Text>
+          <Text className="text-text-primary text-xs font-medium mt-2">History</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={styles.actionButton}
+          className="items-center bg-surface-primary border border-border-primary rounded-xl p-4 w-24"
           onPress={() => router.push('/chat')}
         >
           <Text style={styles.actionIcon}>💸</Text>
-          <Text style={styles.actionLabel}>Send</Text>
+          <Text className="text-text-primary text-xs font-medium mt-2">Send</Text>
         </TouchableOpacity>
       </View>
 
       {/* Active Loans */}
-      {loans.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Active Loans</Text>
-          {loans.map((loan) => (
-            <View key={loan.id} style={styles.loanCard}>
-              <View style={styles.loanHeader}>
-                <Text style={styles.loanAmount}>£{loan.principal.toLocaleString('en-GB', { minimumFractionDigits: 2 })}</Text>
-                <Text style={styles.loanStatus}>{loan.status}</Text>
+      <View className="px-4 mb-6">
+        <Text className="text-text-tertiary text-xs font-medium uppercase tracking-wide mb-3">Active Loans</Text>
+        {loans.length === 0 ? (
+          <View className="bg-surface-primary border border-border-primary rounded-xl p-4 flex-row items-center gap-3">
+            <Text style={styles.emptyIcon}>🏦</Text>
+            <Text className="text-text-tertiary text-sm">No active loans</Text>
+          </View>
+        ) : (
+          loans.map((loan) => (
+            <View key={loan.id} className="bg-surface-primary border border-border-primary rounded-xl p-4 mb-2">
+              <View className="flex-row justify-between mb-2">
+                <Text className="text-text-primary text-lg font-semibold">
+                  £{loan.principal.toLocaleString('en-GB', { minimumFractionDigits: 2 })}
+                </Text>
+                <Text className="text-status-success text-sm font-medium uppercase">{loan.status}</Text>
               </View>
-              <View style={styles.loanDetails}>
-                <Text style={styles.loanDetail}>Remaining: £{loan.remaining.toLocaleString('en-GB', { minimumFractionDigits: 2 })}</Text>
-                <Text style={styles.loanDetail}>Monthly: £{loan.monthly_payment.toFixed(2)}</Text>
+              <View className="flex-row justify-between mb-2">
+                <Text className="text-text-tertiary text-sm">
+                  Remaining: £{loan.remaining.toLocaleString('en-GB', { minimumFractionDigits: 2 })}
+                </Text>
+                <Text className="text-text-tertiary text-sm">
+                  Monthly: £{loan.monthly_payment.toFixed(2)}
+                </Text>
               </View>
-              {/* Progress bar */}
-              <View style={styles.progressBar}>
-                <View style={[styles.progressFill, { width: `${Math.max(0, Math.min(100, ((loan.principal - loan.remaining) / loan.principal) * 100))}%` }]} />
+              <View className="h-1 bg-border-primary rounded overflow-hidden">
+                <View
+                  className="h-full bg-brand-default rounded"
+                  style={{ width: `${Math.max(0, Math.min(100, ((loan.principal - loan.remaining) / loan.principal) * 100))}%` }}
+                />
               </View>
             </View>
-          ))}
-        </View>
-      )}
+          ))
+        )}
+      </View>
 
       {/* Recent Transactions */}
-      {transactions.length > 0 && (
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recent Transactions</Text>
-            <TouchableOpacity onPress={() => router.push('/(tabs)/transactions')}>
-              <Text style={styles.seeAll}>See All</Text>
-            </TouchableOpacity>
+      <View className="px-4 mb-6">
+        <View style={styles.sectionHeader}>
+          <Text className="text-text-tertiary text-xs font-medium uppercase tracking-wide">Recent Transactions</Text>
+          <TouchableOpacity onPress={() => router.push('/(tabs)/transactions')}>
+            <Text className="text-brand-default text-sm font-medium">See All</Text>
+          </TouchableOpacity>
+        </View>
+        {transactions.length === 0 ? (
+          <View className="bg-surface-primary border border-border-primary rounded-xl p-4 flex-row items-center gap-3">
+            <Text style={styles.emptyIcon}>📋</Text>
+            <Text className="text-text-tertiary text-sm">No recent transactions</Text>
           </View>
-          {transactions.map((tx, index) => (
-            <View key={index} style={styles.txRow}>
-              <View style={styles.txLeft}>
-                <Text style={styles.txType}>{tx.type}</Text>
-                <Text style={styles.txDate}>{new Date(tx.date).toLocaleDateString('en-GB')}</Text>
+        ) : (
+          transactions.map((tx, index) => (
+            <View key={index} className="flex-row justify-between items-center bg-surface-primary border border-border-primary rounded-lg p-3.5 mb-1.5">
+              <View>
+                <Text className="text-text-primary text-sm">{tx.type}</Text>
+                <Text className="text-text-tertiary text-xs mt-0.5">{new Date(tx.date).toLocaleDateString('en-GB')}</Text>
               </View>
-              <Text style={[styles.txAmount, tx.direction === 'credit' ? styles.credit : styles.debit]}>
+              <Text
+                className={`text-sm font-semibold ${tx.direction === 'credit' ? 'text-money-positive' : 'text-money-negative'}`}
+              >
                 {tx.direction === 'credit' ? '+' : '-'}£{Math.abs(parseFloat(tx.amount)).toFixed(2)}
               </Text>
             </View>
-          ))}
-        </View>
-      )}
+          ))
+        )}
+      </View>
 
       {/* CTA to chat */}
       <TouchableOpacity
-        style={styles.chatCta}
+        className="mx-4 p-4 bg-brand-default rounded-xl items-center"
         onPress={() => router.push('/chat')}
       >
-        <Text style={styles.chatCtaText}>Need help? Chat with your banking assistant</Text>
+        <Text className="text-white text-sm font-medium">Need help? Chat with your banking assistant</Text>
       </TouchableOpacity>
 
-      <View style={{ height: 40 }} />
+      <View className="h-10" />
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f0f23' },
-  centered: { justifyContent: 'center', alignItems: 'center' },
-  loadingText: { color: '#8b8ba7', marginTop: 12, fontSize: 14 },
-
-  errorBanner: {
-    backgroundColor: '#2d1b1b',
-    padding: 12,
-    marginHorizontal: 16,
-    marginTop: 16,
-    borderRadius: 8,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  errorText: { color: '#e74c3c', fontSize: 13, flex: 1 },
-  retryText: { color: '#6c5ce7', fontWeight: '600', marginLeft: 12 },
-
-  balanceCard: {
-    margin: 16,
-    padding: 24,
-    backgroundColor: '#1a1a2e',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#6c5ce7',
-  },
-  balanceLabel: { color: '#8b8ba7', fontSize: 14, marginBottom: 8 },
-  balanceAmount: { color: '#fff', fontSize: 36, fontWeight: '700' },
-  accountInfo: { color: '#8b8ba7', fontSize: 13, marginTop: 8 },
-  accountNumber: { color: '#555', fontSize: 12, marginTop: 4 },
-
-  quickActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingHorizontal: 16,
-    marginBottom: 24,
-  },
-  actionButton: {
-    alignItems: 'center',
-    backgroundColor: '#1a1a2e',
-    borderRadius: 12,
-    padding: 16,
-    width: 100,
-    borderWidth: 1,
-    borderColor: '#2d2d44',
-  },
-  actionIcon: { fontSize: 24, marginBottom: 8 },
-  actionLabel: { color: '#fff', fontSize: 12, fontWeight: '500' },
-
-  section: { paddingHorizontal: 16, marginBottom: 24 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  sectionTitle: { color: '#8b8ba7', fontSize: 14, fontWeight: '500', textTransform: 'uppercase', marginBottom: 12 },
-  seeAll: { color: '#6c5ce7', fontSize: 13, fontWeight: '500' },
-
-  loanCard: {
-    backgroundColor: '#1a1a2e',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#2d2d44',
-    marginBottom: 8,
-  },
-  loanHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  loanAmount: { color: '#fff', fontSize: 18, fontWeight: '600' },
-  loanStatus: { color: '#2ecc71', fontSize: 13, fontWeight: '500', textTransform: 'uppercase' },
-  loanDetails: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  loanDetail: { color: '#8b8ba7', fontSize: 13 },
-  progressBar: {
-    height: 4,
-    backgroundColor: '#2d2d44',
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#6c5ce7',
-    borderRadius: 2,
-  },
-
-  txRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#1a1a2e',
-    padding: 14,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#2d2d44',
-    marginBottom: 6,
-  },
-  txLeft: {},
-  txType: { color: '#fff', fontSize: 14 },
-  txDate: { color: '#555', fontSize: 12, marginTop: 2 },
-  txAmount: { fontSize: 15, fontWeight: '600' },
-  credit: { color: '#2ecc71' },
-  debit: { color: '#e74c3c' },
-
-  chatCta: {
-    marginHorizontal: 16,
-    padding: 16,
-    backgroundColor: '#6c5ce7',
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  chatCtaText: { color: '#fff', fontSize: 14, fontWeight: '500' },
-
   potsScroll: { marginHorizontal: -4 },
-  potCard: {
-    width: 120,
-    backgroundColor: '#1a1a2e',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#2d2d44',
-    padding: 14,
-    marginRight: 8,
-    marginHorizontal: 4,
-  },
-  potCardAdd: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderStyle: 'dashed',
-  },
-  potEmoji: { fontSize: 22, marginBottom: 6 },
-  potName: { color: '#8b8ba7', fontSize: 12, marginBottom: 4 },
-  potBalance: { color: '#fff', fontSize: 14, fontWeight: '600' },
-  potProgressBar: {
-    height: 3,
-    backgroundColor: '#2d2d44',
-    borderRadius: 2,
-    overflow: 'hidden',
-    marginTop: 8,
-  },
-  potProgressFill: {
-    height: '100%',
-    backgroundColor: '#6c5ce7',
-    borderRadius: 2,
-  },
-  potAddIcon: { color: '#6c5ce7', fontSize: 24, fontWeight: '300' },
-
-  createPotCta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1a1a2e',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#2d2d44',
-    padding: 16,
-    gap: 12,
-  },
   createPotIcon: { fontSize: 24 },
-  createPotText: { flex: 1 },
-  createPotTitle: { color: '#fff', fontSize: 14, fontWeight: '500' },
-  createPotSubtitle: { color: '#8b8ba7', fontSize: 12, marginTop: 2 },
-  createPotArrow: { color: '#6c5ce7', fontSize: 18 },
+  potEmoji: { fontSize: 22, marginBottom: 6 },
+  actionIcon: { fontSize: 24 },
+  emptyIcon: { fontSize: 20 },
 });

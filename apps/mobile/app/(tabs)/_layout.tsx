@@ -4,10 +4,6 @@ import { ChatFAB } from '../../components/ChatFAB';
 import { useTokens } from '../../theme/tokens';
 import { NotificationBell } from '../../components/NotificationBell';
 
-function HomeIcon({ focused }: { focused: boolean }) {
-  return <View style={{ opacity: focused ? 1 : 0.45 }}><View style={{ width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: focused ? '#6c5ce7' : '#8b8ba7' }} /></View>;
-}
-
 // Simple tab icon text labels (emoji stripped for design consistency — could be replaced with Phosphor icons)
 const TAB_ICONS: Record<string, { active: string; inactive: string }> = {
   Home: { active: '⌂', inactive: '⌂' },

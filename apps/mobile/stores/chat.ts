@@ -39,6 +39,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
       text,
       timestamp: new Date(),
     };
+    // Prepend (newest first) — chat.tsx FlatList uses `inverted` prop,
+    // which reverses rendering so the newest message appears at the bottom.
     set((s) => ({ messages: [msg, ...s.messages] }));
     return msg;
   },
@@ -51,6 +53,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       ui_components,
       timestamp: new Date(),
     };
+    // Prepend (newest first) — same inverted FlatList pattern as addUserMessage.
     set((s) => ({
       messages: [msg, ...s.messages],
       conversationId: conversationId ?? s.conversationId,

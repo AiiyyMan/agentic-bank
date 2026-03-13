@@ -21,6 +21,7 @@ import { DatePickerCard } from './DatePickerCard';
 import { AutoSaveRuleCard } from './AutoSaveRuleCard';
 import { QuoteCard } from './QuoteCard';
 import { FlexOptionsCard } from './FlexOptionsCard';
+import { StandingOrderCard } from './StandingOrderCard';
 import type { UIComponent } from '@agentic-bank/shared';
 
 interface UIComponentRendererProps {
@@ -270,6 +271,20 @@ export function UIComponentRenderer({ components, onRefresh, onQuickReply }: UIC
                 key={index}
                 transactions={data.transactions || data.eligible_transactions || []}
                 onSelect={onQuickReply}
+              />
+            );
+
+          case 'standing_order_card':
+            return (
+              <StandingOrderCard
+                key={index}
+                id={String(data.id || '')}
+                beneficiaryName={String(data.beneficiary_name || data.beneficiaryName || '')}
+                amount={Number(data.amount || 0)}
+                frequency={String(data.frequency || 'monthly')}
+                nextDate={String(data.next_date || data.nextDate || '')}
+                status={String(data.status || 'active')}
+                reference={data.reference ? String(data.reference) : undefined}
               />
             );
 

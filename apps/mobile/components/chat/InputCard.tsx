@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
+import { useTokens } from '../../theme/tokens';
 
 export interface InputField {
   key: string;
@@ -21,6 +22,7 @@ export function InputCard({ title, subtitle, fields, submitLabel = 'Submit', onS
   const [values, setValues] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const t = useTokens();
 
   const handleSubmit = () => {
     if (submitted) return;
@@ -70,13 +72,13 @@ export function InputCard({ title, subtitle, fields, submitLabel = 'Submit', onS
                 }
               }}
               placeholder={field.placeholder}
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={t.text.tertiary}
               secureTextEntry={field.type === 'password'}
               keyboardType={getKeyboardType(field.type)}
               autoCapitalize={field.type === 'email' ? 'none' : 'sentences'}
               editable={!submitted}
               className="bg-background-secondary border border-border-default rounded-xl px-4 py-3 text-text-primary text-[15px]"
-              style={{ borderColor: errors[field.key] ? '#e74c3c' : undefined }}
+              style={{ borderColor: errors[field.key] ? t.border.error : undefined }}
             />
             {errors[field.key] && (
               <Text className="text-status-error-text text-xs mt-1">{errors[field.key]}</Text>

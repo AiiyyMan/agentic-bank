@@ -1,4 +1,3 @@
-import { randomUUID } from 'crypto';
 import { getBankingAdapter } from '../adapters/index.js';
 import { validateAmount, validateSortCode, validateAccountNumber } from '../lib/validation.js';
 import { providerUnavailable, validationError, notFoundError } from '../lib/errors.js';
@@ -111,7 +110,7 @@ async function executeReadTool(
 
       // Build query with filters
       let query = getSupabase()
-        .from('transactions' as any)
+        .from('transactions')
         .select('*', { count: 'exact' })
         .eq('user_id', user.id);
 
@@ -168,7 +167,7 @@ async function executeReadTool(
 
     case 'get_pots': {
       const { data: pots } = await getSupabase()
-        .from('pots' as any)
+        .from('pots')
         .select('*')
         .eq('user_id', user.id)
         .eq('is_closed', false)
@@ -390,7 +389,7 @@ async function createPendingAction(
       tool_name: toolName,
       params,
       status: 'pending',
-      idempotency_key: `${user.id}-${toolName}-${randomUUID()}`,
+      idempotency_key: `${user.id}-${toolName}-${JSON.stringify(params).slice(0, 64)}`,
       expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
     })
     .select()
@@ -613,7 +612,7 @@ async function executeWriteTool(
 
       // Find the beneficiary by name in local DB
       const { data: bens } = await getSupabase()
-        .from('beneficiaries' as any)
+        .from('beneficiaries')
         .select('id, name')
         .eq('user_id', user.id);
 
@@ -631,10 +630,12 @@ async function executeWriteTool(
 
       const result = await adapter.createPayment(user.id, ben.id, amount, reference);
 
-      // TODO: Replace with webhook-based transaction sync for production
-      // Insert enriched transaction row into local table
+      // TODO: Replace with webhook-based transaction sync for production.
+      // TODO (M6): Add idempotency_key column to transactions table in migration,
+      //   then switch to: .upsert({ idempotency_key: `txn-${actionId}`, ... }, { onConflict: 'idempotency_key', ignoreDuplicates: true })
+      //   Currently using griffin_transaction_id as a dedup field where available.
       await getSupabase()
-        .from('transactions' as any)
+        .from('transactions')
         .insert({
           user_id: user.id,
           merchant_name: beneficiaryName,
@@ -645,6 +646,7 @@ async function executeWriteTool(
           is_recurring: false,
           reference: reference || null,
           posted_at: new Date().toISOString(),
+          griffin_transaction_id: result.payment_id || null,
         } as any);
 
       // Fetch live balance after successful payment
@@ -687,14 +689,21 @@ async function executeWriteTool(
     }
 
     case 'apply_for_loan': {
-      const lendingService = new LendingService(getSupabase(), adapter);
-      const result = await lendingService.applyForLoan(
-        user.id,
-        Number(params.amount),
-        Number(params.term_months),
-        String(params.purpose || 'Not specified'),
-      );
-      return result.data as Record<string, unknown>;
+      try {
+        const lendingService = new LendingService(getSupabase(), adapter);
+        const result = await lendingService.applyForLoan(
+          user.id,
+          Number(params.amount),
+          Number(params.term_months),
+          String(params.purpose || 'Not specified'),
+        );
+        return result.data as Record<string, unknown>;
+      } catch (err) {
+        if (err instanceof DomainError) {
+          return { error: true, code: err.code, message: err.message };
+        }
+        throw err;
+      }
     }
 
     case 'make_loan_payment': {
@@ -708,22 +717,36 @@ async function executeWriteTool(
     }
 
     case 'flex_purchase': {
-      const lendingService = new LendingService(getSupabase(), adapter);
-      const result = await lendingService.createFlexPlan(
-        user.id,
-        String(params.transaction_id),
-        Number(params.plan_months),
-      );
-      return result.data as Record<string, unknown>;
+      try {
+        const lendingService = new LendingService(getSupabase(), adapter);
+        const result = await lendingService.createFlexPlan(
+          user.id,
+          String(params.transaction_id),
+          Number(params.plan_months),
+        );
+        return result.data as Record<string, unknown>;
+      } catch (err) {
+        if (err instanceof DomainError) {
+          return { error: true, code: err.code, message: err.message };
+        }
+        throw err;
+      }
     }
 
     case 'pay_off_flex': {
-      const lendingService = new LendingService(getSupabase(), adapter);
-      const result = await lendingService.payOffFlex(
-        user.id,
-        String(params.plan_id),
-      );
-      return result.data as Record<string, unknown>;
+      try {
+        const lendingService = new LendingService(getSupabase(), adapter);
+        const result = await lendingService.payOffFlex(
+          user.id,
+          String(params.plan_id),
+        );
+        return result.data as Record<string, unknown>;
+      } catch (err) {
+        if (err instanceof DomainError) {
+          return { error: true, code: err.code, message: err.message };
+        }
+        throw err;
+      }
     }
 
     case 'delete_beneficiary': {

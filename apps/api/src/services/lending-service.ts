@@ -764,6 +764,58 @@ export class LendingService {
   }
 
   // -----------------------------------------------------------------------
+  // Loan Products
+  // -----------------------------------------------------------------------
+
+  async getLoanProducts(): Promise<{ products: Array<Record<string, unknown>> }> {
+    const DEFAULT_PRODUCTS = [
+      { id: 'personal-loan', name: 'Personal Loan', min_amount: 500, max_amount: 25000, interest_rate: 12.9, min_term_months: 6, max_term_months: 60 },
+      { id: 'quick-cash', name: 'Quick Cash', min_amount: 100, max_amount: 2000, interest_rate: 19.9, min_term_months: 3, max_term_months: 12 },
+    ];
+
+    const { data: products } = await this.supabase
+      .from('loan_products')
+      .select('*');
+
+    return {
+      products: (products && products.length > 0 ? products : DEFAULT_PRODUCTS).map((p: any) => ({
+        name: p.name,
+        min_amount: p.min_amount,
+        max_amount: p.max_amount,
+        interest_rate: p.interest_rate,
+        min_term_months: p.min_term_months,
+        max_term_months: p.max_term_months,
+      })),
+    };
+  }
+
+  // -----------------------------------------------------------------------
+  // Loan Applications
+  // -----------------------------------------------------------------------
+
+  async getLoanApplications(userId: string): Promise<{ applications: Array<Record<string, unknown>> }> {
+    const { data: applications } = await this.supabase
+      .from('loan_applications')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    return {
+      applications: ((applications as any[]) || []).map((a: any) => ({
+        id: a.id,
+        amount: a.amount,
+        term_months: a.term_months,
+        purpose: a.purpose,
+        status: a.status,
+        reason: a.decision_reason,
+        rate: a.interest_rate,
+        monthly_payment: a.monthly_payment,
+        created_at: a.created_at,
+      })),
+    };
+  }
+
+  // -----------------------------------------------------------------------
   // Existing: Get user loans
   // -----------------------------------------------------------------------
 
