@@ -14,10 +14,21 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
   };
 }
 
+async function refreshAndGetHeaders(): Promise<Record<string, string>> {
+  const { data, error } = await supabase.auth.refreshSession();
+  if (error || !data.session?.access_token) {
+    throw new Error('Session expired. Please sign in again.');
+  }
+  return {
+    'Authorization': `Bearer ${data.session.access_token}`,
+    'Content-Type': 'application/json',
+  };
+}
+
 const REQUEST_TIMEOUT_MS = 15_000;
 const CHAT_TIMEOUT_MS = 45_000; // Agent loop can take 30s+ for multi-tool turns
 
-async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
+async function apiRequest<T>(path: string, options: RequestInit = {}, retried = false): Promise<T> {
   const headers = await getAuthHeaders();
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -28,6 +39,28 @@ async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T
       headers: { ...headers, ...options.headers },
       signal: controller.signal,
     });
+
+    // 401 — token expired; refresh once and retry
+    if (response.status === 401 && !retried) {
+      const refreshedHeaders = await refreshAndGetHeaders();
+      clearTimeout(timeout);
+      const retryController = new AbortController();
+      const retryTimeout = setTimeout(() => retryController.abort(), REQUEST_TIMEOUT_MS);
+      try {
+        const retryResponse = await fetch(`${API_URL}${path}`, {
+          ...options,
+          headers: { ...refreshedHeaders, ...options.headers },
+          signal: retryController.signal,
+        });
+        if (!retryResponse.ok) {
+          const errorBody = await retryResponse.text();
+          throw new Error(`API error ${retryResponse.status}: ${errorBody}`);
+        }
+        return retryResponse.json() as Promise<T>;
+      } finally {
+        clearTimeout(retryTimeout);
+      }
+    }
 
     if (!response.ok) {
       const errorBody = await response.text();

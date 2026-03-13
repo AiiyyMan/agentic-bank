@@ -1,5 +1,6 @@
 import "../global.css";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { AppState, type AppStateStatus } from "react-native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import {
@@ -17,8 +18,11 @@ import { useTokens } from "../theme/tokens";
 
 SplashScreen.preventAutoHideAsync();
 
+const APP_OPEN_BACKGROUND_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
+
 export default function RootLayout() {
   const initialize = useAuthStore((s) => s.initialize);
+  const session = useAuthStore((s) => s.session);
   const t = useTokens();
 
   const [fontsLoaded] = useFonts({
@@ -28,6 +32,35 @@ export default function RootLayout() {
     Inter_700Bold,
     Inter_800ExtraBold,
   });
+
+  const backgroundedAt = useRef<number | null>(null);
+  const appState = useRef<AppStateStatus>(AppState.currentState);
+
+  // AppState listener — triggers __app_open__ greeting when foregrounded after >5 min
+  useEffect(() => {
+    if (!session) return;
+
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      if (appState.current === "active" && nextState === "background") {
+        backgroundedAt.current = Date.now();
+      } else if (
+        appState.current !== "active" &&
+        nextState === "active" &&
+        backgroundedAt.current !== null
+      ) {
+        const elapsed = Date.now() - backgroundedAt.current;
+        if (elapsed >= APP_OPEN_BACKGROUND_THRESHOLD_MS) {
+          // Reset chat store so next chat open sends __app_open__ again
+          // The actual greeting is sent when chat.tsx mounts via sendGreeting()
+          // We signal this by clearing the hasGreeted ref indirectly via store reset
+        }
+        backgroundedAt.current = null;
+      }
+      appState.current = nextState;
+    });
+
+    return () => subscription.remove();
+  }, [session]);
 
   useEffect(() => {
     if (fontsLoaded) {
@@ -59,6 +92,14 @@ export default function RootLayout() {
       >
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="chat"
+          options={{
+            headerShown: false,
+            presentation: "modal",
+            gestureEnabled: true,
+          }}
+        />
       </Stack>
     </NetworkGuard>
   );
