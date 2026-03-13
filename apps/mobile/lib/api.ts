@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import type { HealthCheck, AgentResponse, ConfirmResponse, ChatRequest } from '@agentic-bank/shared';
+import { parseSSEStream, type SSEEvent } from './streaming';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
 
@@ -27,6 +28,7 @@ async function refreshAndGetHeaders(): Promise<Record<string, string>> {
 
 const REQUEST_TIMEOUT_MS = 15_000;
 const CHAT_TIMEOUT_MS = 45_000; // Agent loop can take 30s+ for multi-tool turns
+const STREAM_TIMEOUT_MS = 60_000; // Streaming: allow longer for full agent loop
 
 // Serialise concurrent 401 refreshes — only one refresh in flight at a time
 let _refreshPromise: Promise<Record<string, string>> | null = null;
@@ -113,6 +115,122 @@ export async function sendChatMessage(request: ChatRequest): Promise<AgentRespon
     false,
     CHAT_TIMEOUT_MS,
   );
+}
+
+// Streaming chat — yields SSEEvents as they arrive from /api/chat/stream
+export async function* streamChatMessage(
+  request: ChatRequest,
+  signal?: AbortSignal,
+): AsyncGenerator<SSEEvent> {
+  // Use a queue + resolve pattern so parseSSEStream (callback-based) can feed an AsyncGenerator
+  const queue: SSEEvent[] = [];
+  let resolveNext: (() => void) | null = null;
+  let streamDone = false;
+  let streamError: Error | null = null;
+
+  function enqueue(event: SSEEvent): void {
+    queue.push(event);
+    if (resolveNext) {
+      const r = resolveNext;
+      resolveNext = null;
+      r();
+    }
+  }
+
+  async function runStream(): Promise<void> {
+    let headers: Record<string, string>;
+    try {
+      headers = await getAuthHeaders();
+    } catch {
+      throw new Error('Not authenticated');
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), STREAM_TIMEOUT_MS);
+
+    // Merge caller's signal with our timeout signal
+    const combinedSignal = signal
+      ? (AbortSignal as any).any
+        ? (AbortSignal as any).any([signal, controller.signal])
+        : controller.signal
+      : controller.signal;
+
+    let response: Response;
+    try {
+      response = await fetch(`${API_URL}/api/chat/stream`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(request),
+        signal: combinedSignal,
+      });
+    } catch (err) {
+      clearTimeout(timeout);
+      throw err;
+    }
+
+    if (response.status === 401) {
+      clearTimeout(timeout);
+      // Refresh once and retry
+      const refreshedHeaders = await refreshAndRetry();
+      const retryController = new AbortController();
+      const retryTimeout = setTimeout(() => retryController.abort(), STREAM_TIMEOUT_MS);
+      try {
+        response = await fetch(`${API_URL}/api/chat/stream`, {
+          method: 'POST',
+          headers: refreshedHeaders,
+          body: JSON.stringify(request),
+          signal: retryController.signal,
+        });
+      } finally {
+        clearTimeout(retryTimeout);
+      }
+    }
+
+    if (!response.ok) {
+      clearTimeout(timeout);
+      const errorBody = await response.text();
+      throw new Error(`API error ${response.status}: ${errorBody}`);
+    }
+
+    try {
+      await parseSSEStream(response, enqueue, combinedSignal);
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  // Run the stream in the background, signalling done/error when finished
+  runStream().then(() => {
+    streamDone = true;
+    if (resolveNext) {
+      const r = resolveNext;
+      resolveNext = null;
+      r();
+    }
+  }).catch((err: Error) => {
+    streamError = err;
+    streamDone = true;
+    if (resolveNext) {
+      const r = resolveNext;
+      resolveNext = null;
+      r();
+    }
+  });
+
+  // Yield events as they arrive
+  while (true) {
+    if (queue.length > 0) {
+      yield queue.shift()!;
+    } else if (streamDone) {
+      if (streamError) throw streamError;
+      return;
+    } else {
+      // Wait for next event or completion
+      await new Promise<void>((resolve) => {
+        resolveNext = resolve;
+      });
+    }
+  }
 }
 
 // Confirm pending action
@@ -239,4 +357,9 @@ export async function getBeneficiaries(): Promise<any> {
 // Flex plans
 export async function getFlexPlans(): Promise<any> {
   return apiRequest('/api/flex/plans');
+}
+
+// Pending actions resurfacing (EXI-06c)
+export async function getPendingActions(): Promise<{ pending_actions: any[] }> {
+  return apiRequest('/api/pending-actions');
 }

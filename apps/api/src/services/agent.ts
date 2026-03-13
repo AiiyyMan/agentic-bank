@@ -12,7 +12,7 @@ import type { ProactiveCard } from './insight.js';
 const anthropic = new Anthropic();
 
 // QA C3: Increased from 5 to 8
-const MAX_TOOL_ITERATIONS = 8;
+export const MAX_TOOL_ITERATIONS = 8;
 
 // Summarisation threshold (ADR-05): trigger at 80 messages, summarise oldest 60
 const SUMMARISATION_THRESHOLD = 80;
@@ -81,7 +81,7 @@ Guide them step by step. Don't skip ahead.`;
  * Build static portion of system prompt (cacheable via ADR-16).
  * Varies only by onboarding mode — two cache variants.
  */
-function buildStaticPrompt(isOnboarding: boolean): string {
+export function buildStaticPrompt(isOnboarding: boolean): string {
   const blocks: string[] = [PERSONA_BLOCK, SAFETY_RULES_BLOCK, CARD_USAGE_BLOCK];
 
   if (!isOnboarding) {
@@ -110,7 +110,7 @@ function buildStaticPrompt(isOnboarding: boolean): string {
 /**
  * Build dynamic context (per-request, not cached).
  */
-function buildDynamicContext(
+export function buildDynamicContext(
   user: UserProfile,
   options?: { proactiveCards?: ProactiveCard[]; isAppOpen?: boolean },
 ): string {
@@ -552,7 +552,7 @@ export function extractTextSummary(
   return parts.join(' ') || '';
 }
 
-async function saveStructuredMessage(
+export async function saveStructuredMessage(
   conversationId: string,
   role: 'user' | 'assistant',
   contentBlocks: Anthropic.Messages.ContentBlockParam[] | Anthropic.Messages.ContentBlock[],
@@ -615,7 +615,7 @@ export async function getConversationHistory(
   return result;
 }
 
-async function saveMessage(
+export async function saveMessage(
   conversationId: string,
   role: string,
   content: string,
@@ -631,4 +631,272 @@ async function saveMessage(
     ui_components: uiComponents || null,
     user_id: userId || null,
   });
+}
+
+// ---------------------------------------------------------------------------
+// Streaming Agent Loop (EX-Infra)
+// ---------------------------------------------------------------------------
+
+/**
+ * Streaming version of processChat. Runs the full agent loop using
+ * anthropic.messages.stream() and calls emit() for each SSE event.
+ *
+ * Event types emitted:
+ *   token      — { text: string, index: number }
+ *   tool_use   — { name: string, id: string }
+ *   tool_result — { name: string, id: string, success: boolean }
+ *   done       — { message: string, ui_components: UIComponent[], conversation_id: string }
+ *   error      — { message: string, retryable: boolean }
+ */
+export async function processChatStream(
+  userMessage: string,
+  conversationId: string | undefined,
+  user: UserProfile,
+  options: { isAppOpen?: boolean },
+  emit: (event: string, data: unknown) => void,
+): Promise<void> {
+  const isAppOpen = options?.isAppOpen === true;
+  const cleanMessage = isAppOpen ? '__app_open__' : sanitizeChatInput(userMessage);
+
+  if (!cleanMessage) {
+    emit('error', { message: 'Message is required', retryable: false });
+    return;
+  }
+
+  let convId: string = conversationId || '';
+  if (!convId) {
+    const { data: conv } = await getSupabase()
+      .from('conversations')
+      .insert({ user_id: user.id })
+      .select()
+      .single();
+    convId = conv?.id || '';
+  }
+
+  if (!convId) {
+    emit('error', { message: 'Failed to create conversation.', retryable: true });
+    return;
+  }
+
+  const history = await getConversationHistory(convId);
+
+  if (!isAppOpen) {
+    await saveMessage(convId, 'user', cleanMessage, user.id);
+  }
+
+  // EXN-06: Fetch proactive cards for app-open greeting
+  let proactiveCards: ProactiveCard[] | undefined;
+  if (isAppOpen && user.onboarding_step === 'ONBOARDING_COMPLETE') {
+    try {
+      const insightService = new InsightService(getSupabase());
+      proactiveCards = await insightService.getProactiveCards(user.id);
+    } catch (err: any) {
+      logger.warn({ err: err.message, userId: user.id }, 'Failed to fetch proactive cards for streaming greeting');
+    }
+  }
+
+  const realMessageCount = history.filter(
+    m => !(typeof m.content === 'string' && m.content.startsWith('[Previous conversation summary:')) &&
+         !(typeof m.content === 'string' && m.content === 'I understand the context from our previous conversation. How can I help you?')
+  ).length;
+  const isFirstOpen = isAppOpen && realMessageCount === 0 && user.onboarding_step === 'ONBOARDING_COMPLETE';
+
+  const userContent = isAppOpen
+    ? isFirstOpen
+      ? 'The user just completed onboarding and opened the app for the first time. Greet them warmly by name. Show their account details using account_details_card (sort code 04-00-04, call check_balance to get their account name). Then show a getting started checklist using get_onboarding_checklist. Keep the message short and celebratory.'
+      : 'The user just opened the app. Greet them with a personalised greeting and show their balance. If there are proactive insights, weave them into the greeting naturally.'
+    : cleanMessage;
+
+  const isOnboarding = user.onboarding_step !== 'ONBOARDING_COMPLETE';
+  const staticPrompt = buildStaticPrompt(isOnboarding);
+  const dynamicContext = buildDynamicContext(user, { proactiveCards, isAppOpen });
+  const availableTools = getAvailableTools(user.onboarding_step);
+
+  let currentMessages: Anthropic.Messages.MessageParam[] = [
+    ...history,
+    { role: 'user', content: userContent },
+  ];
+
+  let tokenCount = 0;
+
+  try {
+    for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration++) {
+      const stream = anthropic.messages.stream({
+        model: CLAUDE_MODEL,
+        max_tokens: 4096,
+        system: [
+          {
+            type: 'text',
+            text: staticPrompt,
+            cache_control: { type: 'ephemeral' },
+          },
+          {
+            type: 'text',
+            text: dynamicContext,
+          },
+        ],
+        tools: availableTools.map((tool, i) =>
+          i === availableTools.length - 1
+            ? { ...tool, cache_control: { type: 'ephemeral' as const } }
+            : tool
+        ),
+        messages: currentMessages,
+      });
+
+      stream.on('text', (text) => {
+        emit('token', { text, index: tokenCount++ });
+      });
+
+      let finalMessage: Anthropic.Messages.Message;
+      try {
+        finalMessage = await stream.finalMessage();
+      } catch (err: any) {
+        logger.error({ err: err.message, iteration, conversationId: convId }, 'Streaming API call failed');
+        emit('error', { message: 'Stream interrupted. Please try again.', retryable: true });
+        return;
+      }
+
+      logger.info({
+        stopReason: finalMessage.stop_reason,
+        usage: finalMessage.usage,
+        iteration,
+      }, 'Streaming Claude API response');
+
+      if (finalMessage.stop_reason === 'end_turn' || finalMessage.stop_reason === 'max_tokens') {
+        const text = finalMessage.content
+          .filter((b): b is Anthropic.Messages.TextBlock => b.type === 'text')
+          .map(b => b.text)
+          .join('');
+
+        await saveMessage(convId, 'assistant', text, user.id);
+
+        emit('done', {
+          message: text || 'I completed the request.',
+          ui_components: [],
+          conversation_id: convId,
+        });
+
+        setImmediate(() => {
+          const attempt = async (tries: number): Promise<void> => {
+            try {
+              await checkAndSummarise(convId);
+            } catch (err: unknown) {
+              if (tries > 0) {
+                await new Promise((r) => setTimeout(r, 2000 * (3 - tries)));
+                return attempt(tries - 1);
+              }
+              logger.error({ err: err instanceof Error ? err.message : String(err), conversationId: convId }, 'Summarisation failed after retries');
+            }
+          };
+          attempt(2).catch(() => {/* already logged */});
+        });
+
+        return;
+      }
+
+      if (finalMessage.stop_reason === 'tool_use') {
+        const toolUseBlocks = finalMessage.content.filter(
+          (b): b is Anthropic.Messages.ToolUseBlock => b.type === 'tool_use'
+        );
+
+        const respondCall = toolUseBlocks.find(b => b.name === 'respond_to_user');
+        const dataToolCalls = toolUseBlocks.filter(b => b.name !== 'respond_to_user');
+
+        const toolResults: Anthropic.Messages.ToolResultBlockParam[] = [];
+
+        for (const toolCall of dataToolCalls) {
+          emit('tool_use', { name: toolCall.name, id: toolCall.id });
+          logger.info({ tool: toolCall.name, iteration }, 'Executing streaming tool');
+
+          try {
+            const result = await handleToolCall(
+              toolCall.name,
+              toolCall.input as Record<string, unknown>,
+              user
+            );
+            emit('tool_result', { name: toolCall.name, id: toolCall.id, success: true });
+            toolResults.push({
+              type: 'tool_result',
+              tool_use_id: toolCall.id,
+              content: JSON.stringify(result),
+            });
+          } catch (err: any) {
+            logger.error({ tool: toolCall.name, err: err.message }, 'Streaming tool execution failed');
+            emit('tool_result', { name: toolCall.name, id: toolCall.id, success: false });
+            toolResults.push({
+              type: 'tool_result',
+              tool_use_id: toolCall.id,
+              content: JSON.stringify({
+                error: true,
+                code: 'PROVIDER_UNAVAILABLE',
+                message: `Tool ${toolCall.name} failed: ${err.message}`,
+              }),
+              is_error: true,
+            });
+          }
+        }
+
+        if (respondCall) {
+          const input = respondCall.input as {
+            message: string;
+            ui_components?: UIComponent[];
+          };
+
+          await saveStructuredMessage(convId, 'assistant', finalMessage.content, input.message, input.ui_components, user.id);
+
+          // Persist synthetic tool_result for respond_to_user (QA C1 — maintains Anthropic API contract)
+          const syntheticResult: Anthropic.Messages.ToolResultBlockParam[] = [{
+            type: 'tool_result',
+            tool_use_id: respondCall.id,
+            content: 'Response delivered to user.',
+          }];
+          await saveStructuredMessage(convId, 'user', syntheticResult, '[respond_to_user]', undefined, user.id);
+
+          emit('done', {
+            message: input.message,
+            ui_components: input.ui_components || [],
+            conversation_id: convId,
+          });
+
+          setImmediate(() => {
+            const attempt = async (tries: number): Promise<void> => {
+              try {
+                await checkAndSummarise(convId);
+              } catch (err: unknown) {
+                if (tries > 0) {
+                  await new Promise((r) => setTimeout(r, 2000 * (3 - tries)));
+                  return attempt(tries - 1);
+                }
+                logger.error({ err: err instanceof Error ? err.message : String(err), conversationId: convId }, 'Summarisation failed after retries');
+              }
+            };
+            attempt(2).catch(() => {/* already logged */});
+          });
+
+          return;
+        }
+
+        // Continue loop — persist intermediate tool exchange
+        await saveStructuredMessage(convId, 'assistant', finalMessage.content, undefined, undefined, user.id);
+        await saveStructuredMessage(convId, 'user', toolResults, undefined, undefined, user.id);
+
+        currentMessages = [
+          ...currentMessages,
+          { role: 'assistant', content: finalMessage.content },
+          { role: 'user', content: toolResults },
+        ];
+      }
+    }
+
+    // Loop exhausted
+    logger.warn({ conversationId: convId, userId: user.id, maxIterations: MAX_TOOL_ITERATIONS }, 'Streaming agent loop exhausted max iterations');
+    emit('done', {
+      message: "I completed the operation but couldn't format a response. Please check your account for any changes.",
+      ui_components: [],
+      conversation_id: convId,
+    });
+  } catch (err: any) {
+    logger.error({ err: err.message, userId: user.id, conversationId: convId }, 'Streaming agent processing failed');
+    emit('error', { message: 'Service temporarily unavailable. Please try again.', retryable: true });
+  }
 }
