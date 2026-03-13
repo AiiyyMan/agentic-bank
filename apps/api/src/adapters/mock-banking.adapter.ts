@@ -3,6 +3,7 @@
 
 import { getSupabase } from '../lib/supabase.js';
 import { randomUUID } from 'crypto';
+import { notifyPaymentSent } from '../lib/notify.js';
 import type {
   BankingPort,
   AccountBalance,
@@ -175,13 +176,26 @@ export class MockBankingAdapter implements BankingPort {
         balance_after: newBalance,
       } as any);
 
-    return {
+    const paymentResult: PaymentResult = {
       payment_id: paymentId,
       status: 'completed',
       amount,
       currency: 'GBP',
       beneficiary: beneficiaryName,
     };
+
+    // Fire-and-forget Knock notification (3.17)
+    setImmediate(() => {
+      notifyPaymentSent(userId, {
+        amount,
+        currency: 'GBP',
+        beneficiary: beneficiaryName,
+        reference,
+        payment_id: paymentId,
+      }).catch(() => {/* already logged in notifyPaymentSent */});
+    });
+
+    return paymentResult;
   }
 
   async creditAccount(userId: string, amount: number): Promise<void> {

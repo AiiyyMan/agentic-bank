@@ -1,11 +1,16 @@
 import { useEffect, useRef } from 'react';
-import { View, Animated } from 'react-native';
+import { View, Text, Animated } from 'react-native';
+
+interface TypingIndicatorProps {
+  label?: string;
+}
 
 /**
  * Three-dot typing indicator using Animated (no Reanimated dependency).
  * Each dot pulses opacity with a staggered delay.
+ * Optional label shown as small grey text next to the dots.
  */
-export function TypingIndicator() {
+export function TypingIndicator({ label }: TypingIndicatorProps) {
   const dot1 = useRef(new Animated.Value(0.3)).current;
   const dot2 = useRef(new Animated.Value(0.3)).current;
   const dot3 = useRef(new Animated.Value(0.3)).current;
@@ -42,6 +47,14 @@ export function TypingIndicator() {
             className="w-2 h-2 rounded-full bg-text-tertiary"
           />
         ))}
+        {label ? (
+          <Text
+            className="text-text-tertiary text-xs ml-1.5"
+            numberOfLines={1}
+          >
+            {label}
+          </Text>
+        ) : null}
       </View>
     </View>
   );

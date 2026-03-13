@@ -579,6 +579,70 @@ export const completeOnboarding: ToolDef = {
   },
 };
 
+// ---------------------------------------------------------------------------
+// Standing Orders (3.12)
+// ---------------------------------------------------------------------------
+
+export const getStandingOrders: ToolDef = {
+  name: 'get_standing_orders',
+  description: 'List all active standing orders (recurring payments) for the user.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {},
+    required: [],
+    additionalProperties: false,
+  },
+};
+
+export const createStandingOrder: ToolDef = {
+  name: 'create_standing_order',
+  description: 'Set up a recurring payment (standing order) to a beneficiary. Requires user confirmation.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      beneficiary_name: {
+        type: 'string',
+        description: 'Name of the existing beneficiary to pay',
+      },
+      amount: {
+        type: 'number',
+        description: 'Amount in GBP to pay each time',
+      },
+      frequency: {
+        type: 'string',
+        enum: ['weekly', 'monthly'],
+        description: 'How often to make the payment: weekly or monthly',
+      },
+      day_of_month: {
+        type: 'number',
+        description: 'Day of month to run the payment (1-28, monthly only, optional)',
+      },
+      reference: {
+        type: 'string',
+        description: 'Payment reference (optional)',
+      },
+    },
+    required: ['beneficiary_name', 'amount', 'frequency'],
+    additionalProperties: false,
+  },
+};
+
+export const cancelStandingOrder: ToolDef = {
+  name: 'cancel_standing_order',
+  description: 'Cancel an active standing order. Requires user confirmation.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      standing_order_id: {
+        type: 'string',
+        description: 'ID of the standing order to cancel',
+      },
+    },
+    required: ['standing_order_id'],
+    additionalProperties: false,
+  },
+};
+
 // UI control tool — Claude decides what to render
 export const respondToUser: ToolDef = {
   name: 'respond_to_user',
@@ -654,6 +718,8 @@ export const READ_ONLY_TOOLS = new Set([
   // Onboarding tools (EXO)
   'get_value_prop_info',
   'get_onboarding_checklist',
+  // Standing orders
+  'get_standing_orders',
 ]);
 
 // Write tools need confirmation
@@ -668,6 +734,9 @@ export const WRITE_TOOLS = new Set([
   'transfer_from_pot',
   'flex_purchase',
   'pay_off_flex',
+  // Standing orders
+  'create_standing_order',
+  'cancel_standing_order',
 ]);
 
 // Onboarding tools — execute immediately (no confirmation needed)
@@ -708,6 +777,10 @@ export const BANKING_TOOLS: ToolDef[] = [
   getSpendingByCategory,
   getWeeklySummary,
   getSpendingInsights,
+  // Standing orders
+  getStandingOrders,
+  createStandingOrder,
+  cancelStandingOrder,
 ];
 
 // Onboarding-only tools
@@ -773,4 +846,8 @@ export const TOOL_PROGRESS: Record<string, string> = {
   update_checklist_item: 'Updating checklist...',
   complete_onboarding: 'Completing setup...',
   respond_to_user: '',
+  // Standing orders
+  get_standing_orders: 'Loading standing orders...',
+  create_standing_order: 'Setting up standing order...',
+  cancel_standing_order: 'Cancelling standing order...',
 };

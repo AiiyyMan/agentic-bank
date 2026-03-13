@@ -17,6 +17,10 @@ import { FlexPlanCard } from './FlexPlanCard';
 import { PaymentHistoryCard } from './PaymentHistoryCard';
 import { AccountDetailsCard } from './AccountDetailsCard';
 import { InputCard } from './InputCard';
+import { DatePickerCard } from './DatePickerCard';
+import { AutoSaveRuleCard } from './AutoSaveRuleCard';
+import { QuoteCard } from './QuoteCard';
+import { FlexOptionsCard } from './FlexOptionsCard';
 import type { UIComponent } from '@agentic-bank/shared';
 
 interface UIComponentRendererProps {
@@ -223,6 +227,49 @@ export function UIComponentRenderer({ components, onRefresh, onQuickReply }: UIC
                   // Serialize form values as JSON string for the agent
                   onQuickReply(JSON.stringify(values));
                 } : undefined}
+              />
+            );
+
+          case 'date_picker_card':
+            return (
+              <DatePickerCard
+                key={index}
+                title={data.title}
+                subtitle={data.subtitle}
+                minDate={data.min_date || data.minDate}
+                maxDate={data.max_date || data.maxDate}
+                onSelect={onQuickReply}
+              />
+            );
+
+          case 'auto_save_rule_card':
+            return (
+              <AutoSaveRuleCard
+                key={index}
+                ruleName={data.rule_name || data.ruleName}
+                description={data.description}
+                targetPot={data.target_pot || data.targetPot}
+                isActive={data.is_active ?? data.isActive ?? false}
+                savedThisMonth={data.saved_this_month ?? data.savedThisMonth}
+              />
+            );
+
+          case 'quote_card':
+            return (
+              <QuoteCard
+                key={index}
+                quote={data.quote}
+                source={data.source}
+                category={data.category}
+              />
+            );
+
+          case 'flex_options_card':
+            return (
+              <FlexOptionsCard
+                key={index}
+                transactions={data.transactions || data.eligible_transactions || []}
+                onSelect={onQuickReply}
               />
             );
 

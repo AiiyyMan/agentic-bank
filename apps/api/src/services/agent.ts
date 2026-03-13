@@ -100,6 +100,7 @@ function buildStaticPrompt(isOnboarding: boolean): string {
 - Flex: flex_purchase, get_flex_plans, get_flex_eligible, pay_off_flex
 - Pots: create_pot, transfer_to_pot, transfer_from_pot
 - Insights: get_spending_by_category, get_weekly_summary, get_spending_insights
+- Standing Orders: get_standing_orders, create_standing_order, cancel_standing_order
 - Chat: respond_to_user`);
   }
 
@@ -264,6 +265,7 @@ async function runAgentLoop(
 ): Promise<{ message: string; ui_components?: UIComponent[]; contentBlocks?: Anthropic.Messages.ContentBlock[] }> {
   let currentMessages = [...messages];
   let lastPendingActionId: string | undefined;
+  let lastPendingActionSummary: string | undefined;
 
   // EXI-07/EXI-08: Build split system prompt for proper cache_control (ADR-16)
   const isOnboarding = user.onboarding_step !== 'ONBOARDING_COMPLETE';
@@ -359,9 +361,12 @@ async function runAgentLoop(
             user
           );
 
-          // Track pending action IDs for exhaustion recovery
+          // Track pending action IDs and summary for exhaustion recovery
           if (result.pending_action_id) {
             lastPendingActionId = result.pending_action_id as string;
+            if (result.summary && typeof result.summary === 'string') {
+              lastPendingActionSummary = result.summary;
+            }
           }
 
           toolResults.push({
@@ -428,7 +433,7 @@ async function runAgentLoop(
       type: 'confirmation_card',
       data: {
         pending_action_id: lastPendingActionId,
-        summary: 'An action is awaiting your confirmation',
+        summary: lastPendingActionSummary || 'An action is awaiting your confirmation',
         details: {},
       },
     }];

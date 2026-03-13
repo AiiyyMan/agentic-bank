@@ -11,6 +11,7 @@ import { bankingRoutes } from './routes/banking.js';
 import { chatStreamRoutes } from './routes/chat-stream.js';
 import { insightRoutes } from './routes/insights.js';
 import { onboardingRoutes } from './routes/onboarding.js';
+import { standingOrderRoutes } from './routes/standing-orders.js';
 import { logger } from './logger.js';
 
 export { logger };
@@ -47,6 +48,7 @@ export async function buildServer() {
   await app.register(chatStreamRoutes, { prefix: '/api' });
   await app.register(insightRoutes, { prefix: '/api' });
   await app.register(onboardingRoutes, { prefix: '/api' });
+  await app.register(standingOrderRoutes, { prefix: '/api' });
 
   app.get('/', async () => ({ name: 'Agentic Bank API', version: '0.1.0' }));
 

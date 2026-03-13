@@ -11,6 +11,8 @@ interface ConfirmationCardProps {
   onRejected?: () => void;
 }
 
+type ConfirmationStatus = 'pending' | 'confirming' | 'confirmed' | 'rejected' | 'expired' | 'error';
+
 export function ConfirmationCard({
   pendingActionId,
   summary,
@@ -19,7 +21,7 @@ export function ConfirmationCard({
   onConfirmed,
   onRejected,
 }: ConfirmationCardProps) {
-  const [status, setStatus] = useState<'pending' | 'confirming' | 'confirmed' | 'rejected' | 'error'>('pending');
+  const [status, setStatus] = useState<ConfirmationStatus>('pending');
   const [errorMessage, setErrorMessage] = useState('');
 
   const handleConfirm = async () => {
@@ -30,17 +32,24 @@ export function ConfirmationCard({
         setStatus('confirmed');
         onConfirmed?.();
       } else {
-        setStatus('error');
         const msg = result.message || 'Something went wrong';
-        setErrorMessage(
-          msg.includes('expired')
-            ? 'This action has expired. Please ask the assistant to try again.'
-            : msg
-        );
+        if (msg.toLowerCase().includes('expired')) {
+          setStatus('expired');
+          setErrorMessage(msg);
+        } else {
+          setStatus('error');
+          setErrorMessage(msg);
+        }
       }
     } catch (err: any) {
-      setStatus('error');
-      setErrorMessage(err.message || 'Failed to confirm');
+      const msg = err.message || 'Failed to confirm';
+      if (msg.toLowerCase().includes('expired')) {
+        setStatus('expired');
+        setErrorMessage(msg);
+      } else {
+        setStatus('error');
+        setErrorMessage(msg);
+      }
     }
   };
 
@@ -55,22 +64,29 @@ export function ConfirmationCard({
     }
   };
 
+  const isExpired = status === 'expired';
+  const cardStyle = isExpired
+    ? [styles.card, styles.cardExpired]
+    : styles.card;
+
   return (
-    <View style={styles.card}>
-      <Text style={styles.title}>Confirm Action</Text>
-      <Text style={styles.summary}>{summary}</Text>
+    <View style={cardStyle}>
+      <Text style={[styles.title, isExpired && styles.titleExpired]}>Confirm Action</Text>
+      <Text style={[styles.summary, isExpired && styles.summaryExpired]}>{summary}</Text>
 
       <View style={styles.details}>
         {Object.entries(details).map(([key, value]) => (
           <View key={key} style={styles.detailRow}>
-            <Text style={styles.detailKey}>{key}</Text>
-            <Text style={styles.detailValue}>{value}</Text>
+            <Text style={[styles.detailKey, isExpired && styles.textDimmed]}>{key}</Text>
+            <Text style={[styles.detailValue, isExpired && styles.textDimmed]}>{value}</Text>
           </View>
         ))}
         {postTransactionBalance && (
           <View style={styles.detailRow}>
-            <Text style={styles.detailKey}>Balance after</Text>
-            <Text style={[styles.detailValue, styles.balanceValue]}>{postTransactionBalance}</Text>
+            <Text style={[styles.detailKey, isExpired && styles.textDimmed]}>Balance after</Text>
+            <Text style={[styles.detailValue, styles.balanceValue, isExpired && styles.textDimmed]}>
+              {postTransactionBalance}
+            </Text>
           </View>
         )}
       </View>
@@ -105,6 +121,15 @@ export function ConfirmationCard({
         </View>
       )}
 
+      {status === 'expired' && (
+        <View style={styles.expiredContainer}>
+          <Text style={styles.expiredIcon}>⏱</Text>
+          <Text style={styles.expiredText}>
+            This action has expired. Ask the assistant to try again.
+          </Text>
+        </View>
+      )}
+
       {status === 'error' && (
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>{errorMessage || 'Something went wrong'}</Text>
@@ -133,6 +158,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#6c5ce7',
   },
+  cardExpired: {
+    borderColor: '#3d3d55',
+    opacity: 0.85,
+  },
   title: {
     color: '#6c5ce7',
     fontSize: 13,
@@ -140,11 +169,17 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     textTransform: 'uppercase',
   },
+  titleExpired: {
+    color: '#5a5a72',
+  },
   summary: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 12,
+  },
+  summaryExpired: {
+    color: '#6b6b82',
   },
   details: {
     marginBottom: 16,
@@ -159,6 +194,7 @@ const styles = StyleSheet.create({
   detailKey: { color: '#8b8ba7', fontSize: 14 },
   detailValue: { color: '#fff', fontSize: 14, fontWeight: '500' },
   balanceValue: { color: '#8b8ba7' },
+  textDimmed: { color: '#4a4a5e' },
   actions: {
     flexDirection: 'row',
     gap: 12,
@@ -190,6 +226,20 @@ const styles = StyleSheet.create({
   statusText: { color: '#8b8ba7', fontSize: 14 },
   successText: { color: '#2ecc71', fontSize: 14, fontWeight: '600' },
   rejectedText: { color: '#8b8ba7', fontSize: 14, fontWeight: '600' },
+  expiredContainer: {
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 12,
+  },
+  expiredIcon: {
+    fontSize: 24,
+  },
+  expiredText: {
+    color: '#5a5a72',
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
   errorText: { color: '#e74c3c', fontSize: 14 },
   errorContainer: {
     alignItems: 'center',

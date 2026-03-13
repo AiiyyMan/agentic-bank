@@ -107,6 +107,21 @@ export interface FlexPlanCardData {
   apr?: number;
 }
 
+export interface FlexOptionsCardData {
+  transactions: Array<{
+    id: string;
+    merchant_name: string;
+    amount: number;
+    posted_at: string;
+    options: Array<{
+      months: number;
+      apr: number;
+      monthly_payment: number;
+      total_cost: number;
+    }>;
+  }>;
+}
+
 export interface AccountDetailsCardData {
   account_name: string;
   sort_code: string;

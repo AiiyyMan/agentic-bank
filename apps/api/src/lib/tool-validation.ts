@@ -136,6 +136,49 @@ const TOOL_PARAM_SPECS: Record<string, Record<string, ParamSpec>> = {
       },
     },
   },
+  // Standing order tools
+  create_standing_order: {
+    beneficiary_name: { required: true, type: 'string' },
+    amount: {
+      required: true,
+      type: 'number',
+      validate: (v) => {
+        const result = validateAmount(v as number);
+        return result.valid ? null : result.error!;
+      },
+    },
+    frequency: {
+      required: true,
+      type: 'string',
+      validate: (v) => {
+        if (!['weekly', 'monthly'].includes(v as string)) return "frequency must be 'weekly' or 'monthly'";
+        return null;
+      },
+    },
+    day_of_month: {
+      required: false,
+      type: 'number',
+      validate: (v) => {
+        const n = v as number;
+        if (!Number.isInteger(n) || n < 1 || n > 28) return 'day_of_month must be between 1 and 28';
+        return null;
+      },
+    },
+    reference: { required: false, type: 'string' },
+  },
+  cancel_standing_order: {
+    standing_order_id: {
+      required: true,
+      type: 'string',
+      validate: (v) => {
+        const s = v as string;
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s)) {
+          return 'Invalid standing order ID format';
+        }
+        return null;
+      },
+    },
+  },
   // Onboarding tools
   collect_name: {
     display_name: {

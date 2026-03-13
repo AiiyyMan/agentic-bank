@@ -258,6 +258,101 @@ describe('validateToolParams', () => {
     });
   });
 
+  describe('create_standing_order', () => {
+    it('passes with valid monthly params', () => {
+      expect(validateToolParams('create_standing_order', {
+        beneficiary_name: 'Landlord',
+        amount: 800,
+        frequency: 'monthly',
+        day_of_month: 1,
+      })).toBeNull();
+    });
+
+    it('passes with valid weekly params', () => {
+      expect(validateToolParams('create_standing_order', {
+        beneficiary_name: 'Savings',
+        amount: 50,
+        frequency: 'weekly',
+      })).toBeNull();
+    });
+
+    it('rejects missing beneficiary_name', () => {
+      const result = validateToolParams('create_standing_order', {
+        amount: 100,
+        frequency: 'monthly',
+      });
+      expect(result).not.toBeNull();
+      expect(result!.code).toBe('VALIDATION_ERROR');
+      expect(result!.message).toContain('beneficiary_name');
+    });
+
+    it('rejects missing amount', () => {
+      const result = validateToolParams('create_standing_order', {
+        beneficiary_name: 'Landlord',
+        frequency: 'monthly',
+      });
+      expect(result).not.toBeNull();
+      expect(result!.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('rejects invalid frequency', () => {
+      const result = validateToolParams('create_standing_order', {
+        beneficiary_name: 'Landlord',
+        amount: 100,
+        frequency: 'daily',
+      });
+      expect(result).not.toBeNull();
+      expect(result!.code).toBe('VALIDATION_ERROR');
+      expect(result!.message).toContain('weekly');
+    });
+
+    it('rejects day_of_month above 28', () => {
+      const result = validateToolParams('create_standing_order', {
+        beneficiary_name: 'Landlord',
+        amount: 100,
+        frequency: 'monthly',
+        day_of_month: 29,
+      });
+      expect(result).not.toBeNull();
+      expect(result!.code).toBe('VALIDATION_ERROR');
+      expect(result!.message).toContain('28');
+    });
+
+    it('rejects day_of_month of 0', () => {
+      const result = validateToolParams('create_standing_order', {
+        beneficiary_name: 'Landlord',
+        amount: 100,
+        frequency: 'monthly',
+        day_of_month: 0,
+      });
+      expect(result).not.toBeNull();
+      expect(result!.code).toBe('VALIDATION_ERROR');
+    });
+  });
+
+  describe('cancel_standing_order', () => {
+    it('passes with valid UUID', () => {
+      expect(validateToolParams('cancel_standing_order', {
+        standing_order_id: '550e8400-e29b-41d4-a716-446655440000',
+      })).toBeNull();
+    });
+
+    it('rejects missing standing_order_id', () => {
+      const result = validateToolParams('cancel_standing_order', {});
+      expect(result).not.toBeNull();
+      expect(result!.code).toBe('VALIDATION_ERROR');
+      expect(result!.message).toContain('standing_order_id');
+    });
+
+    it('rejects non-UUID string', () => {
+      const result = validateToolParams('cancel_standing_order', {
+        standing_order_id: 'not-a-uuid',
+      });
+      expect(result).not.toBeNull();
+      expect(result!.code).toBe('VALIDATION_ERROR');
+    });
+  });
+
   describe('pay_off_flex', () => {
     it('passes with valid params', () => {
       expect(validateToolParams('pay_off_flex', {

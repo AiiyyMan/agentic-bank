@@ -5,7 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
@@ -19,24 +18,26 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const signUp = useAuthStore((s) => s.signUp);
 
   const handleRegister = async () => {
     if (!email || !password || !displayName) {
-      Alert.alert('Error', 'Please fill in all fields');
+      setError('Please fill in all fields');
       return;
     }
     if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
+      setError('Password must be at least 6 characters');
       return;
     }
 
     setLoading(true);
+    setError('');
     try {
       await signUp(email, password, displayName);
       router.replace('/(auth)/onboarding');
     } catch (err: any) {
-      Alert.alert('Registration Failed', err.message || 'Please try again');
+      setError(err.message || 'Please try again');
     } finally {
       setLoading(false);
     }
@@ -57,7 +58,7 @@ export default function RegisterScreen() {
             <TextInput
               style={styles.input}
               value={displayName}
-              onChangeText={setDisplayName}
+              onChangeText={(v) => { setDisplayName(v); setError(''); }}
               placeholder="John Smith"
               placeholderTextColor="#555"
               autoCapitalize="words"
@@ -69,7 +70,7 @@ export default function RegisterScreen() {
             <TextInput
               style={styles.input}
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(v) => { setEmail(v); setError(''); }}
               placeholder="john@example.com"
               placeholderTextColor="#555"
               keyboardType="email-address"
@@ -82,13 +83,15 @@ export default function RegisterScreen() {
             <TextInput
               style={styles.input}
               value={password}
-              onChangeText={setPassword}
+              onChangeText={(v) => { setPassword(v); setError(''); }}
               placeholder="Min. 6 characters"
               placeholderTextColor="#555"
               secureTextEntry
             />
           </View>
         </View>
+
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
         <TouchableOpacity
           style={[styles.button, loading && styles.buttonDisabled]}
@@ -115,7 +118,7 @@ const styles = StyleSheet.create({
   scroll: { padding: 24, paddingTop: 80 },
   title: { fontSize: 28, fontWeight: '700', color: '#fff', marginBottom: 8 },
   subtitle: { fontSize: 16, color: '#8b8ba7', marginBottom: 32 },
-  form: { gap: 20, marginBottom: 32 },
+  form: { gap: 20, marginBottom: 16 },
   inputGroup: { gap: 8 },
   label: { fontSize: 14, color: '#8b8ba7', fontWeight: '500' },
   input: {
@@ -126,6 +129,12 @@ const styles = StyleSheet.create({
     color: '#fff',
     borderWidth: 1,
     borderColor: '#2d2d44',
+  },
+  errorText: {
+    color: '#e74c3c',
+    fontSize: 13,
+    textAlign: 'center',
+    marginBottom: 12,
   },
   button: {
     backgroundColor: '#6c5ce7',

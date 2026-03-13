@@ -108,7 +108,7 @@ export default function ChatScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         ListHeaderComponent={
-          isLoading ? <TypingIndicator /> : null
+          isLoading ? <TypingIndicator label={progressMessage || undefined} /> : null
         }
       />
 

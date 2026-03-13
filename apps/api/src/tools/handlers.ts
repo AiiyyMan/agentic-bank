@@ -12,6 +12,7 @@ import { PotService } from '../services/pot.js';
 import { InsightService } from '../services/insight.js';
 import { OnboardingService } from '../services/onboarding.js';
 import { DomainError } from '../lib/domain-errors.js';
+import { StandingOrderService } from '../services/standing-order.js';
 import type { UserProfile, ToolError } from '@agentic-bank/shared';
 import { READ_ONLY_TOOLS, WRITE_TOOLS, ONBOARDING_IMMEDIATE_TOOLS } from './definitions.js';
 
@@ -284,6 +285,11 @@ async function executeReadTool(
       return { items };
     }
 
+    case 'get_standing_orders': {
+      const standingOrderService = new StandingOrderService(getSupabase());
+      return await standingOrderService.getStandingOrders(user.id);
+    }
+
     default:
       return { error: 'Unknown read tool' };
   }
@@ -504,6 +510,26 @@ function buildConfirmationSummary(
         },
       };
 
+    case 'create_standing_order':
+      return {
+        text: `Set up £${Number(params.amount).toFixed(2)} ${params.frequency} standing order to ${params.beneficiary_name}`,
+        details: {
+          'To': String(params.beneficiary_name),
+          'Amount': `£${Number(params.amount).toFixed(2)}`,
+          'Frequency': String(params.frequency),
+          ...(params.day_of_month ? { 'Day of Month': String(params.day_of_month) } : {}),
+          ...(params.reference ? { 'Reference': String(params.reference) } : {}),
+        },
+      };
+
+    case 'cancel_standing_order':
+      return {
+        text: 'Cancel standing order',
+        details: {
+          'Standing Order ID': String(params.standing_order_id),
+        },
+      };
+
     default:
       return { text: `Execute ${toolName}`, details: {} };
   }
@@ -621,12 +647,22 @@ async function executeWriteTool(
           posted_at: new Date().toISOString(),
         } as any);
 
+      // Fetch live balance after successful payment
+      let balanceAfter: number | undefined;
+      try {
+        const liveBalance = await adapter.getBalance(user.id);
+        balanceAfter = liveBalance.balance;
+      } catch (balErr: unknown) {
+        logger.warn({ userId: user.id, err: balErr instanceof Error ? balErr.message : String(balErr) }, 'Post-payment balance fetch failed (non-critical)');
+      }
+
       return {
         payment_id: result.payment_id,
         status: result.status,
         amount: amount.toFixed(2),
         currency: 'GBP',
         beneficiary: beneficiaryName,
+        ...(balanceAfter !== undefined ? { balance_after: balanceAfter } : {}),
       };
     }
 
@@ -750,6 +786,57 @@ async function executeWriteTool(
         pot_balance_after: result.data.pot_balance_after,
         main_balance_after: result.data.main_balance_after,
       };
+    }
+
+    case 'create_standing_order': {
+      const standingOrderService = new StandingOrderService(getSupabase());
+      try {
+        const result = await standingOrderService.createStandingOrder(user.id, {
+          beneficiary_name: String(params.beneficiary_name),
+          amount: Number(params.amount),
+          frequency: String(params.frequency) as 'weekly' | 'monthly',
+          day_of_month: params.day_of_month ? Number(params.day_of_month) : undefined,
+          reference: params.reference ? String(params.reference) : undefined,
+        });
+        if (!result.success || !result.data) {
+          return { error: true, message: 'Failed to create standing order' };
+        }
+        return {
+          standing_order_id: result.data.id,
+          beneficiary_name: result.data.beneficiary_name,
+          amount: result.data.amount,
+          frequency: result.data.frequency,
+          next_run_date: result.data.next_run_date,
+          status: result.data.status,
+        };
+      } catch (err: any) {
+        if (err instanceof DomainError) {
+          return { error: true, code: err.code, message: err.message };
+        }
+        throw err;
+      }
+    }
+
+    case 'cancel_standing_order': {
+      const standingOrderService = new StandingOrderService(getSupabase());
+      try {
+        const result = await standingOrderService.cancelStandingOrder(
+          user.id,
+          String(params.standing_order_id),
+        );
+        if (!result.success || !result.data) {
+          return { error: true, message: 'Failed to cancel standing order' };
+        }
+        return {
+          standing_order_id: result.data.standing_order_id,
+          cancelled: result.data.cancelled,
+        };
+      } catch (err: any) {
+        if (err instanceof DomainError) {
+          return { error: true, code: err.code, message: err.message };
+        }
+        throw err;
+      }
     }
 
     default:
