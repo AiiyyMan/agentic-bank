@@ -21,6 +21,7 @@
     "typescript": "^5.7.0"
   },
   "overrides": {
-    "react": "19.2.0"
+    "react": "19.2.0",
+    "expo-font": "~55.0.4"
   }
 }
