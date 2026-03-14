@@ -41,7 +41,7 @@ const PENDING_ACTION = {
   id: 'action-1',
   user_id: 'user-1',
   tool_name: 'send_payment',
-  params: { beneficiary_name: 'Alice', amount: 100 },
+  params: { beneficiary_id: 'a0000000-0000-0000-0000-000000000001', beneficiary_name: 'Alice', amount: 100 },
   status: 'pending',
   idempotency_key: 'user-1-send_payment-abc',
   expires_at: new Date(Date.now() + 300_000).toISOString(),
@@ -58,26 +58,12 @@ const PROFILE = {
   created_at: '2025-01-01',
 };
 
-// The Supabase chain mock doesn't natively support non-.single() queries.
-// send_payment does: `const { data: bens } = await getSupabase().from('beneficiaries').select('id, name').eq('user_id', ...)`
-// The chain (returned by .eq()) is awaited, so we make it thenable.
-// By default it resolves with { data: null }, we can set chainData to override.
-let chainData: any = null;
-
-// Make chain thenable so `await chain.eq(...)` resolves with { data: chainData }
-Object.defineProperty(mockSupabase, 'then', {
-  get() {
-    if (chainData !== null) {
-      const d = chainData;
-      return (resolve: any) => resolve({ data: d, error: null });
-    }
-    return undefined; // Not thenable — falls through to chain object
-  },
-  configurable: true,
-});
-
+// send_payment now does a UUID-based .single() lookup to verify beneficiary ownership.
+// mockSuccessfulPayment queues that extra .single() call after the 3 standard ones
+// (action fetch, update-confirm, profile fetch) already queued by each test.
 function mockSuccessfulPayment() {
-  chainData = [{ id: 'ben-1', name: 'Alice' }];
+  // 4th .single(): beneficiary UUID lookup in executeWriteTool
+  mockSingle.mockResolvedValueOnce({ data: { id: 'a0000000-0000-0000-0000-000000000001', name: 'Alice' }, error: null });
 
   mockAdapter.createPayment.mockResolvedValueOnce({
     payment_id: 'pay-1',
@@ -92,7 +78,6 @@ describe('executeConfirmedAction', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSingle.mockResolvedValue({ data: null, error: null });
-    chainData = null;
   });
 
   it('confirms a pending action successfully', async () => {
@@ -158,17 +143,16 @@ describe('executeConfirmedAction — failed execution', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSingle.mockResolvedValue({ data: null, error: null });
-    chainData = null;
   });
 
   it('sets status to "failed" when execution throws (not "pending")', async () => {
     mockSingle
       .mockResolvedValueOnce({ data: PENDING_ACTION, error: null })
       .mockResolvedValueOnce({ data: { ...PENDING_ACTION, status: 'confirmed' }, error: null })
-      .mockResolvedValueOnce({ data: PROFILE, error: null });
+      .mockResolvedValueOnce({ data: PROFILE, error: null })
+      // 4th .single(): beneficiary UUID lookup succeeds, but adapter throws below
+      .mockResolvedValueOnce({ data: { id: 'a0000000-0000-0000-0000-000000000001', name: 'Alice' }, error: null });
 
-    // Beneficiary lookup succeeds but adapter throws
-    chainData = [{ id: 'ben-1', name: 'Alice' }];
     mockAdapter.createPayment.mockRejectedValueOnce(new Error('Banking provider is down'));
 
     const result = await executeConfirmedAction('action-1', 'user-1');
@@ -214,7 +198,6 @@ describe('idempotency key uniqueness', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSingle.mockResolvedValue({ data: null, error: null });
-    chainData = null;
   });
 
   it('generates deterministic idempotency keys — same params produce same key (retry idempotency)', async () => {
@@ -229,15 +212,17 @@ describe('idempotency key uniqueness', () => {
       return mockSupabase;
     });
 
+    const VALID_UUID = 'f3a1b2c4-0000-0000-0000-000000000001';
+
     // Same params twice — keys should be identical (idempotent retry)
-    await handleToolCall('send_payment', { beneficiary_name: 'Alice', amount: 10 }, user as any);
-    await handleToolCall('send_payment', { beneficiary_name: 'Alice', amount: 10 }, user as any);
+    await handleToolCall('send_payment', { beneficiary_id: VALID_UUID, beneficiary_name: 'Alice', amount: 10 }, user as any);
+    await handleToolCall('send_payment', { beneficiary_id: VALID_UUID, beneficiary_name: 'Alice', amount: 10 }, user as any);
 
     expect(keys.length).toBeGreaterThanOrEqual(2);
     expect(keys[0]).toBe(keys[1]); // deterministic — same params = same key
 
-    // Different params should produce different keys
-    await handleToolCall('send_payment', { beneficiary_name: 'Bob', amount: 20 }, user as any);
+    // Different beneficiary_id produces a different key
+    await handleToolCall('send_payment', { beneficiary_id: 'b0000000-0000-0000-0000-000000000002', beneficiary_name: 'Bob', amount: 20 }, user as any);
     expect(keys[2]).not.toBe(keys[0]);
   });
 });

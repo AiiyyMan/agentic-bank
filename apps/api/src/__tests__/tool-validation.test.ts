@@ -8,28 +8,50 @@ describe('validateToolParams', () => {
   });
 
   describe('send_payment', () => {
+    const VALID_UUID = 'f3a1b2c4-0000-0000-0000-000000000001';
+
     it('passes with valid params', () => {
       expect(validateToolParams('send_payment', {
+        beneficiary_id: VALID_UUID,
         beneficiary_name: 'James',
         amount: 50,
       })).toBeNull();
     });
 
+    it('rejects missing beneficiary_id', () => {
+      const result = validateToolParams('send_payment', { beneficiary_name: 'James', amount: 50 });
+      expect(result).not.toBeNull();
+      expect(result!.code).toBe('VALIDATION_ERROR');
+      expect(result!.message).toContain('beneficiary_id');
+    });
+
+    it('rejects invalid UUID format for beneficiary_id', () => {
+      const result = validateToolParams('send_payment', {
+        beneficiary_id: 'not-a-uuid',
+        beneficiary_name: 'James',
+        amount: 50,
+      });
+      expect(result).not.toBeNull();
+      expect(result!.code).toBe('VALIDATION_ERROR');
+      expect(result!.message).toContain('UUID');
+    });
+
     it('rejects missing beneficiary_name', () => {
-      const result = validateToolParams('send_payment', { amount: 50 });
+      const result = validateToolParams('send_payment', { beneficiary_id: VALID_UUID, amount: 50 });
       expect(result).not.toBeNull();
       expect(result!.code).toBe('VALIDATION_ERROR');
       expect(result!.message).toContain('beneficiary_name');
     });
 
     it('rejects missing amount', () => {
-      const result = validateToolParams('send_payment', { beneficiary_name: 'James' });
+      const result = validateToolParams('send_payment', { beneficiary_id: VALID_UUID, beneficiary_name: 'James' });
       expect(result).not.toBeNull();
       expect(result!.code).toBe('VALIDATION_ERROR');
     });
 
     it('rejects invalid amount type', () => {
       const result = validateToolParams('send_payment', {
+        beneficiary_id: VALID_UUID,
         beneficiary_name: 'James',
         amount: 'fifty',
       });
@@ -39,6 +61,7 @@ describe('validateToolParams', () => {
 
     it('rejects negative amount', () => {
       const result = validateToolParams('send_payment', {
+        beneficiary_id: VALID_UUID,
         beneficiary_name: 'James',
         amount: -10,
       });

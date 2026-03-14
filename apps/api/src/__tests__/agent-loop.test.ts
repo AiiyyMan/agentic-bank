@@ -223,7 +223,7 @@ describe('Agent loop — confirmation gate', () => {
     // Claude calls send_payment, system creates pending action, then Claude responds
     mockAnthropicCreate
       .mockResolvedValueOnce(toolUseResponse([
-        { name: 'send_payment', input: { beneficiary_name: 'Mum', amount: 50, reference: 'Gift' } },
+        { name: 'send_payment', input: { beneficiary_id: 'f3a1b2c4-0000-0000-0000-000000000001', beneficiary_name: 'Mum', amount: 50, reference: 'Gift' } },
       ]))
       .mockResolvedValueOnce(respondResponse(
         'I\'ll send £50 to Mum. Please confirm.',
