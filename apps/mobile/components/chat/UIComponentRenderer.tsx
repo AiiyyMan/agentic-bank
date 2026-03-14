@@ -22,6 +22,9 @@ import { AutoSaveRuleCard } from './AutoSaveRuleCard';
 import { QuoteCard } from './QuoteCard';
 import { FlexOptionsCard } from './FlexOptionsCard';
 import { StandingOrderCard } from './StandingOrderCard';
+import { SkeletonCard } from './SkeletonCard';
+import { ValuePropInfoCard } from './ValuePropInfoCard';
+import { BeneficiarySelectionCard } from './BeneficiarySelectionCard';
 import type { UIComponent } from '@agentic-bank/shared';
 
 interface UIComponentRendererProps {
@@ -137,6 +140,7 @@ export function UIComponentRenderer({ components, onRefresh, onQuickReply }: UIC
                 key={index}
                 displayName={data.display_name || data.displayName || ''}
                 greeting={data.greeting || ''}
+                onAction={onQuickReply}
               />
             );
 
@@ -145,6 +149,7 @@ export function UIComponentRenderer({ components, onRefresh, onQuickReply }: UIC
               <ChecklistCard
                 key={index}
                 items={data.items}
+                onItemTap={onQuickReply}
               />
             );
 
@@ -156,6 +161,10 @@ export function UIComponentRenderer({ components, onRefresh, onQuickReply }: UIC
                 rate={data.rate || data.interest_rate}
                 term={data.term || data.term_months}
                 monthlyPayment={data.monthly_payment || data.monthlyPayment}
+                minAmount={data.slider_config?.min || data.min_amount}
+                maxAmount={data.slider_config?.max || data.max_amount}
+                step={data.slider_config?.step || data.step || 100}
+                onApply={onQuickReply ? (amount) => onQuickReply(`Apply for £${amount.toLocaleString('en-GB')} loan`) : undefined}
               />
             );
 
@@ -169,6 +178,9 @@ export function UIComponentRenderer({ components, onRefresh, onQuickReply }: UIC
                 monthlyPayment={data.monthly_payment || data.monthlyPayment}
                 nextDate={data.next_date || data.nextDate || data.next_payment_date}
                 status={data.status}
+                paymentsMade={data.payments_made ?? data.paymentsMade}
+                termMonths={data.term_months ?? data.termMonths}
+                payoffDate={data.payoff_date ?? data.payoffDate}
               />
             );
 
@@ -289,6 +301,37 @@ export function UIComponentRenderer({ components, onRefresh, onQuickReply }: UIC
                 nextDate={String(data.next_date || data.nextDate || '')}
                 status={String(data.status || 'active')}
                 reference={data.reference ? String(data.reference) : undefined}
+              />
+            );
+
+          case 'skeleton_card':
+            return (
+              <SkeletonCard
+                key={index}
+                lines={data.lines || 3}
+                showHeader={data.show_header ?? true}
+              />
+            );
+
+          case 'value_prop_info_card':
+            return (
+              <ValuePropInfoCard
+                key={index}
+                topic={data.topic || ''}
+                title={data.title || ''}
+                content={data.content || ''}
+                icon={data.icon}
+                highlights={data.highlights}
+              />
+            );
+
+          case 'beneficiary_selection_card':
+            return (
+              <BeneficiarySelectionCard
+                key={index}
+                prompt={String(data.prompt || 'Which beneficiary would you like to pay?')}
+                beneficiaries={(data.beneficiaries as any[]) || []}
+                onSelect={onQuickReply}
               />
             );
 

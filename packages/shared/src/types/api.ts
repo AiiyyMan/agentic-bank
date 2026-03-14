@@ -51,7 +51,10 @@ export type UIComponentType =
   | 'payment_history_card'
   | 'date_picker_card'
   | 'address_input_card'
-  | 'account_details_card';
+  | 'account_details_card'
+  | 'beneficiary_selection_card'
+  | 'skeleton_card'
+  | 'value_prop_info_card';
 
 export interface UIComponent {
   type: UIComponentType;

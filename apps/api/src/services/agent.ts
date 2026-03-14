@@ -55,12 +55,18 @@ const CARD_USAGE_BLOCK = `UI COMPONENT GUIDELINES:
 - Cards are for banking flows — use text for casual conversation. No card is better than an irrelevant card.`;
 
 const BENEFICIARY_RESOLUTION_BLOCK = `BENEFICIARY RESOLUTION:
-When the user asks to send money to someone by name:
-1. Call get_beneficiaries to get their saved payees.
-2. If exactly ONE beneficiary matches (case-insensitive): proceed with send_payment using that name.
-3. If MULTIPLE beneficiaries match: present disambiguation options via quick_reply_group showing each name + masked account number. Wait for user to select.
-4. If ZERO match: ask if the user wants to add them as a new beneficiary.
-Never guess which beneficiary the user means. Always confirm if ambiguous.`;
+Always use a beneficiary's UUID (not their name) when calling send_payment. Follow these steps:
+
+1. Call get_beneficiaries to get the full list (includes id, name, bank_name, account_number, last_used_at).
+2. Match the user's requested name (case-insensitive) against the list.
+3. EXACTLY ONE match → call send_payment with beneficiary_id (UUID) and beneficiary_name (display name).
+4. MULTIPLE matches → call respond_to_user with a beneficiary_selection_card. The card data must include:
+   - prompt: e.g. "I found 2 people named Tom. Which one would you like to pay?"
+   - beneficiaries: array of matching entries with name, bank_name, account_number, sort_code, last_used_at
+   Wait for the user to select. Once they reply, call get_beneficiaries AGAIN to re-resolve the UUID from their selection (match on name + sort_code), then call send_payment with the UUID.
+5. ZERO matches → ask if they want to add this person as a new beneficiary.
+
+Never call send_payment with a name-based guess. Never use a UUID you haven't fetched from get_beneficiaries in the current conversation.`;
 
 const ONBOARDING_PROMPT_BLOCK = `ONBOARDING MODE:
 You are guiding a new user through account setup. Be warm and encouraging. The steps are:

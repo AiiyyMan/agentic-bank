@@ -1,5 +1,6 @@
 import { getBankingAdapter } from '../adapters/index.js';
 import { validateAmount, validateSortCode, validateAccountNumber } from '../lib/validation.js';
+import { sortCodeToBank } from '../lib/sort-code.js';
 import { providerUnavailable, validationError, notFoundError } from '../lib/errors.js';
 import { validateToolParams } from '../lib/tool-validation.js';
 import { getSupabase } from '../lib/supabase.js';
@@ -178,7 +179,7 @@ async function executeReadTool(
           id: pot.id,
           name: pot.name,
           balance: Number(pot.balance),
-          goal: pot.goal ? Number(pot.goal) : null,
+          goal_amount: pot.goal ? Number(pot.goal) : null,
           emoji: pot.emoji,
           is_locked: pot.is_locked || false,
           progress_percent: pot.goal ? Math.min(100, Math.round((Number(pot.balance) / Number(pot.goal)) * 100)) : null,
@@ -192,9 +193,11 @@ async function executeReadTool(
         beneficiaries: payees.map(p => ({
           id: p.id,
           name: p.name,
+          bank_name: sortCodeToBank(p.sort_code),
           account_number: p.account_number_masked,
           sort_code: p.sort_code,
           status: p.status,
+          last_used_at: (p as any).last_used_at ?? null,
         })),
       };
     }
@@ -366,8 +369,43 @@ async function createPendingAction(
     .eq('user_id', user.id)
     .eq('status', 'pending');
 
+  // Before calling buildConfirmationSummary, enrich params with human-readable labels
+  let enrichedParams = { ...params };
+
+  // Enrich send_payment with bank_name (from sort code lookup via beneficiary UUID)
+  if (toolName === 'send_payment' && params.beneficiary_id) {
+    try {
+      const { data: ben } = await getSupabase()
+        .from('beneficiaries')
+        .select('sort_code')
+        .eq('id', String(params.beneficiary_id))
+        .single() as any;
+      if (ben?.sort_code) {
+        enrichedParams = { ...enrichedParams, bank_name: sortCodeToBank(ben.sort_code) };
+      }
+    } catch {
+      // Non-critical — show without bank name
+    }
+  }
+
+  // Enrich pot tools with pot name
+  if ((toolName === 'transfer_to_pot' || toolName === 'transfer_from_pot') && params.pot_id) {
+    try {
+      const { data: pot } = await getSupabase()
+        .from('pots')
+        .select('name')
+        .eq('id', String(params.pot_id))
+        .single() as any;
+      if (pot?.name) {
+        enrichedParams = { ...enrichedParams, pot_name: pot.name };
+      }
+    } catch {
+      // Non-critical — fall back to UUID
+    }
+  }
+
   // Build summary for confirmation card
-  const summary = buildConfirmationSummary(toolName, params);
+  const summary = buildConfirmationSummary(toolName, enrichedParams);
 
   // Get post-transaction balance for payment tools
   let postTransactionBalance: number | undefined;
@@ -421,6 +459,7 @@ function buildConfirmationSummary(
         text: `Send £${Number(params.amount).toFixed(2)} to ${params.beneficiary_name}`,
         details: {
           'To': String(params.beneficiary_name),
+          ...(params.bank_name ? { 'Bank': String(params.bank_name) } : {}),
           'Amount': `£${Number(params.amount).toFixed(2)}`,
           ...(params.reference ? { 'Reference': String(params.reference) } : {}),
         },
@@ -493,18 +532,18 @@ function buildConfirmationSummary(
 
     case 'transfer_to_pot':
       return {
-        text: `Transfer £${Number(params.amount).toFixed(2)} to savings pot`,
+        text: `Transfer £${Number(params.amount).toFixed(2)} to ${params.pot_name || 'savings pot'}`,
         details: {
-          'Pot': String(params.pot_id),
+          'Pot': String(params.pot_name || params.pot_id),
           'Amount': `£${Number(params.amount).toFixed(2)}`,
         },
       };
 
     case 'transfer_from_pot':
       return {
-        text: `Withdraw £${Number(params.amount).toFixed(2)} from savings pot`,
+        text: `Withdraw £${Number(params.amount).toFixed(2)} from ${params.pot_name || 'savings pot'}`,
         details: {
-          'Pot': String(params.pot_id),
+          'Pot': String(params.pot_name || params.pot_id),
           'Amount': `£${Number(params.amount).toFixed(2)}`,
         },
       };
@@ -599,7 +638,7 @@ export async function executeConfirmedAction(
   }
 
   try {
-    const result = await executeWriteTool(action.tool_name, action.params, profile as any);
+    const result = await executeWriteTool(action.tool_name, action.params, profile as any, actionId);
     logger.info({ actionId, toolName: action.tool_name }, 'Action executed successfully');
     return { success: true, message: 'Action completed successfully', data: result };
   } catch (err: any) {
@@ -613,7 +652,8 @@ export async function executeConfirmedAction(
 async function executeWriteTool(
   toolName: string,
   params: Record<string, unknown>,
-  user: UserProfile
+  user: UserProfile,
+  actionId?: string,
 ): Promise<Record<string, unknown>> {
   // QA C5: Re-validate params at execution time
   const paramError = validateToolParams(toolName, params);
@@ -623,37 +663,32 @@ async function executeWriteTool(
 
   switch (toolName) {
     case 'send_payment': {
+      const beneficiaryId = String(params.beneficiary_id);
       const beneficiaryName = String(params.beneficiary_name);
       const amount = Number(params.amount);
       const reference = params.reference ? String(params.reference) : undefined;
 
-      // Find the beneficiary by name in local DB
-      const { data: bens } = await getSupabase()
+      // Look up beneficiary by UUID, verify ownership
+      const { data: ben, error: benError } = await getSupabase()
         .from('beneficiaries')
         .select('id, name')
-        .eq('user_id', user.id);
+        .eq('id', beneficiaryId)
+        .eq('user_id', user.id)
+        .single() as any;
 
-      const benMatches = ((bens as any[]) || []).filter(
-        b => b.name.toLowerCase() === beneficiaryName.toLowerCase()
-      );
-
-      if (benMatches.length === 0) {
-        return notFoundError(`No beneficiary found with name "${beneficiaryName}". Please add them first.`);
+      if (benError || !ben) {
+        return notFoundError(`Beneficiary not found. Please call get_beneficiaries to obtain a valid UUID.`);
       }
-      if (benMatches.length > 1) {
-        return validationError(`Multiple beneficiaries found matching "${beneficiaryName}". Please use a more specific name.`);
-      }
-      const ben = benMatches[0];
 
       const result = await adapter.createPayment(user.id, ben.id, amount, reference);
 
+      // Upsert with idempotency_key to prevent duplicate rows on retry.
+      // Key format: 'txn-{actionId}' ties the transaction to the confirmed pending_action.
       // TODO: Replace with webhook-based transaction sync for production.
-      // TODO (M6): Add idempotency_key column to transactions table in migration,
-      //   then switch to: .upsert({ idempotency_key: `txn-${actionId}`, ... }, { onConflict: 'idempotency_key', ignoreDuplicates: true })
-      //   Currently using griffin_transaction_id as a dedup field where available.
       await getSupabase()
         .from('transactions')
-        .insert({
+        .upsert({
+          ...(actionId ? { idempotency_key: `txn-${actionId}` } : {}),
           user_id: user.id,
           merchant_name: beneficiaryName,
           merchant_name_normalised: beneficiaryName.toLowerCase(),
@@ -664,7 +699,7 @@ async function executeWriteTool(
           reference: reference || null,
           posted_at: new Date().toISOString(),
           griffin_transaction_id: result.payment_id || null,
-        } as any);
+        } as any, { onConflict: 'idempotency_key', ignoreDuplicates: true });
 
       // Fetch live balance after successful payment
       let balanceAfter: number | undefined;

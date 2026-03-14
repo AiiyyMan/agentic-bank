@@ -63,7 +63,7 @@ export const getAccounts: ToolDef = {
 
 export const getBeneficiaries: ToolDef = {
   name: 'get_beneficiaries',
-  description: 'List all saved payees/beneficiaries for the user.',
+  description: 'List all saved payees/beneficiaries for the user. Returns id (UUID), name, bank_name, account_number (masked), sort_code, and last_used_at. Always call this before send_payment to obtain the beneficiary UUID.',
   input_schema: {
     type: 'object' as const,
     properties: {},
@@ -86,13 +86,17 @@ export const getLoanStatus: ToolDef = {
 // Write tools — require user confirmation
 export const sendPayment: ToolDef = {
   name: 'send_payment',
-  description: 'Send a payment to a beneficiary. Requires user confirmation before execution. The amount must be between £0.01 and £25,000.',
+  description: 'Send a payment to a saved beneficiary. Always call get_beneficiaries first to resolve the UUID before calling this tool. The amount must be between £0.01 and £10,000.',
   input_schema: {
     type: 'object' as const,
     properties: {
+      beneficiary_id: {
+        type: 'string',
+        description: 'UUID of the beneficiary (from get_beneficiaries). Required — never use a name-based guess.',
+      },
       beneficiary_name: {
         type: 'string',
-        description: 'Name of the beneficiary to send money to',
+        description: 'Display name of the beneficiary (shown in confirmation card and success message)',
       },
       amount: {
         type: 'number',
@@ -103,7 +107,7 @@ export const sendPayment: ToolDef = {
         description: 'Payment reference (optional)',
       },
     },
-    required: ['beneficiary_name', 'amount'],
+    required: ['beneficiary_id', 'beneficiary_name', 'amount'],
     additionalProperties: false,
   },
 };
@@ -368,7 +372,7 @@ export const getFlexPlans: ToolDef = {
 
 export const getFlexEligible: ToolDef = {
   name: 'get_flex_eligible',
-  description: 'Get recent transactions eligible for Flex (£50-£2,000, within 30 days).',
+  description: 'Get recent transactions eligible for Flex (£30–£2,000, within the last 14 days).',
   input_schema: {
     type: 'object' as const,
     properties: {},

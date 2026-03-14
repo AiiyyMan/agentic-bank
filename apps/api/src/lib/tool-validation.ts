@@ -13,6 +13,17 @@ interface ParamSpec {
 
 const TOOL_PARAM_SPECS: Record<string, Record<string, ParamSpec>> = {
   send_payment: {
+    beneficiary_id: {
+      required: true,
+      type: 'string',
+      validate: (v) => {
+        const s = v as string;
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s)) {
+          return 'beneficiary_id must be a valid UUID — call get_beneficiaries to obtain one';
+        }
+        return null;
+      },
+    },
     beneficiary_name: { required: true, type: 'string' },
     amount: {
       required: true,
