@@ -17,6 +17,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: cd packages/shared && npm run build
       - run: cd packages/shared && npx tsc --noEmit
       - run: cd apps/api && npx tsc --noEmit
 
@@ -30,6 +31,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: cd packages/shared && npm run build
       - run: cd apps/api && npx vitest --run
 
   lint-fixtures:

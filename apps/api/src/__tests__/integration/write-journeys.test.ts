@@ -229,7 +229,7 @@ describe('send_payment journey — confirm → adapter.createPayment', () => {
 
     mockSupabaseFrom.mockImplementation(makeDispatcher({
       profiles: () => mockUser,
-      pending_actions: (n) => n === 1 ? action : { ...action, status: 'confirmed' },
+      pending_actions: (n: number) => n === 1 ? action : { ...action, status: 'confirmed' },
       beneficiaries: () => beneficiary,
       // transactions upsert + any other tables pass silently via default
     }));
@@ -261,7 +261,7 @@ describe('send_payment journey — confirm → adapter.createPayment', () => {
 
     mockSupabaseFrom.mockImplementation(makeDispatcher({
       profiles: () => mockUser,
-      pending_actions: (n) => n === 1 ? action : { ...action, status: 'confirmed' },
+      pending_actions: (n: number) => n === 1 ? action : { ...action, status: 'confirmed' },
       beneficiaries: () => ({ id: BEN_UUID, name: 'Alice' }),
     }));
 
@@ -279,7 +279,7 @@ describe('send_payment journey — confirm → adapter.createPayment', () => {
 
     mockSupabaseFrom.mockImplementation(makeDispatcher({
       profiles: () => mockUser,
-      pending_actions: (n) => n === 1 ? action : { ...action, status: 'confirmed' },
+      pending_actions: (n: number) => n === 1 ? action : { ...action, status: 'confirmed' },
       beneficiaries: () => null, // UUID lookup fails → NOT_FOUND
     }));
 
@@ -326,7 +326,7 @@ describe('send_payment journey — confirm → adapter.createPayment', () => {
     let pendingCallCount = 0;
     mockSupabaseFrom.mockImplementation(makeDispatcher({
       profiles: () => mockUser,
-      pending_actions: (n) => {
+      pending_actions: (n: number) => {
         pendingCallCount = n;
         if (n === 1) return action;  // fetch succeeds
         return null;                  // atomic update returns null → already processed
@@ -353,7 +353,7 @@ describe('add_beneficiary journey — confirm → adapter.createPayee', () => {
 
     mockSupabaseFrom.mockImplementation(makeDispatcher({
       profiles: () => mockUser,
-      pending_actions: (n) => n === 1 ? action : { ...action, status: 'confirmed' },
+      pending_actions: (n: number) => n === 1 ? action : { ...action, status: 'confirmed' },
     }));
 
     const res = await injectAuth(app, 'POST', '/api/confirm/action-ben-1');
@@ -382,7 +382,7 @@ describe('add_beneficiary journey — confirm → adapter.createPayee', () => {
 
     mockSupabaseFrom.mockImplementation(makeDispatcher({
       profiles: () => mockUser,
-      pending_actions: (n) => n === 1 ? action : { ...action, status: 'confirmed' },
+      pending_actions: (n: number) => n === 1 ? action : { ...action, status: 'confirmed' },
     }));
 
     const res = await injectAuth(app, 'POST', '/api/confirm/action-ben-1');
@@ -415,7 +415,7 @@ describe('create_pot journey — confirm → pot inserted in DB', () => {
 
     mockSupabaseFrom.mockImplementation(makeDispatcher({
       profiles: () => mockUser,
-      pending_actions: (n) => n === 1 ? action : { ...action, status: 'confirmed' },
+      pending_actions: (n: number) => n === 1 ? action : { ...action, status: 'confirmed' },
       pots: () => newPot, // returned after insert().select().single()
     }));
 
@@ -483,7 +483,7 @@ describe('Cross-cutting edge cases', () => {
     const updateCalls: any[] = [];
     mockSupabaseFrom.mockImplementation(makeDispatcher({
       profiles: () => mockUser,
-      pending_actions: (n) => {
+      pending_actions: (n: number) => {
         if (n === 1) return action;
         if (n === 2) return { ...action, status: 'confirmed' };
         // n >= 3: update to 'failed' call — track it
