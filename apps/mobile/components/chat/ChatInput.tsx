@@ -7,6 +7,7 @@ import {
   Platform,
   KeyboardAvoidingView,
 } from 'react-native';
+import { useTokens } from '../../theme/tokens';
 
 interface ChatInputProps {
   onSend: (text: string) => void;
@@ -17,6 +18,7 @@ interface ChatInputProps {
 export function ChatInput({ onSend, disabled = false, placeholder = 'Message your bank...' }: ChatInputProps) {
   const [text, setText] = useState('');
   const inputRef = useRef<TextInput>(null);
+  const t = useTokens();
 
   const handleSend = () => {
     const trimmed = text.trim();
@@ -40,7 +42,7 @@ export function ChatInput({ onSend, disabled = false, placeholder = 'Message you
             value={text}
             onChangeText={setText}
             placeholder={placeholder}
-            placeholderTextColor="#94A3B8"
+            placeholderTextColor={t.text.tertiary}
             className="text-text-primary text-[15px] leading-5"
             multiline
             maxLength={500}

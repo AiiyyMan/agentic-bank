@@ -7,6 +7,9 @@ interface LoanStatusCardProps {
   monthlyPayment: string;
   nextDate: string;
   status: string;
+  paymentsMade?: number;
+  termMonths?: number;
+  payoffDate?: string;
 }
 
 export function LoanStatusCard({
@@ -16,6 +19,9 @@ export function LoanStatusCard({
   monthlyPayment,
   nextDate,
   status,
+  paymentsMade,
+  termMonths,
+  payoffDate,
 }: LoanStatusCardProps) {
   const principalNum = parseFloat(principal);
   const progress = principalNum > 0 ? 1 - parseFloat(remaining) / principalNum : 0;
@@ -55,6 +61,18 @@ export function LoanStatusCard({
           <Text className="text-text-tertiary text-sm">Next Payment</Text>
           <Text className="text-text-primary text-sm font-medium">{nextDate}</Text>
         </View>
+        {paymentsMade !== undefined && termMonths !== undefined && (
+          <View className="flex-row justify-between py-1.5">
+            <Text className="text-text-tertiary text-sm">Payments Made</Text>
+            <Text className="text-text-primary text-sm font-medium">{paymentsMade} of {termMonths}</Text>
+          </View>
+        )}
+        {payoffDate && (
+          <View className="flex-row justify-between py-1.5">
+            <Text className="text-text-tertiary text-sm">Est. Payoff</Text>
+            <Text className="text-text-primary text-sm font-medium">{new Date(payoffDate).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}</Text>
+          </View>
+        )}
       </View>
     </View>
   );
