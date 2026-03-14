@@ -407,18 +407,6 @@ async function createPendingAction(
   // Build summary for confirmation card
   const summary = buildConfirmationSummary(toolName, enrichedParams);
 
-  // Get post-transaction balance for payment tools
-  let postTransactionBalance: number | undefined;
-  if (toolName === 'send_payment') {
-    try {
-      const adapter = getBankingAdapter();
-      const balance = await adapter.getBalance(user.id);
-      postTransactionBalance = balance.balance - Number(params.amount);
-    } catch {
-      // Non-critical — continue without post-tx balance
-    }
-  }
-
   // Create pending action
   const { data: action, error } = await getSupabase()
     .from('pending_actions')
@@ -445,7 +433,6 @@ async function createPendingAction(
     pending_action_id: action.id,
     summary: summary.text,
     details: summary.details,
-    post_transaction_balance: postTransactionBalance,
   };
 }
 

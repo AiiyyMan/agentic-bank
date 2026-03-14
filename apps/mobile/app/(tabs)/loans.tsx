@@ -17,6 +17,9 @@ interface Loan {
   monthly_payment: number;
   next_payment_date: string;
   status: string;
+  payments_made?: number;
+  term_months?: number;
+  payoff_date?: string;
 }
 
 interface CreditScoreData {
@@ -175,6 +178,9 @@ export default function LoansScreen() {
               monthlyPayment={String(loan.monthly_payment)}
               nextDate={loan.next_payment_date}
               status={loan.status}
+              paymentsMade={loan.payments_made}
+              termMonths={loan.term_months}
+              payoffDate={loan.payoff_date}
             />
           ))
         )}

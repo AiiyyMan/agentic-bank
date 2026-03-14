@@ -7,7 +7,7 @@
  * Protocol:
  *   - Content-Type: text/event-stream
  *   - Each event: `event: <type>\ndata: <json>\n\n`
- *   - Events: token, tool_use, tool_result, done, error
+ *   - Events: thinking, token, tool_use, tool_result, done, error
  *   - Stream ends with `data: [DONE]\n\n`
  */
 
@@ -17,7 +17,7 @@ import { processChatStream } from '../services/agent.js';
 import { logger } from '../logger.js';
 
 // SSE event types
-type SSEEventType = 'token' | 'tool_use' | 'tool_result' | 'done' | 'error' | 'ping';
+type SSEEventType = 'thinking' | 'token' | 'tool_use' | 'tool_result' | 'done' | 'error' | 'ping';
 
 function sendSSE(reply: FastifyReply, event: SSEEventType, data: unknown): void {
   reply.raw.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
@@ -80,6 +80,9 @@ export const chatStreamRoutes: FastifyPluginAsync = async (app) => {
     const emit = (event: string, data: unknown): void => {
       sendSSE(reply, event as SSEEventType, data);
     };
+
+    // Signal to client that request is received and agent loop is starting
+    sendSSE(reply, 'thinking', { ts: Date.now() });
 
     try {
       await processChatStream(

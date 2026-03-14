@@ -215,11 +215,6 @@ describe('Agent loop — confirmation gate', () => {
     mockSingle.mockResolvedValueOnce({ data: { id: 'conv-1' }, error: null }); // conversation check
     mockSingle.mockResolvedValueOnce({ data: { id: 'pa-1', status: 'pending' }, error: null }); // pending action insert
 
-    // Mock getBalance for post-transaction calculation
-    mockAdapter.getBalance.mockResolvedValueOnce({
-      balance: 1247.5, currency: 'GBP', account_name: 'Main', status: 'open',
-    });
-
     // Claude calls send_payment, system creates pending action, then Claude responds
     mockAnthropicCreate
       .mockResolvedValueOnce(toolUseResponse([
