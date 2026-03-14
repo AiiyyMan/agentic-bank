@@ -14,7 +14,7 @@ import { router } from 'expo-router';
 import { useAuthStore } from '../../stores/auth';
 import { useTokens } from '../../theme/tokens';
 
-function getPasswordStrength(pwd: string): { level: 'weak' | 'fair' | 'strong'; label: string; width: string } {
+function getPasswordStrength(pwd: string): { level: 'weak' | 'fair' | 'strong'; label: string; width: `${number}%` } {
   if (pwd.length === 0) return { level: 'weak', label: '', width: '0%' };
   let score = 0;
   if (pwd.length >= 8) score++;

@@ -701,6 +701,26 @@ async function executeWriteTool(
           griffin_transaction_id: result.payment_id || null,
         } as any, { onConflict: 'idempotency_key', ignoreDuplicates: true });
 
+      // Insert into payments table so get_payment_history returns accurate data
+      // (BUG-CB-M08 fix: executeWriteTool previously bypassed PaymentService which owns this write)
+      await getSupabase()
+        .from('payments')
+        .insert({
+          user_id: user.id,
+          beneficiary_id: ben.id,
+          amount,
+          reference: reference || null,
+          status: result.status || 'completed',
+          griffin_payment_url: result.payment_id || null,
+        } as any);
+
+      // Update beneficiary last_used_at so it sorts first in future lookups
+      await getSupabase()
+        .from('beneficiaries')
+        .update({ last_used_at: new Date().toISOString() })
+        .eq('id', ben.id)
+        .eq('user_id', user.id);
+
       // Fetch live balance after successful payment
       let balanceAfter: number | undefined;
       try {

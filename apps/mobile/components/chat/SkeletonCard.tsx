@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { View } from 'react-native';
+import type { DimensionValue } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -13,7 +14,7 @@ interface SkeletonCardProps {
   showHeader?: boolean;
 }
 
-function SkeletonLine({ width = '100%' as string | `${number}%` }) {
+function SkeletonLine({ width = '100%' as DimensionValue }) {
   const opacity = useSharedValue(1);
 
   useEffect(() => {

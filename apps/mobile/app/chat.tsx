@@ -266,19 +266,54 @@ export default function ChatScreen() {
 }
 
 // Map tool names to human-readable progress labels
+// Tool names match apps/api/src/tools/definitions.ts TOOL_PROGRESS constant
 function toolProgressLabel(toolName: string): string {
   const labels: Record<string, string> = {
-    accounts_check_balance: 'Checking your balance...',
-    accounts_list_accounts: 'Loading accounts...',
-    transactions_get_history: 'Loading transactions...',
-    payments_send_payment: 'Preparing payment...',
-    payments_get_beneficiaries: 'Loading payees...',
-    pots_get_pots: 'Loading pots...',
-    pots_create_pot: 'Creating pot...',
-    pots_transfer_to_pot: 'Moving money...',
-    loans_get_products: 'Loading loan options...',
-    loans_get_credit_score: 'Checking credit score...',
-    respond_to_user: 'Preparing response...',
+    // Core banking — read
+    check_balance: 'Checking your balance...',
+    get_transactions: 'Loading transactions...',
+    get_accounts: 'Loading accounts...',
+    get_beneficiaries: 'Loading beneficiaries...',
+    get_pots: 'Loading savings pots...',
+    get_payment_history: 'Loading payment history...',
+    get_loan_status: 'Checking loan status...',
+    get_standing_orders: 'Loading standing orders...',
+    // Core banking — write
+    send_payment: 'Preparing payment...',
+    add_beneficiary: 'Adding beneficiary...',
+    delete_beneficiary: 'Removing beneficiary...',
+    create_pot: 'Creating savings pot...',
+    transfer_to_pot: 'Transferring to pot...',
+    transfer_from_pot: 'Withdrawing from pot...',
+    create_standing_order: 'Setting up standing order...',
+    cancel_standing_order: 'Cancelling standing order...',
+    // Lending — read
+    check_credit_score: 'Checking credit score...',
+    check_eligibility: 'Checking eligibility...',
+    get_loan_schedule: 'Loading loan schedule...',
+    get_flex_plans: 'Loading Flex plans...',
+    get_flex_eligible: 'Checking eligible transactions...',
+    // Lending — write
+    apply_for_loan: 'Processing application...',
+    make_loan_payment: 'Processing payment...',
+    flex_purchase: 'Setting up Flex plan...',
+    pay_off_flex: 'Paying off Flex plan...',
+    // Insights
+    get_spending_by_category: 'Analysing spending...',
+    get_weekly_summary: 'Preparing weekly summary...',
+    get_spending_insights: 'Checking spending patterns...',
+    // Onboarding
+    collect_name: 'Saving your name...',
+    collect_dob: 'Saving date of birth...',
+    collect_address: 'Saving your address...',
+    verify_identity: 'Verifying your identity...',
+    provision_account: 'Setting up your account...',
+    get_value_prop_info: 'Getting information...',
+    get_onboarding_checklist: 'Loading checklist...',
+    update_checklist_item: 'Updating checklist...',
+    complete_onboarding: 'Completing setup...',
+    // Internal
+    respond_to_user: '',
   };
   return labels[toolName] ?? 'Working...';
 }

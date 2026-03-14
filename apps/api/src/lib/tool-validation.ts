@@ -30,7 +30,11 @@ const TOOL_PARAM_SPECS: Record<string, Record<string, ParamSpec>> = {
       type: 'number',
       validate: (v) => {
         const result = validateAmount(v as number);
-        return result.valid ? null : result.error!;
+        if (!result.valid) return result.error!;
+        // Enforce £10,000 payment limit (PaymentService also checks, but we
+        // want to surface the error before creating a pending_action — BUG-CB-M07)
+        if ((v as number) > 10000) return 'Maximum payment amount is £10,000';
+        return null;
       },
     },
     reference: { required: false, type: 'string' },
