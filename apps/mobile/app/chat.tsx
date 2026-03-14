@@ -5,6 +5,7 @@ import {
   Text,
   TouchableOpacity,
   SafeAreaView,
+  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useChatStore } from '../stores/chat';
@@ -123,6 +124,33 @@ export default function ChatScreen() {
     }
   }, [setStatus, runStream, addAssistantMessage]);
 
+  const handleNewConversation = useCallback(() => {
+    const hasPendingConfirmation = messages.some(m =>
+      m.ui_components?.some((c: any) => c.type === 'confirmation_card')
+    );
+
+    if (hasPendingConfirmation) {
+      Alert.alert(
+        'Pending Confirmation',
+        'You have a pending confirmation. Starting a new conversation will cancel it. Continue?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'New Chat',
+            style: 'destructive',
+            onPress: () => {
+              useChatStore.getState().reset();
+              sendGreeting();
+            },
+          },
+        ],
+      );
+    } else {
+      useChatStore.getState().reset();
+      sendGreeting();
+    }
+  }, [messages, sendGreeting]);
+
   useEffect(() => {
     if (!hasGreetedRef.current && messages.length === 0) {
       hasGreetedRef.current = true;
@@ -203,7 +231,9 @@ export default function ChatScreen() {
             <Text className="text-text-tertiary text-xs">Online</Text>
           </View>
         </View>
-        <View className="w-10" />
+        <TouchableOpacity onPress={handleNewConversation} className="w-10 h-10 items-center justify-center -mr-2">
+          <Text className="text-brand-default text-lg">↺</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Messages (inverted FlatList — newest at bottom) */}

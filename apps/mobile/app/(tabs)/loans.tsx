@@ -81,14 +81,10 @@ export default function LoansScreen() {
         setCreditScore({
           score: s.score,
           rating: bandToRating(s.rating || s.band || 'fair'),
-          factors: s.factors
+          factors: (s.factors || s.improvement_tips)
             ? {
-                positive: Object.entries(s.factors as Record<string, number>)
-                  .filter(([, v]) => v > 0)
-                  .map(([k]) => k.replace(/_/g, ' ')),
-                improve: Object.entries(s.factors as Record<string, number>)
-                  .filter(([, v]) => v === 0)
-                  .map(([k]) => `Improve your ${k.replace(/_/g, ' ')}`),
+                positive: (s.factors || []) as string[],
+                improve: (s.improvement_tips || []) as string[],
               }
             : undefined,
         });

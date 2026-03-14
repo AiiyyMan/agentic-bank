@@ -14,6 +14,19 @@ import { router } from 'expo-router';
 import { useAuthStore } from '../../stores/auth';
 import { useTokens } from '../../theme/tokens';
 
+function getPasswordStrength(pwd: string): { level: 'weak' | 'fair' | 'strong'; label: string; width: string } {
+  if (pwd.length === 0) return { level: 'weak', label: '', width: '0%' };
+  let score = 0;
+  if (pwd.length >= 8) score++;
+  if (pwd.length >= 12) score++;
+  if (/[A-Z]/.test(pwd)) score++;
+  if (/[0-9]/.test(pwd)) score++;
+  if (/[^A-Za-z0-9]/.test(pwd)) score++;
+  if (score <= 1) return { level: 'weak', label: 'Weak', width: '33%' };
+  if (score <= 3) return { level: 'fair', label: 'Fair', width: '66%' };
+  return { level: 'strong', label: 'Strong', width: '100%' };
+}
+
 export default function RegisterScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -95,11 +108,42 @@ export default function RegisterScreen() {
               placeholderTextColor={t.text.tertiary}
               secureTextEntry
             />
+            {password.length > 0 && (() => {
+              const strength = getPasswordStrength(password);
+              const barClass = strength.level === 'strong'
+                ? 'bg-status-success-default'
+                : strength.level === 'fair'
+                ? 'bg-status-warning-default'
+                : 'bg-status-error-default';
+              const textClass = strength.level === 'strong'
+                ? 'text-status-success'
+                : strength.level === 'fair'
+                ? 'text-status-warning'
+                : 'text-status-error';
+              return (
+                <View className="mt-2">
+                  <View className="h-1.5 bg-surface-secondary rounded-full overflow-hidden">
+                    <View className={`h-full rounded-full ${barClass}`} style={{ width: strength.width }} />
+                  </View>
+                  <Text className={`text-xs mt-1 ${textClass}`}>{strength.label}</Text>
+                </View>
+              );
+            })()}
           </View>
         </View>
 
         {error ? (
-          <Text className="text-status-error text-sm text-center mb-3">{error}</Text>
+          <View className="mb-3">
+            <Text className="text-status-error text-sm text-center">{error}</Text>
+            {(error.toLowerCase().includes('already registered') ||
+              error.toLowerCase().includes('already in use') ||
+              error.toLowerCase().includes('user already exists') ||
+              error.toLowerCase().includes('email address is already')) && (
+              <TouchableOpacity onPress={() => router.replace('/(auth)/login')} className="mt-1">
+                <Text className="text-brand-default text-sm text-center font-medium">Sign in instead →</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         ) : null}
 
         <TouchableOpacity

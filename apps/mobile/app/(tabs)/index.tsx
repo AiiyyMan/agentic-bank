@@ -17,11 +17,11 @@ interface BalanceData {
 }
 
 interface Transaction {
-  amount: string;
-  currency: string;
-  direction: string;
-  type: string;
-  date: string;
+  id: string;
+  merchant_name: string | null;
+  amount: number;
+  primary_category: string | null;
+  posted_at: string;
 }
 
 interface LoanSummary {
@@ -136,7 +136,11 @@ export default function DashboardScreen() {
       ) : null}
 
       {/* Balance Card */}
-      <View className="m-4 p-6 bg-brand-default rounded-2xl">
+      <TouchableOpacity
+        className="m-4 p-6 bg-brand-default rounded-2xl"
+        onPress={() => router.push('/account/main')}
+        activeOpacity={0.85}
+      >
         <Text className="text-white/70 text-sm font-medium mb-2">Available Balance</Text>
         <Text className="text-white text-4xl font-bold">
           {balance ? `£${parseFloat(balance.balance).toLocaleString('en-GB', { minimumFractionDigits: 2 })}` : '—'}
@@ -147,7 +151,8 @@ export default function DashboardScreen() {
         {balance?.account_number && (
           <Text className="text-white/50 text-xs mt-1">{balance.account_number}</Text>
         )}
-      </View>
+        <Text className="text-white/60 text-xs mt-2">View details →</Text>
+      </TouchableOpacity>
 
       {/* Proactive Insights (max 2, hidden when empty) */}
       {insights.length > 0 && (
@@ -292,13 +297,13 @@ export default function DashboardScreen() {
           transactions.map((tx, index) => (
             <View key={index} className="flex-row justify-between items-center bg-surface-primary border border-border-primary rounded-lg p-3.5 mb-1.5">
               <View>
-                <Text className="text-text-primary text-sm">{tx.type}</Text>
-                <Text className="text-text-tertiary text-xs mt-0.5">{new Date(tx.date).toLocaleDateString('en-GB')}</Text>
+                <Text className="text-text-primary text-sm">{tx.merchant_name || tx.primary_category || 'Transaction'}</Text>
+                <Text className="text-text-tertiary text-xs mt-0.5">{new Date(tx.posted_at).toLocaleDateString('en-GB')}</Text>
               </View>
               <Text
-                className={`text-sm font-semibold ${tx.direction === 'credit' ? 'text-money-positive' : 'text-money-negative'}`}
+                className={`text-sm font-semibold ${tx.amount >= 0 ? 'text-money-positive' : 'text-money-negative'}`}
               >
-                {tx.direction === 'credit' ? '+' : '-'}£{Math.abs(parseFloat(tx.amount)).toFixed(2)}
+                {tx.amount >= 0 ? '+' : '-'}£{Math.abs(tx.amount).toFixed(2)}
               </Text>
             </View>
           ))
