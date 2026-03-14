@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 import type { HealthCheck, AgentResponse, ConfirmResponse, ChatRequest } from '@agentic-bank/shared';
-import { parseSSEStream, type SSEEvent } from './streaming';
+import { streamSSE, type SSEEvent } from './streaming';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
 
@@ -122,7 +122,7 @@ export async function* streamChatMessage(
   request: ChatRequest,
   signal?: AbortSignal,
 ): AsyncGenerator<SSEEvent> {
-  // Use a queue + resolve pattern so parseSSEStream (callback-based) can feed an AsyncGenerator
+  // Queue-based bridge: streamSSE (callback) → AsyncGenerator
   const queue: SSEEvent[] = [];
   let resolveNext: (() => void) | null = null;
   let streamDone = false;
@@ -130,6 +130,16 @@ export async function* streamChatMessage(
 
   function enqueue(event: SSEEvent): void {
     queue.push(event);
+    if (resolveNext) {
+      const r = resolveNext;
+      resolveNext = null;
+      r();
+    }
+  }
+
+  function signal_done(err?: Error): void {
+    if (err) streamError = err;
+    streamDone = true;
     if (resolveNext) {
       const r = resolveNext;
       resolveNext = null;
@@ -145,77 +155,23 @@ export async function* streamChatMessage(
       throw new Error('Not authenticated');
     }
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), STREAM_TIMEOUT_MS);
+    const url = `${API_URL}/api/chat/stream`;
+    const body = JSON.stringify(request);
 
-    // Merge caller's signal with our timeout signal
-    const combinedSignal = signal
-      ? (AbortSignal as any).any
-        ? (AbortSignal as any).any([signal, controller.signal])
-        : controller.signal
-      : controller.signal;
-
-    let response: Response;
     try {
-      response = await fetch(`${API_URL}/api/chat/stream`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(request),
-        signal: combinedSignal,
-      });
-    } catch (err) {
-      clearTimeout(timeout);
-      throw err;
-    }
-
-    if (response.status === 401) {
-      clearTimeout(timeout);
-      // Refresh once and retry
-      const refreshedHeaders = await refreshAndRetry();
-      const retryController = new AbortController();
-      const retryTimeout = setTimeout(() => retryController.abort(), STREAM_TIMEOUT_MS);
-      try {
-        response = await fetch(`${API_URL}/api/chat/stream`, {
-          method: 'POST',
-          headers: refreshedHeaders,
-          body: JSON.stringify(request),
-          signal: retryController.signal,
-        });
-      } finally {
-        clearTimeout(retryTimeout);
+      await streamSSE(url, headers, body, enqueue, signal);
+    } catch (err: any) {
+      // 401 — refresh token and retry once
+      if (err?.message === 'AUTH_EXPIRED') {
+        const refreshedHeaders = await refreshAndRetry();
+        await streamSSE(url, refreshedHeaders, body, enqueue, signal);
+      } else {
+        throw err;
       }
-    }
-
-    if (!response.ok) {
-      clearTimeout(timeout);
-      const errorBody = await response.text();
-      throw new Error(`API error ${response.status}: ${errorBody}`);
-    }
-
-    try {
-      await parseSSEStream(response, enqueue, combinedSignal);
-    } finally {
-      clearTimeout(timeout);
     }
   }
 
-  // Run the stream in the background, signalling done/error when finished
-  runStream().then(() => {
-    streamDone = true;
-    if (resolveNext) {
-      const r = resolveNext;
-      resolveNext = null;
-      r();
-    }
-  }).catch((err: Error) => {
-    streamError = err;
-    streamDone = true;
-    if (resolveNext) {
-      const r = resolveNext;
-      resolveNext = null;
-      r();
-    }
-  });
+  runStream().then(() => signal_done()).catch((err: Error) => signal_done(err));
 
   // Yield events as they arrive
   while (true) {
@@ -225,10 +181,7 @@ export async function* streamChatMessage(
       if (streamError) throw streamError;
       return;
     } else {
-      // Wait for next event or completion
-      await new Promise<void>((resolve) => {
-        resolveNext = resolve;
-      });
+      await new Promise<void>((resolve) => { resolveNext = resolve; });
     }
   }
 }

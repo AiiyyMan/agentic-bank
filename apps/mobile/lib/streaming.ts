@@ -1,7 +1,10 @@
 /**
  * SSE stream consumer for POST /api/chat/stream
  *
- * Parses the text/event-stream protocol used by the chat-stream endpoint.
+ * Uses XMLHttpRequest + onprogress instead of fetch + ReadableStream.
+ * response.body is not reliably available in React Native / Hermes —
+ * XHR onprogress delivers incremental chunks in all RN versions.
+ *
  * Events: thinking | token | tool_use | tool_result | ui_components | data_changed | done | error | ping
  */
 
@@ -19,43 +22,48 @@ export type SSEEvent =
 type SSEHandler = (event: SSEEvent) => void;
 
 /**
- * Parse an SSE text/event-stream response body.
- *
- * Calls `onEvent` for each complete event parsed from the stream.
+ * POST to a text/event-stream endpoint and deliver events via onEvent.
+ * Uses XHR onprogress for incremental delivery — fully supported in React Native.
  * Resolves when the stream ends or `data: [DONE]` is received.
  */
-export async function parseSSEStream(
-  response: Response,
+export function streamSSE(
+  url: string,
+  headers: Record<string, string>,
+  body: string,
   onEvent: SSEHandler,
   signal?: AbortSignal,
 ): Promise<void> {
-  const reader = response.body?.getReader();
-  if (!reader) throw new Error('Response body is not readable');
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', url, true);
 
-  const decoder = new TextDecoder();
-  let buffer = '';
-  let currentEvent = '';
+    Object.entries(headers).forEach(([k, v]) => xhr.setRequestHeader(k, v));
+    xhr.setRequestHeader('Accept', 'text/event-stream');
+    xhr.setRequestHeader('Cache-Control', 'no-cache');
 
-  try {
-    while (true) {
-      if (signal?.aborted) break;
+    let processedLength = 0;
+    let buffer = '';
+    let currentEvent = '';
+    let settled = false;
 
-      const { done, value } = await reader.read();
-      if (done) break;
+    function settle(err?: Error): void {
+      if (settled) return;
+      settled = true;
+      if (err) reject(err);
+      else resolve();
+    }
 
-      buffer += decoder.decode(value, { stream: true });
-
-      // Process complete lines
+    function processChunk(chunk: string): boolean {
+      buffer += chunk;
       const lines = buffer.split('\n');
-      buffer = lines.pop() ?? ''; // Keep incomplete last line
+      buffer = lines.pop() ?? '';
 
       for (const line of lines) {
         if (line.startsWith('event: ')) {
           currentEvent = line.slice(7).trim();
         } else if (line.startsWith('data: ')) {
           const rawData = line.slice(6).trim();
-          if (rawData === '[DONE]') return;
-
+          if (rawData === '[DONE]') return true;
           try {
             const data = JSON.parse(rawData);
             if (currentEvent) {
@@ -66,12 +74,49 @@ export async function parseSSEStream(
             // Malformed JSON — skip
           }
         } else if (line === '') {
-          // Empty line resets event type
           currentEvent = '';
         }
       }
+      return false;
     }
-  } finally {
-    reader.releaseLock();
-  }
+
+    xhr.onprogress = () => {
+      if (settled || signal?.aborted) return;
+      const newText = xhr.responseText.substring(processedLength);
+      processedLength = xhr.responseText.length;
+      if (newText && processChunk(newText)) {
+        xhr.abort();
+        settle();
+      }
+    };
+
+    xhr.onload = () => {
+      if (settled) return;
+      if (xhr.status === 401) {
+        settle(new Error('AUTH_EXPIRED'));
+        return;
+      }
+      if (xhr.status < 200 || xhr.status >= 300) {
+        settle(new Error(`API error ${xhr.status}: ${xhr.responseText}`));
+        return;
+      }
+      // Process any remaining bytes
+      const remaining = xhr.responseText.substring(processedLength);
+      if (remaining) processChunk(remaining);
+      settle();
+    };
+
+    xhr.onerror = () => settle(new Error('Network request failed'));
+    xhr.ontimeout = () => settle(new Error('Request timed out'));
+
+    xhr.timeout = 60_000;
+
+    if (signal) {
+      signal.addEventListener('abort', () => {
+        if (!settled) xhr.abort();
+      });
+    }
+
+    xhr.send(body);
+  });
 }

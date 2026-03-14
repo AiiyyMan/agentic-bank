@@ -58,9 +58,13 @@ export function ChatInput({ onSend, disabled = false, placeholder = 'Message you
           className={`w-10 h-10 rounded-full items-center justify-center ${
             canSend ? 'bg-brand-default' : 'bg-surface-raised'
           }`}
-          style={{ marginBottom: 2 }}
+          style={{
+            marginBottom: 2,
+            borderWidth: canSend ? 0 : 1,
+            borderColor: t.border.default,
+          }}
         >
-          <Text className={`text-lg ${canSend ? 'text-text-inverse' : 'text-text-disabled'}`}>
+          <Text className={`text-lg ${canSend ? 'text-text-inverse' : 'text-text-tertiary'}`}>
             ↑
           </Text>
         </TouchableOpacity>
