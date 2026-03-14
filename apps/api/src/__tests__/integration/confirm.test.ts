@@ -4,6 +4,21 @@ import { createMockUser, createMockPendingAction, injectAuth, injectUnauth } fro
 
 const mockUser = createMockUser();
 
+// Banking adapter mock — used to verify that tool handlers actually execute
+const mockAdapter = vi.hoisted(() => ({
+  getBalance: vi.fn().mockResolvedValue({ balance: 1200, currency: 'GBP', account_name: 'Main', account_number_masked: '****1234', status: 'open' }),
+  listAccounts: vi.fn().mockResolvedValue([]),
+  listPayees: vi.fn().mockResolvedValue([]),
+  createPayee: vi.fn().mockResolvedValue({ id: 'ben-1', name: 'Alice', status: 'active' }),
+  createPayment: vi.fn().mockResolvedValue({ payment_id: 'pay-001', status: 'accepted' }),
+  creditAccount: vi.fn().mockResolvedValue(undefined),
+  healthCheck: vi.fn().mockResolvedValue(true),
+}));
+
+vi.mock('../../adapters/index.js', () => ({
+  getBankingAdapter: vi.fn(() => mockAdapter),
+}));
+
 // Mock Supabase
 const mockSupabaseFrom = vi.fn();
 const mockSupabaseAuth = {
@@ -71,10 +86,16 @@ function setupAuthMock() {
 
 function makeMockChain(singleData: any = null) {
   const chain: Record<string, any> = {};
-  for (const m of ['select', 'eq', 'single', 'update', 'insert', 'order']) {
+  for (const m of ['select','eq','neq','gte','lte','order','limit','range','match',
+                   'upsert','insert','update','delete','not','in','ilike']) {
     chain[m] = vi.fn().mockReturnValue(chain);
   }
   chain.single = vi.fn().mockResolvedValue({ data: singleData, error: singleData ? null : { message: 'not found' } });
+  // Thenable: for direct await (upsert, insert, update without .single())
+  Object.defineProperty(chain, 'then', {
+    get: () => (resolve: any) => resolve({ data: singleData ? [singleData].flat() : [], error: null }),
+    configurable: true,
+  });
   return chain;
 }
 
@@ -90,27 +111,31 @@ afterAll(async () => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Restore adapter defaults after clearAllMocks
+  mockAdapter.createPayment.mockResolvedValue({ payment_id: 'pay-001', status: 'accepted' });
+  mockAdapter.getBalance.mockResolvedValue({ balance: 1200, currency: 'GBP', account_name: 'Main', account_number_masked: '****1234', status: 'open' });
 });
 
 describe('POST /api/confirm/:actionId', () => {
-  it('succeeds for a pending action', async () => {
+  it('succeeds and executes the tool handler (adapter.createPayment called)', async () => {
     setupAuthMock();
     const action = createMockPendingAction();
+    const BEN_UUID = 'a0000000-0000-0000-0000-000000000001';
 
     let pendingActionsCallCount = 0;
     mockSupabaseFrom.mockImplementation((table: string) => {
-      if (table === 'profiles') {
-        return makeMockChain(mockUser);
-      }
+      if (table === 'profiles') return makeMockChain(mockUser);
       if (table === 'pending_actions') {
         pendingActionsCallCount++;
-        if (pendingActionsCallCount === 1) {
-          return makeMockChain(action);
-        }
-        // Atomic confirm
+        if (pendingActionsCallCount === 1) return makeMockChain(action);
         return makeMockChain({ ...action, status: 'confirmed' });
       }
-      return makeMockChain(null);
+      if (table === 'beneficiaries') {
+        // UUID lookup for send_payment handler
+        return makeMockChain({ id: BEN_UUID, name: 'Alice' });
+      }
+      // transactions upsert, audit_log, etc. — silent passthrough
+      return makeMockChain({ id: 'stub' });
     });
 
     const res = await injectAuth(app, 'POST', '/api/confirm/action-test-123');
@@ -118,6 +143,16 @@ describe('POST /api/confirm/:actionId', () => {
 
     expect(res.statusCode).toBe(200);
     expect(body.success).toBe(true);
+
+    // Verify the handler actually executed — not just a DB status change
+    expect(mockAdapter.createPayment).toHaveBeenCalledOnce();
+    expect(mockAdapter.createPayment).toHaveBeenCalledWith(
+      mockUser.id,
+      BEN_UUID,
+      50,
+      undefined, // no reference in default mock action
+    );
+    expect(body.data.payment_id).toBe('pay-001');
   });
 
   it('returns 400 for non-existent action', async () => {

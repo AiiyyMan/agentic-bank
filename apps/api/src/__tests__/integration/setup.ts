@@ -21,7 +21,8 @@ export function createMockPendingAction(overrides: Record<string, unknown> = {})
     id: 'action-test-123',
     user_id: 'test-user-123',
     tool_name: 'send_payment',
-    params: { beneficiary_name: 'Alice', amount: 50 },
+    // beneficiary_id must be a valid UUID — required by tool-validation.ts send_payment spec
+    params: { beneficiary_id: 'a0000000-0000-0000-0000-000000000001', beneficiary_name: 'Alice', amount: 50 },
     status: 'pending',
     idempotency_key: 'test-key',
     expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
