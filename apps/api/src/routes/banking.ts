@@ -20,8 +20,9 @@ export const bankingRoutes: FastifyPluginAsync = async (app) => {
   // CB-12: Accounts
   // -----------------------------------------------------------------------
 
-  // GET /api/balance
-  app.get('/balance', {
+  // GET /api/balance[?account_id=<uuid>]
+  // account_id is accepted for forward-compatibility with multi-account; ignored in single-account POC.
+  app.get<{ Querystring: { account_id?: string } }>('/balance', {
     preHandler: authMiddleware,
   }, async (request, reply) => {
     const req = request as AuthenticatedRequest;
@@ -52,7 +53,7 @@ export const bankingRoutes: FastifyPluginAsync = async (app) => {
   // CB-13: Transactions
   // -----------------------------------------------------------------------
 
-  // GET /api/transactions
+  // GET /api/transactions[?account_id=<uuid>&limit=&offset=&category=&...]
   app.get<{
     Querystring: {
       limit?: string;
@@ -61,12 +62,13 @@ export const bankingRoutes: FastifyPluginAsync = async (app) => {
       start_date?: string;
       end_date?: string;
       merchant?: string;
+      account_id?: string;
     };
   }>('/transactions', {
     preHandler: authMiddleware,
   }, async (request, reply) => {
     const req = request as AuthenticatedRequest;
-    const { limit: limitStr, offset: offsetStr, category, start_date, end_date, merchant } = request.query;
+    const { limit: limitStr, offset: offsetStr, category, start_date, end_date, merchant, account_id } = request.query;
 
     const limit = Math.min(Math.max(Number(limitStr) || 10, 1), 50);
     const offset = Math.max(Number(offsetStr) || 0, 0);
@@ -76,6 +78,8 @@ export const bankingRoutes: FastifyPluginAsync = async (app) => {
         .from('transactions')
         .select('*', { count: 'exact' })
         .eq('user_id', req.userId);
+
+      if (account_id) query = query.eq('account_id', account_id);
 
       if (category) query = query.eq('primary_category', category);
       if (start_date) query = query.gte('posted_at', start_date);

@@ -305,12 +305,16 @@ export async function getLoanApplications(): Promise<any> {
 }
 
 // Direct banking endpoints (bypass agent loop)
-export async function getBalance(): Promise<any> {
-  return apiRequest('/api/balance');
+export async function getBalance(accountId?: string): Promise<any> {
+  const query = accountId && accountId !== 'main' ? `?account_id=${encodeURIComponent(accountId)}` : '';
+  return apiRequest(`/api/balance${query}`);
 }
 
-export async function getTransactions(limit?: number): Promise<any> {
-  const query = limit ? `?limit=${limit}` : '';
+export async function getTransactions(limit?: number, accountId?: string): Promise<any> {
+  const params = new URLSearchParams();
+  if (limit) params.set('limit', String(limit));
+  if (accountId && accountId !== 'main') params.set('account_id', accountId);
+  const query = params.toString() ? `?${params.toString()}` : '';
   return apiRequest(`/api/transactions${query}`);
 }
 

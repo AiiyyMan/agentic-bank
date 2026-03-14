@@ -1,17 +1,15 @@
-import { useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
-  Clipboard,
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { router, useLocalSearchParams } from 'expo-router';
 import { getBalance, getTransactions } from '../../lib/api';
-import { TransactionRow } from '../../components/banking/TransactionRow';
-import { DateGroupHeader } from '../../components/banking/DateGroupHeader';
 import { useTokens } from '../../theme/tokens';
 
 interface AccountDetail {
@@ -23,12 +21,13 @@ interface AccountDetail {
 }
 
 interface Transaction {
-  amount: string;
-  currency: string;
-  direction: 'credit' | 'debit';
-  type: string;
-  date: string;
-  primary_category?: string;
+  id: string;
+  merchant_name: string | null;
+  amount: number;
+  primary_category: string | null;
+  category_icon: string | null;
+  posted_at: string;
+  reference: string | null;
 }
 
 function formatSortCode(raw: string): string {
@@ -42,12 +41,12 @@ function formatSortCode(raw: string): string {
 function groupByDate(transactions: Transaction[]): { date: string; items: Transaction[] }[] {
   const groups: Record<string, Transaction[]> = {};
   for (const tx of transactions) {
-    const day = new Date(tx.date).toDateString();
+    const day = new Date(tx.posted_at).toDateString();
     if (!groups[day]) groups[day] = [];
     groups[day].push(tx);
   }
   return Object.entries(groups).map(([, items]) => ({
-    date: items[0].date,
+    date: items[0].posted_at,
     items,
   }));
 }
@@ -64,8 +63,8 @@ export default function AccountDetailScreen() {
   const loadData = useCallback(async () => {
     try {
       const [balanceRes, txRes] = await Promise.allSettled([
-        getBalance(),
-        getTransactions(10),
+        getBalance(id),
+        getTransactions(10, id),
       ]);
 
       if (balanceRes.status === 'fulfilled') {
@@ -83,17 +82,17 @@ export default function AccountDetailScreen() {
     }
   }, [id]);
 
-  useState(() => {
+  useEffect(() => {
     loadData();
-  });
+  }, [loadData]);
 
   const onRefresh = () => {
     setRefreshing(true);
     loadData();
   };
 
-  const copyToClipboard = (value: string, field: string) => {
-    Clipboard.setString(value);
+  const copyToClipboard = async (value: string, field: string) => {
+    await Clipboard.setStringAsync(value);
     setCopiedField(field);
     setTimeout(() => setCopiedField(null), 2000);
   };
@@ -186,17 +185,23 @@ export default function AccountDetailScreen() {
         ) : (
           groups.map((group, gi) => (
             <View key={gi}>
-              <DateGroupHeader date={group.date} />
+              <Text className="text-text-tertiary text-xs font-semibold uppercase py-2">
+                {new Date(group.date).toLocaleDateString('en-GB', { weekday: 'long', month: 'short', day: 'numeric' })}
+              </Text>
               {group.items.map((tx, ti) => (
-                <TransactionRow
-                  key={`${gi}-${ti}`}
-                  amount={tx.amount}
-                  currency={tx.currency}
-                  direction={tx.direction}
-                  type={tx.type}
-                  date={tx.date}
-                  primary_category={tx.primary_category}
-                />
+                <View key={`${gi}-${ti}`} className="flex-row justify-between items-center bg-surface-primary border border-border-primary rounded-lg p-3.5 mb-1.5">
+                  <View className="flex-1 mr-2">
+                    <Text className="text-text-primary text-sm" numberOfLines={1}>
+                      {tx.merchant_name || tx.reference || tx.primary_category || 'Transaction'}
+                    </Text>
+                    <Text className="text-text-tertiary text-xs mt-0.5">
+                      {new Date(tx.posted_at).toLocaleDateString('en-GB')}
+                    </Text>
+                  </View>
+                  <Text className={`text-sm font-semibold ${tx.amount >= 0 ? 'text-money-positive' : 'text-money-negative'}`}>
+                    {tx.amount >= 0 ? '+' : ''}£{Math.abs(tx.amount).toFixed(2)}
+                  </Text>
+                </View>
               ))}
             </View>
           ))
