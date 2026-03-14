@@ -31,9 +31,11 @@ interface UIComponentRendererProps {
   components: UIComponent[];
   onRefresh?: () => void;
   onQuickReply?: (value: string) => void;
+  onSignIn?: () => void;
+  onTellMeMore?: () => void;
 }
 
-export function UIComponentRenderer({ components, onRefresh, onQuickReply }: UIComponentRendererProps) {
+export function UIComponentRenderer({ components, onRefresh, onQuickReply, onSignIn, onTellMeMore }: UIComponentRendererProps) {
   return (
     <View>
       {components.map((component, index) => {
@@ -138,9 +140,9 @@ export function UIComponentRenderer({ components, onRefresh, onQuickReply }: UIC
             return (
               <WelcomeCard
                 key={index}
-                displayName={data.display_name || data.displayName || ''}
-                greeting={data.greeting || ''}
                 onAction={onQuickReply}
+                onSignIn={onSignIn}
+                onTellMeMore={onTellMeMore}
               />
             );
 

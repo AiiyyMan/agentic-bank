@@ -6,9 +6,11 @@ interface MessageBubbleProps {
   message: ChatMessage;
   onQuickReply?: (value: string) => void;
   onRefresh?: () => void;
+  onSignIn?: () => void;
+  onTellMeMore?: () => void;
 }
 
-export function MessageBubble({ message, onQuickReply, onRefresh }: MessageBubbleProps) {
+export function MessageBubble({ message, onQuickReply, onRefresh, onSignIn, onTellMeMore }: MessageBubbleProps) {
   const isUser = message.role === 'user';
 
   return (
@@ -39,6 +41,8 @@ export function MessageBubble({ message, onQuickReply, onRefresh }: MessageBubbl
             components={message.ui_components}
             onQuickReply={onQuickReply}
             onRefresh={onRefresh}
+            onSignIn={onSignIn}
+            onTellMeMore={onTellMeMore}
           />
         </View>
       )}

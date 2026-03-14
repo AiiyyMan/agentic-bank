@@ -64,7 +64,9 @@ export default function ChatScreen() {
       for await (const event of stream) {
         if (controller.signal.aborted) break;
 
-        if (event.event === 'token') {
+        if (event.event === 'thinking') {
+          setStatus('thinking', 'Thinking...');
+        } else if (event.event === 'token') {
           const token = (event.data as { text: string }).text;
           accumulatedText += token;
           appendToken(messageId, token);
@@ -245,6 +247,8 @@ export default function ChatScreen() {
           <MessageBubble
             message={item}
             onQuickReply={sendMessage}
+            onSignIn={() => router.push('/(auth)/login')}
+            onTellMeMore={() => sendMessage('Tell me more')}
           />
         )}
         inverted
