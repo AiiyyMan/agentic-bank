@@ -30,7 +30,7 @@ export async function notifyPaymentSent(
   try {
     // Dynamic import to avoid top-level module resolution errors in test environments
     const { Knock } = await import('@knocklabs/node');
-    const knock = new Knock(apiKey);
+    const knock = new Knock({ apiKey });
 
     await knock.workflows.trigger('payment_sent', {
       recipients: [userId],

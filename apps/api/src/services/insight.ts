@@ -350,7 +350,7 @@ export class InsightService {
           priority: 2,
           title: `${formatCategory(spike.category)} spending is up`,
           message: `You've spent £${spike.current_amount.toFixed(2)} on ${formatCategory(spike.category).toLowerCase()} this month — ${spike.percent_increase}% more than your usual £${spike.average_amount.toFixed(2)}.`,
-          data: spike,
+          data: spike as unknown as Record<string, unknown>,
           quick_replies: [
             { label: 'Show transactions', value: `Show me my ${formatCategory(spike.category).toLowerCase()} transactions` },
             { label: 'Set a budget', value: `Help me budget for ${formatCategory(spike.category).toLowerCase()}` },
@@ -370,7 +370,7 @@ export class InsightService {
           priority: 1,
           title: `${bill.merchant_name} payment due`,
           message: `£${bill.amount.toFixed(2)} expected on ${formatDate(bill.expected_date)}.`,
-          data: bill,
+          data: bill as unknown as Record<string, unknown>,
           quick_replies: [
             { label: 'Check balance', value: 'What\'s my balance?' },
           ],
@@ -428,7 +428,7 @@ export class InsightService {
             priority: 3,
             title: 'Last week\'s spending',
             message: `You spent £${weekly.total_spent.toFixed(2)} last week — ${Math.abs(weekly.comparison.change_percent)}% ${dir} than the week before.`,
-            data: weekly,
+            data: weekly as unknown as Record<string, unknown>,
             quick_replies: [
               { label: 'Show breakdown', value: 'Show my spending breakdown for last week' },
             ],

@@ -16,7 +16,7 @@ import { StandingOrderService } from '../services/standing-order.js';
 import type { UserProfile, ToolError } from '@agentic-bank/shared';
 import { READ_ONLY_TOOLS, WRITE_TOOLS, ONBOARDING_IMMEDIATE_TOOLS } from './definitions.js';
 
-type ToolResult = Record<string, unknown>;
+type ToolResult = Record<string, any>;
 
 // Handle a tool call from Claude
 export async function handleToolCall(
