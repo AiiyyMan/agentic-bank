@@ -2,10 +2,11 @@
  * SSE stream consumer for POST /api/chat/stream
  *
  * Parses the text/event-stream protocol used by the chat-stream endpoint.
- * Events: token | tool_use | tool_result | ui_components | data_changed | done | error | ping
+ * Events: thinking | token | tool_use | tool_result | ui_components | data_changed | done | error | ping
  */
 
 export type SSEEvent =
+  | { event: 'thinking'; data: { ts: number } }
   | { event: 'token'; data: { text: string; index?: number } }
   | { event: 'tool_use'; data: { id: string; name: string; input: unknown } }
   | { event: 'tool_result'; data: { tool: string; success: boolean } }
