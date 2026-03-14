@@ -214,37 +214,52 @@ export class InsightService {
   }
 
   /**
-   * EXN-04: Detect spending spikes (category > 1.5x 30-day average).
+   * EXN-04: Detect spending spikes — Monzo-style rolling window approach.
+   *
+   * Compares actual spend in the last 30 days against actual spend in the
+   * prior 30-day period (30–60 days ago). No extrapolation — both windows
+   * are complete, so early-month false spikes are eliminated.
+   *
+   * Threshold: 1.8x (higher than naive extrapolation since we compare real
+   * amounts, not projections). Noise guards: £10 minimum, 2+ transactions.
    */
   async detectSpendingSpikes(userId: string): Promise<SpendingSpike[]> {
-    const averages = await this.computeCategoryAverages(userId);
-    if (averages.length === 0) return [];
-
-    // Current month spending
     const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const daysIntoMonth = Math.max(1, Math.floor((now.getTime() - monthStart.getTime()) / (1000 * 60 * 60 * 24)));
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
 
-    const currentBreakdown = await this.getSpendingByCategory(userId, {
-      start_date: monthStart.toISOString(),
+    // Current window: last 30 days (actual, no projection)
+    const current = await this.getSpendingByCategory(userId, {
+      start_date: thirtyDaysAgo.toISOString(),
       end_date: now.toISOString(),
     });
 
+    // Baseline window: prior 30 days (30–60 days ago)
+    const baseline = await this.getSpendingByCategory(userId, {
+      start_date: sixtyDaysAgo.toISOString(),
+      end_date: thirtyDaysAgo.toISOString(),
+    });
+
+    if (baseline.total_spent === 0) return []; // Not enough history
+
+    const baselineMap = new Map(baseline.categories.map(c => [c.category, c]));
     const spikes: SpendingSpike[] = [];
 
-    for (const cat of currentBreakdown.categories) {
-      const avg = averages.find(a => a.category === cat.category);
-      if (!avg || avg.monthly_average <= 0) continue;
+    for (const cat of current.categories) {
+      // Noise guards: ignore trivial spend and single transactions
+      if (cat.amount < 10) continue;
+      if (cat.transaction_count < 2) continue;
 
-      // Extrapolate current spending to full month
-      const projectedMonthly = (cat.amount / daysIntoMonth) * 30;
-      const spikeRatio = projectedMonthly / avg.monthly_average;
+      const base = baselineMap.get(cat.category);
+      if (!base || base.amount <= 0) continue;
 
-      if (spikeRatio >= 1.5) {
+      const spikeRatio = cat.amount / base.amount;
+
+      if (spikeRatio >= 1.8) {
         spikes.push({
           category: cat.category,
           current_amount: roundMoney(cat.amount),
-          average_amount: roundMoney(avg.monthly_average),
+          average_amount: roundMoney(base.amount),
           spike_ratio: roundMoney(spikeRatio),
           percent_increase: Math.round((spikeRatio - 1) * 100),
         });

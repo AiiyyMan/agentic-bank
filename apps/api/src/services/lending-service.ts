@@ -61,6 +61,12 @@ export interface EligibilityResult {
   apr: number;
   monthly_payment_estimate: number | null;
   decline_reason?: string;
+  slider_config?: {
+    min: number;
+    max: number;
+    step: number;
+    default: number;
+  };
 }
 
 export interface LoanScheduleEntry {
@@ -222,6 +228,12 @@ export class LendingService {
       max_amount: Math.round(maxAmount),
       apr,
       monthly_payment_estimate: monthlyPayment,
+      slider_config: {
+        min: 100,
+        max: Math.round(maxAmount),
+        step: 100,
+        default: Math.min(1000, Math.round(maxAmount)),
+      },
     };
   }
 
@@ -771,6 +783,17 @@ export class LendingService {
     const DEFAULT_PRODUCTS = [
       { id: 'personal-loan', name: 'Personal Loan', min_amount: 500, max_amount: 25000, interest_rate: 12.9, min_term_months: 6, max_term_months: 60 },
       { id: 'quick-cash', name: 'Quick Cash', min_amount: 100, max_amount: 2000, interest_rate: 19.9, min_term_months: 3, max_term_months: 12 },
+      {
+        id: 'home-improvement-loan',
+        name: 'Home Improvement Loan',
+        description: 'Improve your home with a competitive rate loan',
+        min_amount: 1000,
+        max_amount: 25000,
+        min_term_months: 12,
+        max_term_months: 60,
+        base_rate: 9.9,
+        features: ['No early repayment fees', 'Flexible terms 12-60 months', 'Decision in minutes'],
+      },
     ];
 
     const { data: products } = await this.supabase
@@ -826,27 +849,45 @@ export class LendingService {
       remaining: number;
       rate: number;
       monthly_payment: number;
+      term_months: number;
+      payments_made: number;
       next_payment_date: string | null;
+      payoff_date: string | null;
       status: string;
     }>;
     has_active_loans: boolean;
   }> {
     const { data: loans } = await this.supabase
       .from('loans')
-      .select('*')
+      .select('*, loan_payments(id, status)')
       .eq('user_id', userId)
       .eq('status', 'active');
 
     return {
-      loans: (loans || []).map((l: any) => ({
-        id: l.id,
-        principal: safeNum(l.principal),
-        remaining: safeNum(l.balance_remaining),
-        rate: safeNum(l.interest_rate),
-        monthly_payment: safeNum(l.monthly_payment),
-        next_payment_date: l.next_payment_date,
-        status: l.status,
-      })),
+      loans: (loans || []).map((l: any) => {
+        const termMonths = l.term_months || 12;
+        const paymentsPaid = (l.loan_payments || []).filter((p: any) => p.status === 'paid').length;
+        // Compute payoff date: next_payment_date + remaining months
+        let payoffDate: string | null = null;
+        if (l.next_payment_date && termMonths > 0) {
+          const d = new Date(l.next_payment_date);
+          const remainingPayments = termMonths - paymentsPaid;
+          d.setMonth(d.getMonth() + Math.max(0, remainingPayments - 1));
+          payoffDate = d.toISOString().slice(0, 10);
+        }
+        return {
+          id: l.id,
+          principal: safeNum(l.principal),
+          remaining: safeNum(l.balance_remaining),
+          rate: safeNum(l.interest_rate),
+          monthly_payment: safeNum(l.monthly_payment),
+          term_months: termMonths,
+          payments_made: paymentsPaid,
+          next_payment_date: l.next_payment_date,
+          payoff_date: payoffDate,
+          status: l.status,
+        };
+      }),
       has_active_loans: (loans || []).length > 0,
     };
   }
