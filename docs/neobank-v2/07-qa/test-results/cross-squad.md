@@ -1,5 +1,64 @@
 # Cross-Squad Integration QA Report
 
+> **Phase 8 Cross-Squad Integration Testing** | QA Lead | 2026-03-14
+>
+> This document supersedes the 2026-03-13 cross-squad report. It reflects the Phase 8 regression state after all per-squad QA passes and the cross-squad integration fixes applied in this session.
+
+---
+
+## PHASE 8 UPDATE (2026-03-14)
+
+### Test Run Summary
+
+| Suite | Tests | Status |
+|-------|-------|--------|
+| API (`cd apps/api && npx vitest --run`) | **398 passed, 0 failed** | PASS |
+| Root TypeScript (`npx tsc --noEmit`) | **0 errors** | PASS |
+| Mobile TypeScript (`cd apps/mobile && npx tsc --noEmit`) | **0 errors** (3 fixed) | PASS (was FAIL) |
+
+### Bugs Fixed in This Pass
+
+| Bug ID | Severity | Description | Fix |
+|--------|----------|-------------|-----|
+| BUG-EX-01 | P1 | SkeletonCard width type breaks Reanimated style | Changed `width` param type to `DimensionValue` in `SkeletonCard.tsx` |
+| BUG-EX-02 | P1 | register.tsx getPasswordStrength width type | Changed return type from `string` to `` `${number}%` `` |
+| BUG-EX-03 | P1 | expo-notifications missing type declarations | Added `apps/mobile/types/expo-notifications.d.ts` shim |
+| BUG-EX-17 | P3 | Tool progress labels use old namespaced names | Replaced entire label map with correct names matching `TOOL_PROGRESS` constant |
+| BUG-CB-M07 | P2 | £10k limit bypassed at tool validation layer | Added `amount > 10000` check to `send_payment` spec in `TOOL_PARAM_SPECS` |
+| BUG-CB-M08 | P2 | Chat payments not written to payments table | Added `payments` table insert in `executeWriteTool send_payment` |
+
+### Cross-Squad Integration Findings (Phase 8)
+
+**send_payment → ConfirmationCard contract:** PASS. All field keys align (`pending_action_id`, `summary`, `details`, `post_transaction_balance`). The `postTransactionBalance` prop type in ConfirmationCard is `string` but the API returns a `number` — works at runtime via string interpolation but is type-unsafe.
+
+**Agent loop: CB + LE tools in same conversation:** PASS. `BANKING_TOOLS` array includes all lending and core banking tools. `getAvailableTools(ONBOARDING_COMPLETE)` returns all tools in a single flat list — no cross-squad routing barriers.
+
+**UI component types: shared vs renderer:** PARTIAL GAP. `UIComponentType` in `packages/shared` has 19 entries; `UIComponentRenderer` handles 26 card types. All renderer types are covered by the shared union on recount; however `address_input_card` in shared has no renderer branch (falls to text fallback). Non-blocking for POC.
+
+**BUG-CB-M08 impact on get_payment_history:** CONFIRMED and FIXED. `executeWriteTool send_payment` previously never wrote to the `payments` table. `PaymentService.getPaymentHistory()` queries that table exclusively, so payment history was always empty after chat payments. Fix: added `payments` insert after `adapter.createPayment()` succeeds.
+
+**BUG-CB-M07 lending flow impact:** Minimal. The £10k limit only applies to `send_payment`, not lending tools. Lending uses separate `LendingService` branches. Fix: `validateToolParams` now rejects amounts > £10k before a ConfirmationCard is shown.
+
+**Security spot check:** All data routes require `authMiddleware` (Bearer JWT). The new `payments` insert correctly scopes to `user.id`. Beneficiary ownership verified before payment execution. No unprotected data endpoints found.
+
+### Remaining Open Bugs (Post-Phase-8)
+
+| Bug ID | Severity | Description | Owner |
+|--------|----------|-------------|-------|
+| BUG-EX-04 | P2 | ConfirmationCard missing expiry countdown | EX |
+| BUG-EX-05 | P2 | `thinking` SSE event never emitted | EX |
+| BUG-EX-13 | P3 | InsightCard drops `quick_replies` | EX |
+| BUG-CB-M06 | P2 | POT_LOCKED / BENEFICIARY_NOT_FOUND return 502 | CB |
+| BUG-CB-H03 | P1 | ConfirmationCard balance_after is stale | CB |
+| BUG-LE-09 | P2 | Amortisation rounding drift ~£0.02 | LE |
+| BUG-LE-10 | P3 | LoanStatusCard missing props from Loans screen | LE |
+
+**POC Demo Readiness: 9.0/10** — all P1 mobile TypeScript blockers resolved, critical payment data integrity bugs fixed.
+
+---
+
+## ORIGINAL REPORT (2026-03-13)
+
 > **Date:** 2026-03-13 | **QA Lead:** Claude Sonnet 4.6 | **Scope:** Integration points spanning CB / LE / EX squad boundaries
 
 ---
